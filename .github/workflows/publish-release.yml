@@ -83,7 +83,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "Dauntless Fenys ${{ steps.version.outputs.tag }} - Testes"
+          name: "Dauntless Launcher Ultimate ${{ steps.version.outputs.tag }} - Testes"
           prerelease: true
           draft: false
           make_latest: false
@@ -93,7 +93,7 @@ jobs:
             release-assets/*.AppImage
             release-assets/*.deb
           body: |
-            ## Dauntless Fenys — versão beta
+            ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
 
             **Windows:** instalador para testes com convite e conexão privada por Tailscale.
