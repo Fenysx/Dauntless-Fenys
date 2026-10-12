@@ -110,6 +110,23 @@ async function accountKey(){
  return readKeyFile(file);
 }
 
+async function playerOverview(){
+ const server=backendAddress();
+ const c=load();
+ const linked=c.accountFiles && c.accountFiles[server];
+ const local=parseServerAddress(server).local;
+ const file=linked&&fs.existsSync(linked) ? linked : (local ? c.gameKeyFile||path.join(friendKitDir(),'account.key') : null);
+ let key;
+ if(file&&fs.existsSync(file)){
+  try{key=readKeyFile(file);}catch{key=undefined;}
+ }
+ const data=await requestApi(server,'/undaunted/api/ServerStatus',key?{key}:{});
+ if(!data || !Array.isArray(data.players))throw new Error('A API não retornou a lista de jogadores.');
+ if(data.limited===true)return {limited:true,count:0,players:[],server};
+ const players=data.players.slice(0,100).filter(p=>p&&typeof p.name==='string')
+   .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
+ return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server};
+}
 function configureChat(server){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
@@ -201,6 +218,10 @@ app.whenReady().then(()=>{
  });
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('players:online',async()=>{
+  try{return {ok:true,data:await playerOverview()};}
+  catch(e){return {ok:false,error:e.message};}
+ });
  ipcMain.handle('server:status',()=>status());
  ipcMain.handle('server:start',()=>runLocked(startAll));
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
