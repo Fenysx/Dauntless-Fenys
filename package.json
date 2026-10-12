@@ -1,6 +1,6 @@
 {
   "name": "dauntless-fenys",
-  "version": "1.0.2",
+  "version": "1.0.3-beta.1",
   "private": true,
   "description": "Launcher comunitario do Dauntless Fenys",
   "main": "src/main.js",
