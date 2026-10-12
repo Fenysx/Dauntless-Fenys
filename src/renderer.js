@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
-const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
+const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',connect:'CONECTAR A UM SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
 function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
@@ -72,7 +72,7 @@ async function showVersion(){
  try{const version=await window.launcher.getVersion();$('app-version').textContent='FENYS • v'+version;$('top-version').textContent='LAUNCHER v'+version;}
  catch{$('app-version').textContent='FENYS • versão indisponível';}
 }
-function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;if(name==='invites')void refreshInvites();}
+function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;if(name==='invites')void refreshInvites();if(name==='connect')void showConnection();}
 for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>setScreen(node.dataset.screen));
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -91,12 +91,12 @@ $('invite-generate').addEventListener('click',async()=>{
  $('invite-code').value='';
  inviteMessage('Solicitando novo código ao Metagame…');
  try{
-  const r=await window.launcher.createInvite($('invite-name').value);
+  const r=await window.launcher.createInvite($('invite-name').value,$('invite-host').value);
   if(!r.ok)throw new Error(r.error||'Não foi possível gerar o convite.');
   $('invite-code').value=r.code;
   copy.disabled=false;
-  inviteMessage('Convite criado com sucesso! Copie o código e envie ao jogador. Ele pode ser utilizado uma vez.','success');
-  note('Convite de uso único criado; código não registrado no histórico.');
+  inviteMessage('Código Fenys criado! Copie e envie ao jogador. Ele contém um convite de uso único e o endereço do servidor.','success');
+  note('Código de conexão Fenys criado para '+r.server+'; o código completo não foi registrado no histórico.');
  }catch(e){
   inviteMessage('Falha ao gerar convite: '+e.message,'error');
   note('Falha ao gerar convite: '+e.message);
@@ -114,5 +114,93 @@ $('invite-copy').addEventListener('click',async()=>{
   inviteMessage('Código copiado! Envie apenas ao jogador convidado.','success');
  }catch(e){inviteMessage('Não foi possível copiar: '+e.message,'error');}
 });
+let lastPresenceServer=null;
+let lastPlayers=null;
+let connectedPlayer=null;
+async function showConnection(){
+ try{
+  const r=await window.launcher.getConnection();
+  $('connect-current-server').textContent=r.local?'Meu servidor local':r.server;
+  $('connect-current-description').textContent='Destino do botão Jogar Agora: '+r.server;
+  $('active-server').textContent='Servidor selecionado: '+r.server;
+ }catch(e){$('connect-current-server').textContent='Indisponível';$('connect-current-description').textContent=e.message;}
+}
+function setConnectionMessage(message,type=''){
+ const el=$('connect-message');el.textContent=message;el.className='invite-feedback'+(type?' is-'+type:'');
+}
+$('connect-submit').addEventListener('click',async()=>{
+ const code=$('connect-code').value.trim();
+ if(!code){setConnectionMessage('Cole primeiro o código completo enviado pelo anfitrião.','error');return;}
+ const btn=$('connect-submit');
+ btn.disabled=true;setConnectionMessage('Localizando servidor e conferindo sua conta de jogo…');
+ inviteStatusText('connect-state','Verificando…');
+ try{
+  const r=await window.launcher.joinServer(code);
+  if(!r.ok)throw new Error(r.error||'Não foi possível selecionar o servidor.');
+  connectedPlayer=r.username;lastPresenceServer=null;lastPlayers=null;
+  inviteStatusText('connect-state','Acesso autorizado','online');
+  $('connect-state-details').textContent='Conta '+r.username+' reconhecida no Metagame.';
+  setConnectionMessage('Servidor '+r.name+' selecionado! Sua conta '+r.username+' foi reconhecida. Clique em Jogar Agora para entrar no jogo.','success');
+  note('Servidor selecionado: '+r.name+'. A entrada em jogo será confirmada pela API.');
+  await showConnection();
+  void refreshPresence();
+ }catch(e){
+  inviteStatusText('connect-state','Não autorizado','warning');
+  $('connect-state-details').textContent='Nenhum servidor foi alterado.';
+  setConnectionMessage(e.message,'error');
+ }finally{btn.disabled=false;}
+});
+$('connect-home').addEventListener('click',async()=>{
+ const btn=$('connect-home');btn.disabled=true;
+ try{
+  const r=await window.launcher.goHome();
+  if(!r.ok)throw new Error(r.error||'Falha ao voltar.');
+  lastPresenceServer=null;lastPlayers=null;connectedPlayer=null;
+  inviteStatusText('connect-state','Servidor local','online');
+  $('connect-state-details').textContent='Destino restaurado para seu Metagame.';
+  setConnectionMessage('Seu servidor local foi selecionado.','success');
+  await showConnection();
+  void refreshPresence();
+ }catch(e){setConnectionMessage(e.message,'error');}
+ finally{btn.disabled=false;}
+});
+async function refreshPresence(){
+ try{
+  const r=await window.launcher.serverPresence();
+  if(!r.ok)throw new Error(r.error||'API indisponível');
+  if(lastPresenceServer!==r.server){lastPresenceServer=r.server;lastPlayers=null;}
+  const names=Array.isArray(r.players)?r.players:[];
+  if(r.limited){
+   $('connect-player-count').textContent='Privado';
+   $('connect-activity').textContent='O servidor não liberou a lista de jogadores para esta conta.';
+  }else{
+   $('connect-player-count').textContent=String(names.length);
+   if(lastPlayers!==null){
+    const entering=names.filter(name=>!lastPlayers.has(name));
+    for(const name of entering){
+     const msg='Jogador '+name+' entrou no servidor '+r.name+'.';
+     $('connect-activity').textContent='['+new Date().toLocaleTimeString('pt-BR')+'] '+msg+'\n'+$('connect-activity').textContent.slice(0,2000);
+     note(msg);
+     if(connectedPlayer===name){
+      inviteStatusText('connect-state','Dentro do servidor','online');
+      $('connect-state-details').textContent='Entrada de '+name+' confirmada pelo Metagame.';
+      setConnectionMessage('Você entrou no servidor '+r.name+'!','success');
+     }
+    }
+   }else{
+    $('connect-activity').textContent=names.length?('Jogadores conectados: '+names.join(', ')):'Nenhum jogador online no momento.';
+    if(connectedPlayer&&names.includes(connectedPlayer)){
+     inviteStatusText('connect-state','Dentro do servidor','online');
+     $('connect-state-details').textContent='Entrada de '+connectedPlayer+' confirmada pelo Metagame.';
+     setConnectionMessage('Você entrou no servidor '+r.name+'!','success');
+    }
+   }
+   lastPlayers=new Set(names);
+  }
+ }catch{
+  $('connect-player-count').textContent='—';
+  lastPlayers=null;
+ }
+}
 window.launcher.onActivity(note);
-settings();refresh();showVersion();setInterval(()=>{if(!operating)void refresh();},10000);
+settings();refresh();showVersion();showConnection();void refreshPresence();setInterval(()=>{if(!operating)void refresh();},10000);setInterval(()=>{if(!operating)void refreshPresence();},15000);
