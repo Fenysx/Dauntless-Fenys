@@ -10,3 +10,6 @@ Project lineage and technical credits:
 - Upstream notices: https://github.com/mixutin/dauntless-revived/blob/dauntless-revived/NOTICE.md
 
 The repository's applicable source code is offered under AGPL-3.0-only. Preserve existing copyright notices and applicable third-party licenses when incorporating upstream files. The upstream project and its contributors retain their respective rights.
+
+
+The Metagame schema fixture in test/fixtures/metagame-schema.sql combines the upstream Drizzle migrations at commit 29477558148a9db66cd1134a5c3df8bea7f9bea5, under the upstream AGPL-3.0-only license.

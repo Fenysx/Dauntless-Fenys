@@ -36,3 +36,8 @@
 .password-dialog{position:fixed;inset:0;z-index:15;display:flex;justify-content:center;align-items:center;background:#000b}
 .password-dialog .panel{width:min(460px,92vw);display:grid;gap:12px}
 @media(max-width:780px){.auth-overlay{padding:16px}.auth-card{padding:20px}.global-feedback{margin:10px 16px 0}}
+
+
+#screen-connection textarea, #screen-connection select {width:100%;background:#111520;border:1px solid #303749;color:#eef1fa;border-radius:10px;padding:12px;font:inherit;box-sizing:border-box;}
+#screen-connection textarea {resize:vertical;overflow-wrap:anywhere;}
+#connection-players:empty::after {content:'Nenhuma conexão recente pelo launcher.';color:#9aa5b6;}

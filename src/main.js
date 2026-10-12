@@ -9,7 +9,14 @@ const {parseServerAddress,requestApi,createInvite,registerPlayer,getAdminAccount
 const {revokePlayer}=require('./fenys-host-admin');
 const os=require('node:os');
 const {ProfileVault,checkUsername,checkPassword}=require('./fenys-profiles');
+const {RoamingClient,roamingRequest}=require('./fenys-roaming-client');
+const {tailscaleAddresses,installHost}=require('./fenys-host-setup');
+let roaming;
+let connectionBusy=false;
+let connectionCursor=null, connectionMonitorProfile=null,monitorBusy=false;
 let win;
+if(!app.requestSingleInstanceLock())app.exit(0);
+app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus();}});
 let vault;
 let activeGame=null;
 const owned=new Map();
@@ -96,7 +103,7 @@ async function verifyGame(dir){
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
  const current=vault?.current();
- if(current)return parseServerAddress(current.server).address;
+ if(current)return parseServerAddress(roaming?.state(current).server||current.server).address;
  const c=load();
  let raw=String(c.gameServer||'').trim();
  if(!raw){
@@ -127,12 +134,41 @@ function readKeyFile(file){
  return key;
 }
 
-async function accountKey(){
+async function originalAccountKey(){
  vault.requireLogin();
  if(!canProtectAccount())throw new Error('Proteção de credenciais indisponível.');
  const key=safeStorage.decryptString(vault.encryptedKey()).trim();
  if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Chave deste perfil inválida.');
  return key;
+}
+async function accountKey(){return roaming.key(vault.requireLogin(),await originalAccountKey());}
+function assertGameClosed(){if(activeGame&&activeGame.exitCode===null)throw new Error('Feche o jogo antes de trocar de servidor ou perfil.');}
+function connectionNote(message){if(win&&!win.isDestroyed())win.webContents.send('connection-activity',String(message));}
+async function connectionAction(fn){
+ if(connectionBusy||busy)throw new Error('Aguarde a operação atual.');
+ assertGameClosed();connectionBusy=true;
+ try{return await fn();}finally{connectionBusy=false;}
+}
+function hostApiAddress(me){const sv=parseServerAddress(me.server);return hostedOnThisPC(me.server)?'127.0.0.1:'+sv.port:sv.address;}
+async function monitorConnection(){
+ const me=vault?.current();if(!me||monitorBusy||connectionBusy)return;monitorBusy=true;
+ try{
+  if(connectionMonitorProfile!==me.id){connectionCursor=null;connectionMonitorProfile=me.id;}
+  const portable=await roaming.poll(me);
+  const ownHost=me.role==='admin'&&hostedOnThisPC(me.server);
+  if(portable&&(!ownHost||roaming.state(me).connected)){
+   for(const event of portable.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no servidor.':' saiu do servidor.'));
+  }
+  const data=ownHost?await roamingRequest(hostApiAddress(me),'events',{cursor:connectionCursor},await originalAccountKey()):portable;
+  if(data){
+   if(ownHost){
+    for(const event of data.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no seu servidor.':' saiu do seu servidor.'));
+    connectionCursor=data.cursor;
+   }
+   const presence=roaming.state(me).connected?portable?.players:data.players;
+   if(presence&&win&&!win.isDestroyed())win.webContents.send('connection-presence',presence);
+  }
+ }catch{}finally{monitorBusy=false;}
 }
 async function legacyAccountKey(){
  const c=load();
@@ -153,12 +189,13 @@ async function legacyAccountKey(){
 async function playerOverview(){
  const me=vault.requireLogin();
  const key=await accountKey();
- const data=await requestApi(me.server,'/undaunted/api/ServerStatus',{key});
+ const server=backendAddress();
+ const data=await requestApi(server,'/undaunted/api/ServerStatus',{key});
  if(!data || !Array.isArray(data.players))throw new Error('A API não retornou a lista de jogadores.');
- if(data.limited===true)return {limited:true,count:0,players:[],server:me.server};
+ if(data.limited===true)return {limited:true,count:0,players:[],server:backendAddress()};
  const players=data.players.slice(0,100).filter(p=>p&&typeof p.name==='string')
   .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
- return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server:me.server};
+ return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server:backendAddress()};
 }
 
 function configureChat(server){
@@ -197,18 +234,22 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
 
 app.whenReady().then(()=>{
  vault=new ProfileVault(path.join(app.getPath('userData'),'fenys-auth'));
+ roaming=new RoamingClient({directory:path.join(app.getPath('userData'),'personagens-portateis'),protect:value=>{
+  if(!canProtectAccount())throw Error('Proteção de progresso indisponível neste computador.');return safeStorage.encryptString(value);
+ },unprotect:value=>safeStorage.decryptString(value)});
  createWindow();
+ setInterval(()=>void monitorConnection(),10000).unref();
  const reply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e?.message||'Operação não concluída.'};}};
  function protect(key){
   if(!canProtectAccount())throw new Error('A proteção de credenciais do sistema está indisponível.');
   return safeStorage.encryptString(key);
  }
  ipcMain.handle('auth:state',()=>({current:vault.current(),profiles:vault.list()}));
- ipcMain.handle('auth:login',(_event,username,password)=>reply(async()=>({current:vault.login(username,password)})));
- ipcMain.handle('auth:logout',()=>{vault.logout();return {ok:true};});
+ ipcMain.handle('auth:login',(_event,username,password)=>reply(async()=>{assertGameClosed();if(connectionBusy)throw Error('Sincronização em andamento.');return {current:vault.login(username,password)};}));
+ ipcMain.handle('auth:logout',()=>reply(async()=>{assertGameClosed();if(connectionBusy)throw Error('Sincronização em andamento.');vault.logout();return {};}));
  ipcMain.handle('auth:reset',(_event,username,recoveryCode,newPassword)=>reply(async()=>vault.reset(username,recoveryCode,newPassword)));
  ipcMain.handle('auth:change',(_event,oldPassword,newPassword)=>reply(async()=>vault.changePassword(oldPassword,newPassword)));
- ipcMain.handle('auth:forgetLocal',(_event,password)=>reply(async()=>{vault.forgetLocalProfile(password);return {};}));
+ ipcMain.handle('auth:forgetLocal',(_event,password)=>reply(async()=>{assertGameClosed();if(roaming.read(vault.requireLogin()))throw Error('O perfil contém o único passaporte do personagem. Preserve-o para não perder acesso ao progresso.');vault.forgetLocalProfile(password);return {};}));
  ipcMain.handle('auth:import',(_event,username,password)=>reply(async()=>{
   checkUsername(username);checkPassword(password);
   if(vault.list().some(p=>p.username.toLowerCase()===String(username).trim().toLowerCase()))
@@ -231,6 +272,37 @@ app.whenReady().then(()=>{
   const key=await registerPlayer(server,username,inviteCode);
   return vault.create({username,password,role:'user',server,encryptedKey:protect(key)});
  }));
+ ipcMain.handle('connection:state',()=>reply(async()=>{const me=vault.requireLogin();return {...roaming.state(me),addresses:me.role==='admin'?tailscaleAddresses():[]};}));
+ ipcMain.handle('connection:install',(_event,address)=>reply(async()=>connectionAction(async()=>{
+  const me=vault.requireAdmin();
+  if(roaming.state(me).connected||roaming.state(me).pending)throw Error('Volte ao servidor original antes de ativar a API.');
+  if(!hostedOnThisPC(me.server))throw Error('Ative a API no computador que hospeda seu servidor original.');
+  await requestApi(me.server,'/undaunted/api/GetUserInfo',{key:await originalAccountKey()}).then(p=>{if(p.IsAdmin!==true)throw Error('Administrador não confirmado no servidor original.');});
+  const online=await requestApi(me.server,'/undaunted/api/ServerStatus',{key:await originalAccountKey()});
+  if(online.limited===true||!Array.isArray(online.players)||online.players.length)throw Error('Ative a API com todos os jogadores fora do servidor.');
+  if(owned.size===0)throw Error('Para ativar a API, inicie os serviços por este launcher. Serviços externos devem ser encerrados antes.');
+  await stopOwned();
+  if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Ainda há serviços ativos fora do launcher. Encerre-os antes de instalar.');
+  const result=await installHost(load().repoPath,address,notify);
+  await startAll();connectionNote('API de conexão instalada e servidor reiniciado.');return result;
+ })));
+ ipcMain.handle('connection:invite',(_event,address)=>reply(async()=>{
+  const me=vault.requireAdmin();
+  if(!hostedOnThisPC(me.server))throw Error('Gere o código no computador do servidor original.');
+  return roamingRequest(hostApiAddress(me),'invite',{address},await originalAccountKey());
+ }));
+ ipcMain.handle('connection:join',(_event,code)=>reply(async()=>connectionAction(async()=>{
+  const state=await roaming.connect(vault.requireLogin(),await originalAccountKey(),code);
+  connectionNote('Você entrou no servidor '+state.server+' com seu personagem e progresso.');return state;
+ })));
+ ipcMain.handle('connection:home',()=>reply(async()=>connectionAction(async()=>{
+  const state=await roaming.home(vault.requireLogin(),await originalAccountKey());
+  connectionNote('Progresso sincronizado. Você voltou ao servidor original.');return state;
+ })));
+ ipcMain.handle('connection:recover',()=>reply(async()=>connectionAction(async()=>{
+  const state=await roaming.recover(vault.requireLogin(),await originalAccountKey());
+  connectionNote('Sincronização recuperada.');return state;
+ })));
  ipcMain.handle('settings:get',()=>{
   const me=vault.current(),c=load();
   return {repoPath:me?.role==='admin'?c.repoPath:null,launcherExe:c.launcherExe,gameServer:backendAddress(),accountKeySelected:!!me,adminKeySelected:me?.role==='admin',role:me?.role||null};
@@ -282,6 +354,8 @@ app.whenReady().then(()=>{
  ipcMain.handle('server:restart',()=>runLocked(async()=>{vault.requireAdmin();if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
   const me=vault.requireLogin();
+  if(connectionBusy)throw Error('Aguarde a sincronização do personagem.');
+  if(roaming.state(me).portable&&!roaming.read(me).active)throw Error('Seu progresso está protegido no launcher. Volte ao servidor original ou conecte com um código antes de jogar.');
   if(process.platform!=='win32')throw new Error('O jogo no Linux ainda precisa de integração com Wine/Proton. O launcher Linux suporta as telas, não a execução do jogo.');
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
@@ -301,3 +375,4 @@ app.whenReady().then(()=>{
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
 app.on('before-quit',()=>{for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+

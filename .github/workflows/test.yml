@@ -3,7 +3,8 @@ name: Fenys - Testes da API
 on:
   push:
     branches:
-      - feat/convites-tailscale
+      - main
+      - feat/**
   pull_request:
     branches:
       - main
@@ -23,7 +24,7 @@ jobs:
       - name: Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
 
       - name: Instalar dependencias
@@ -31,10 +32,28 @@ jobs:
 
       - name: Conferir sintaxe
         run: |
-          node --check src/main.js
-          node --check src/fenys-api.js
-          node --check src/preload.js
-          node --check src/renderer.js
+          for file in src/*.js; do node --check "$file"; done
 
       - name: Rodar testes
         run: node --test test/*.test.js
+
+  metagame-integration:
+    name: Compilar e iniciar API no Metagame real
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Baixar Metagame compativel
+        uses: actions/checkout@v4
+        with:
+          repository: mixutin/dauntless-revived
+          ref: 29477558148a9db66cd1134a5c3df8bea7f9bea5
+          path: test-upstream
+      - name: Instalar dependencias do Metagame
+        run: npm ci
+        working-directory: test-upstream/UndauntedMetagame
+      - name: Compilar overlay e testar servidor real
+        run: node test/integration-host.cjs
+

@@ -75,6 +75,7 @@
     <nav class="side-nav" aria-label="Navegação principal">
       <button class="nav-item active" data-screen="dashboard"><span>◈</span> Visão geral</button>
       <button class="nav-item admin-only" data-screen="services"><span>▣</span> Central do servidor</button>
+      <button class="nav-item" data-screen="connection"><span>⇄</span> Conectar servidor</button>
       <button class="nav-item" data-screen="players"><span>♟</span> Jogadores online</button>
       <button class="nav-item admin-only" data-screen="invites"><span>✉</span> Convites</button>
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
@@ -131,6 +132,34 @@
         </article>
         <p class="notice">Amigos devem criar a conta na tela inicial do Fenys. Use <strong>Sair / Trocar perfil</strong> para cadastrar outra pessoa neste PC.</p>
       </section>
+      <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
+        <div class="page-title"><span class="kicker">JOGUE COM SEUS AMIGOS</span><h1>Conectar servidor</h1><p>Entre com o código do hospedeiro. Seu personagem, inventário e progresso acompanham você.</p></div>
+        <article class="panel">
+          <div class="panel-title"><h3>Meu personagem, em qualquer servidor Fenys</h3><span class="chip">PROGRESSO ÚNICO</span></div>
+          <p id="connection-state" class="form-status" role="status" aria-live="polite">Consultando sua conexão…</p>
+          <div class="form-preview">
+            <label for="connection-code">Código enviado pelo seu amigo</label>
+            <textarea id="connection-code" rows="3" maxlength="1024" placeholder="FENYS1.…" spellcheck="false"></textarea>
+            <div class="button-row"><button id="connection-join" class="btn btn-red">⇄ Entrar no servidor</button><button id="connection-home" class="btn btn-outline">Voltar ao meu servidor</button><button id="connection-recover" class="btn btn-outline">Recuperar sincronização</button></div>
+          </div>
+          <p class="notice">Feche o jogo antes de trocar de servidor. Após sair do jogo, a confirmação pode levar até 90 segundos. Se a conexão cair durante a troca, use Recuperar sincronização. Mantenha o launcher aberto enquanto joga.</p>
+          <p id="connection-message" class="form-status" role="status" aria-live="polite"></p>
+        </article>
+        <article class="panel fenys-panel-gap admin-only">
+          <div class="panel-title"><h3>Estou hospedando — convidar um amigo</h3><span class="chip">TAILSCALE</span></div>
+          <p class="panel-description">Ative a API uma vez, com todos fora do jogo. Depois gere um código de conexão e envie ao Ygor. O código vale por 15 minutos e permite uma entrada.</p>
+          <div class="form-preview">
+            <label for="connection-address">IP Tailscale deste computador</label>
+            <select id="connection-address"></select>
+            <div class="button-row"><button id="connection-install" class="btn btn-outline">Ativar API e configurar servidor</button><button id="connection-invite" class="btn btn-red">Gerar código de conexão</button></div>
+            <label for="connection-generated">Código para compartilhar</label>
+            <textarea id="connection-generated" rows="3" readonly placeholder="O código do seu servidor aparecerá aqui."></textarea>
+            <button id="connection-copy" class="btn btn-outline">Copiar código</button>
+          </div>
+          <p class="notice">A ativação salva uma cópia das configurações e reinicia os serviços. Os dois computadores precisam estar autorizados no Tailscale. Seu amigo deve ativar a mesma API no servidor de origem do personagem.</p>
+        </article>
+        <article class="panel fenys-panel-gap"><div class="panel-title"><h3>Conectados pelo launcher</h3></div><div id="connection-players" class="fenys-player-list"></div><p class="notice">Esta lista mostra conexões ao servidor pelo Fenys. A aba Jogadores online mostra quem está dentro do jogo.</p></article>
+      </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
         <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor Fenys.</p></div>
         <article class="panel settings">
@@ -147,7 +176,7 @@
           <div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div>
           <label>Executável do jogo Dauntless 1.4.4</label>
           <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
-          <p class="notice">No modo remoto, o Fenys não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
+          <p class="notice">Use Conectar servidor para entrar por código e manter seu progresso. No modo remoto, o Fenys não inicia serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
         </article>
       </section>
       <section class="screen" id="screen-activity" aria-label="Atividades" hidden><div class="page-title"><span class="kicker">DIAGNÓSTICO</span><h1>Atividades</h1><p>Mensagens e registros da sessão atual.</p></div><article class="panel"><div class="panel-title"><h3>Registro de execução</h3><button id="clear" class="btn btn-outline">Limpar</button></div><pre id="activity" class="activity-log">Aguardando ações…</pre></article></section>
@@ -158,3 +187,4 @@
 <script src="renderer.js"></script>
 </body>
 </html>
+
