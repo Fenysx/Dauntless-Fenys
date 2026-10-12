@@ -1,0 +1,13 @@
+{
+  "name": "dauntless-launcher-lite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Launcher local para Dauntless Revived",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}

@@ -1,0 +1,32 @@
+node_modules/
+dist/
+out/
+*.log
+.env
+*.key
+*.db
+*.sqlite
+
+# Backups locais
+src-backup/
+src-backup-*/
+*.bak
+
+# Configuracoes e credenciais privadas
+.env.*
+*.pem
+*.p12
+*.pfx
+*.sqlite3
+*.db-*
+*.sqlite-*
+
+# Arquivos compilados e instaladores
+*.exe
+*.dll
+*.zip
+*.7z
+*.rar
+
+# Arquivo temporario
+/npm
