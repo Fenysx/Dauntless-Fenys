@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('launcher',{
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
  setServer:address=>ipcRenderer.invoke('settings:setServer',address),
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
+ pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
  createInvite:name=>ipcRenderer.invoke('invites:create',name),
  register:(username,inviteCode)=>ipcRenderer.invoke('account:register',username,inviteCode),
  status:()=>ipcRenderer.invoke('server:status'),
