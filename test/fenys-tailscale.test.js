@@ -62,7 +62,9 @@ test('download com checksum errado, tamanho excessivo ou assinatura inválida n�
  assert.deepEqual(fs.readdirSync(dir),[]);
 });
 test('verificação Windows exige assinatura válida do publicador Tailscale e escapa caminho literal',async()=>{
- let script='';await verifyInstaller("C:\\Users\\O'Brien\\tailscale.exe",async(_file,args)=>{script=Buffer.from(args.at(-1),'base64').toString('utf16le');return 'verified\r\n';});
- assert.match(script,/Get-AuthenticodeSignature -LiteralPath/);assert.match(script,/O''Brien/);assert.match(script,/Status -ne 'Valid'/);assert.match(script,/O=Tailscale/);
+ let script='';await verifyInstaller("C:\\Users\\O'Brien\\tailscale.exe",async(_file,args)=>{script=Buffer.from(args.at(-1),'base64').toString('utf16le');return JSON.stringify({status:'Valid',publisher:'Tailscale Inc.'});});
+ assert.match(script,/Get-AuthenticodeSignature -LiteralPath/);assert.match(script,/O''Brien/);assert.match(script,/GetNameInfo/);
+ await verifyInstaller('C:\\file.exe',async()=>JSON.stringify({status:'Valid',publisher:'Tailscale, Inc.'}));
+ for(const info of [{status:'NotTrusted',publisher:'Tailscale Inc.'},{status:'Valid',publisher:'Another Company'},{status:'Valid',publisher:'Tailscale Inc. Fake'}])await assert.rejects(verifyInstaller('C:\\file.exe',async()=>JSON.stringify(info)),/não confirmada/);
  await assert.rejects(verifyInstaller('C:\\file.exe',async()=>''),/assinatura/);
 });

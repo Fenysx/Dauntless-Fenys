@@ -36,9 +36,9 @@ function powershell(script){return ['-NoProfile','-NonInteractive','-EncodedComm
 function psString(value){return "'"+String(value).replaceAll("'","''")+"'";}
 function powerExe(){return path.win32.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');}
 async function verifyInstaller(file,run=runCommand){
- const script="$s=Get-AuthenticodeSignature -LiteralPath "+psString(file)+"; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch '(?:^|,\\s*)O=Tailscale Inc\\.(?:,|$)'){exit 1}; Write-Output 'verified'";
- const output=await run(powerExe(),powershell(script),{timeout:30000});
- if(output.trim()!=='verified')throw Error('A assinatura do instalador Tailscale não foi confirmada.');
+ const script="$s=Get-AuthenticodeSignature -LiteralPath "+psString(file)+"; $p=if($s.SignerCertificate){$s.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName,$false)}else{''}; @{status=$s.Status.ToString();publisher=$p} | ConvertTo-Json -Compress";
+ let info;try{info=JSON.parse(await run(powerExe(),powershell(script),{timeout:30000}));}catch{throw Error('Não foi possível consultar a assinatura do instalador Tailscale.');}
+ if(info.status!=='Valid'||typeof info.publisher!=='string'||!/^Tailscale,? Inc\.?$/i.test(info.publisher))throw Error('Assinatura Tailscale não confirmada ('+String(info.status).slice(0,40)+'; '+String(info.publisher).slice(0,80)+').');
 }
 async function downloadInstaller(directory,{fetchImpl=fetch,verify=verifyInstaller,onProgress=()=>{},maxBytes=MAX_INSTALLER}={}){
  fs.mkdirSync(directory,{recursive:true,mode:0o700});
@@ -96,7 +96,7 @@ function createTailscale({platform=process.platform,find=()=>findCli(platform),r
     output=(output+String(d)).slice(-16000);
     const match=output.match(/"AuthURL"\s*:\s*("(?:[^"\\]|\\.)*")/);
     if(match&&!opened){opened=true;let url;try{url=authURL(JSON.parse(match[1]));}catch(e){child.kill();finish(e);return;}
-     Promise.resolve().then(()=>openExternal(url)).then(()=>finish(null,'Entre na sua conta Tailscale na janela do navegador. A conexão aparecerá automaticamente aqui.'),()=>finish(Error('Não foi possível abrir o navegador para entrar no Tailscale.')));
+     Promise.resolve().then(()=>openExternal(url)).then(()=>finish(null,'Entre na sua conta Tailscale na janela do navegador. A conexão aparecerá automaticamente aqui.'),()=>{child.kill();finish(Error('Não foi possível abrir o navegador para entrar no Tailscale.'));});
     }
    });
    // Never show CLI output, peer data or temporary authentication URLs in the activity log.
