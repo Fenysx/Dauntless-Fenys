@@ -22,7 +22,8 @@
       "output": "release"
     },
     "linux": {
-      "category": "Game"
+      "category": "Game",
+      "maintainer": "Comunidade"
     },
     "files": [
       "src/**/*",
