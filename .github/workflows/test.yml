@@ -54,6 +54,9 @@ jobs:
       - name: Instalar dependencias do Metagame
         run: npm ci
         working-directory: test-upstream/UndauntedMetagame
+      - name: Validar convite simples e conta do amigo no Metagame real
+        run: node test/integration-connection.cjs
+
       - name: Compilar overlay e testar servidor real
         run: node test/integration-host.cjs
 

@@ -70,17 +70,18 @@ test('todos os controles do renderer existem no HTML',()=>{
  const refs=[...js.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]);
  const missing=[...new Set(refs)].filter(id=>!ids.has(id));
  assert.deepEqual(missing,[]);
- assert.match(html,/data-auth-mode="register"/);
- assert.match(html,/id="profile-switch"/);
- assert.match(html,/id="admin-list"/);
+ assert.doesNotMatch(html,/data-auth-mode|id="login-pass"|id="profile-switch"/);
+ assert.match(html,/id="connection-join"/);
+ assert.match(html,/id="start"/);
 });
-test('IPC no processo principal exige admin em start stop restart e remove',()=>{
+test('controles locais abrem sem login; convites ainda usam a chave admin no Metagame',()=>{
  const src=fs.readFileSync(path.join(__dirname,'../src/main.js'),'utf8');
  for(const ipc of ['server:start','server:stop','server:restart']){
   const at=src.indexOf("ipcMain.handle('"+ipc+"'");
   assert.notEqual(at,-1,ipc);
-  assert.match(src.slice(at,at+250),/vault\.requireAdmin\(\)/,ipc);
+  assert.doesNotMatch(src.slice(at,at+250),/vault\.requireAdmin\(\)|requireLogin\(\)/,ipc);
  }
- assert.match(src,/ipcMain\.handle\('admin:remove'/);
- assert.match(src,/await assertOnlineAdmin\(\)/);
+ assert.doesNotMatch(src,/ipcMain\.handle\('auth:/);
+ assert.match(src,/await localAdminKey\(\)/);
 });
+

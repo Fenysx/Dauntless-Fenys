@@ -6,6 +6,8 @@ on:
     branches:
       - main
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -68,3 +70,4 @@ jobs:
             release/*.AppImage
             release/*.deb
           if-no-files-found: error
+
