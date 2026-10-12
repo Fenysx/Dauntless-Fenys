@@ -64,7 +64,7 @@ async function main(){
   await request(hostA,'POST','/character',owner,{characterId:owner.characterId,data:'{"Level":27}',updateVersion:2});
   await request(hostA,'POST','/friends/api/public/friends/'+owner.userId+'/'+hostA.player.userId,owner);
   await request(hostB,'POST','/friends/api/public/friends/'+hostA.player.userId+'/'+owner.userId,hostA.player);
-  await request(hostA,'POST','/guild',owner,{leader_account_id:owner.userId,name:'Fenys Global',nameplate:'FNXS'},true);
+  await request(hostA,'POST','/guild',owner,{leader_account_id:owner.userId,name:'FenysGlobal',nameplate:'FNXS'},true);
   const guildBefore=(await request(hostA,'GET','/guild',owner)).body;assert.ok(guildBefore.payload);
   process.env.DB_FILENAME=path.join(source.base,'global-test.db');Object.assign(process.env,envKeys);
   const trials=require(path.join(source.base,'dist/controllers/trials.js')),week=trials.TrialWeekAt(),trialId=trials.TrialIdForWeek(1,week);
