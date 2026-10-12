@@ -106,6 +106,50 @@ async function action(type){
  }catch(e){note(e.message,true);}
  finally{operating=false;for(const id of controls)$(id).disabled=false;await refresh();}
 }
+let adminNextOffset=0,adminBusy=false;
+async function loadAdminAccounts(append=false){
+ if(!me||me.role!=='admin'||adminBusy)return;
+ adminBusy=true;
+ const offset=append?adminNextOffset:0;
+ if(!append)$('admin-accounts').replaceChildren();
+ $('admin-list-message').textContent='Consultando cadastros no Metagame…';
+ try{
+  const result=await window.launcher.listAccounts(offset);
+  if(!result?.ok)throw new Error(result?.error||'Não foi possível listar jogadores.');
+  for(const p of result.accounts){
+   const line=document.createElement('div');line.className='fenys-player';
+   const col=document.createElement('div');
+   const title=document.createElement('strong');title.textContent=p.name;
+   const status=document.createElement('small');
+   status.textContent=p.admin?'Administrador':p.active?'Acesso ativo':'Acesso removido';
+   status.style.display='block';status.style.marginTop='5px';col.append(title,status);
+   const button=document.createElement('button');
+   button.className='btn btn-outline';
+   button.textContent='Remover acesso';
+   button.disabled=p.admin||!p.active;
+   button.addEventListener('click',async()=>{
+    const sure=window.confirm('ATENÇÃO: remover acesso de '+p.name+'?\nA chave será invalidada, mas o personagem e o progresso serão preservados.\nUma nova chave será necessária para reativar esta conta.');
+    if(!sure)return;
+    const typed=window.prompt('Para confirmar, digite exatamente o nome: '+p.name,'');
+    if(typed===null)return;
+    if(typed!==p.name){formNote('admin-list-message','Confirmação diferente do nome do jogador. Nenhuma alteração realizada.',true);return;}
+    button.disabled=true;
+    formNote('admin-list-message','Salvando backup e removendo acesso de '+p.name+'…');
+    try{
+     const response=await window.launcher.removeAccount(p.id,typed,offset);
+     if(!response?.ok)throw new Error(response?.error||'Operação não confirmada.');
+     formNote('admin-list-message','Acesso de '+response.username+' removido no Metagame. Backup salvo localmente.');
+     await loadAdminAccounts(false);
+    }catch(e){formNote('admin-list-message','Remoção não concluída: '+e.message,true);button.disabled=false;}
+   });
+   line.append(col,button);$('admin-accounts').append(line);
+  }
+  adminNextOffset=result.nextOffset;
+  $('admin-next').hidden=adminNextOffset===null;
+  $('admin-list-message').textContent='Lista consultada. Remover acesso não é banimento e não apaga o personagem.';
+ }catch(e){formNote('admin-list-message',e.message||'Falha na consulta',true);}
+ finally{adminBusy=false;}
+}
 function viewAuth(mode){
  for(const key of ['login','register','import','recover']){
   $('auth-panel-'+key).hidden=key!==mode;
@@ -189,6 +233,7 @@ $('password-apply').addEventListener('click',async()=>{
 for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{
  setScreen(node.dataset.screen);
  if(node.dataset.screen==='players')void playerRefresh();
+ if(node.dataset.screen==='invites'&&me?.role==='admin')void loadAdminAccounts(false);
 });
 $('playersRefresh').addEventListener('click',playerRefresh);
 $('play').addEventListener('click',()=>action('play'));
@@ -205,6 +250,8 @@ $('exePick').addEventListener('click',async()=>{
 $('serverSave').addEventListener('click',()=>note('Para trocar de servidor, saia da conta e crie ou importe um perfil para aquele servidor.',true));
 $('adminKeyPick').addEventListener('click',()=>note('Os privilégios são reconhecidos automaticamente quando você importa a conta administradora.',true));
 $('playerKeyPick').addEventListener('click',()=>note('Para vincular outra conta existente, saia e use Importar conta.',true));
+$('admin-list').addEventListener('click',()=>void loadAdminAccounts(false));
+$('admin-next').addEventListener('click',()=>void loadAdminAccounts(true));
 $('invite-create').addEventListener('click',async()=>{
  const button=$('invite-create');button.disabled=true;
  $('invite-result').value='';
