@@ -14,7 +14,27 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  operating=true;for(const id of controlIds)$(id).disabled=true;
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
-function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
+async function refreshInvites(){
+ const badge=$('invite-api-status'),msg=$('invite-message'),btn=$('invite-generate');
+ badge.textContent='VERIFICANDO API';btn.disabled=true;
+ try{
+  const r=await window.launcher.inviteStatus();
+  if(!r.ok)throw new Error(r.error||'API indisponível');
+  if(r.registrationMode!=='INVITECODE'){
+   badge.textContent='CADASTRO FECHADO';
+   msg.textContent='API online, mas REGISTRATION_MODE='+r.registrationMode+'. Configure INVITECODE no Metagame.';
+   return;
+  }
+  badge.textContent='API CONECTADA';
+  msg.textContent='Metagame conectado. Para gerar, selecione sua account.key de administrador se solicitado.';
+  btn.disabled=false;
+ }catch(e){badge.textContent='API OFFLINE';msg.textContent=e.message;}
+}
+async function showVersion(){
+ try{const version=await window.launcher.getVersion();$('app-version').textContent='FENYS • v'+version;$('top-version').textContent='LAUNCHER v'+version;}
+ catch{$('app-version').textContent='FENYS • versão indisponível';}
+}
+function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;if(name==='invites')void refreshInvites();}
 for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>setScreen(node.dataset.screen));
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -24,5 +44,17 @@ $('refresh').addEventListener('click',refresh);
 $('repoPick').addEventListener('click',async()=>{try{await window.launcher.pickRepo();await settings();}catch(e){note(e.message);}});
 $('exePick').addEventListener('click',async()=>{try{await window.launcher.pickLauncher();await settings();}catch(e){note(e.message);}});
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
+$('invite-generate').addEventListener('click',async()=>{
+ const btn=$('invite-generate'),msg=$('invite-message');
+ btn.disabled=true;msg.textContent='Solicitando convite ao Metagame…';
+ try{
+  const r=await window.launcher.createInvite($('invite-name').value);
+  if(!r.ok)throw new Error(r.error||'Falha ao criar convite.');
+  $('invite-code').value=r.code;
+  msg.textContent='Convite criado! Copie o código acima e envie ao jogador. Uso único.';
+  note('Convite criado pelo Metagame (código oculto no histórico).');
+ }catch(e){msg.textContent='Não foi possível gerar: '+e.message;note('Convite: '+e.message);}
+ finally{btn.disabled=false;}
+});
 window.launcher.onActivity(note);
-settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
+settings();refresh();showVersion();setInterval(()=>{if(!operating)void refresh();},10000);
