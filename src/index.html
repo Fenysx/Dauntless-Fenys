@@ -8,30 +8,97 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app-shell">
+<div id="auth-shell" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-brand">F✦ <span>DAUNTLESS FENYS</span></div>
+    <h1 id="auth-heading">Entrar no Fenys</h1>
+    <p class="auth-explainer">Cada pessoa entra com seu próprio perfil. O personagem do jogo fica vinculado à conta selecionada.</p>
+    <div class="auth-tabs" role="group" aria-label="Acesso à conta">
+      <button type="button" data-auth-mode="login" class="auth-tab active">Entrar</button>
+      <button type="button" data-auth-mode="register" class="auth-tab">Criar conta</button>
+      <button type="button" data-auth-mode="import" class="auth-tab">Importar conta</button>
+      <button type="button" data-auth-mode="recover" class="auth-tab">Esqueci a senha</button>
+    </div>
+    <p id="auth-message" role="status" aria-live="polite">Escolha um perfil para continuar.</p>
+    <div id="auth-panel-login" class="auth-panel">
+      <label for="login-user">Usuário neste computador</label>
+      <select id="login-user"><option value="">Selecione o perfil</option></select>
+      <label for="login-pass">Senha</label>
+      <input id="login-pass" type="password" autocomplete="current-password" placeholder="Sua senha do Fenys">
+      <button type="button" class="btn btn-primary" id="auth-login">Entrar no launcher</button>
+    </div>
+    <div id="auth-panel-register" class="auth-panel" hidden>
+      <p class="notice">Cada convite aleatório é válido uma vez. Depois do primeiro cadastro, a senha permite entrar novamente neste computador.</p>
+      <label for="reg-server">Servidor Fenys (IP Tailscale ou localhost)</label>
+      <input id="reg-server" placeholder="100.x.y.z:61000" autocomplete="off">
+      <label for="reg-user">Usuário e nome do personagem</label>
+      <input id="reg-user" maxlength="16" autocomplete="username" placeholder="MeuSlayer">
+      <label for="reg-pass">Crie uma senha (10 caracteres ou mais)</label>
+      <input id="reg-pass" type="password" autocomplete="new-password">
+      <label for="reg-code">Código de convite recebido</label>
+      <input id="reg-code" autocomplete="off" maxlength="64" placeholder="XXXX-XXXX-XXXX">
+      <button type="button" id="auth-register" class="btn btn-primary">Criar minha conta</button>
+    </div>
+    <div id="auth-panel-import" class="auth-panel" hidden>
+      <p class="notice">Já tem uma conta Dauntless Revived? Importe a chave existente para criar o login Fenys. Se a conta for administradora no Metagame, os controles de servidor serão liberados somente neste computador.</p>
+      <label for="import-server">Servidor da conta</label>
+      <input id="import-server" placeholder="127.0.0.1:61000">
+      <label for="import-user">Nome para entrar no Fenys</label>
+      <input id="import-user" maxlength="16" autocomplete="username" placeholder="AdminFenys">
+      <label for="import-pass">Crie uma senha (10 caracteres ou mais)</label>
+      <input id="import-pass" type="password" autocomplete="new-password">
+      <button type="button" class="btn btn-primary" id="auth-import">Selecionar chave e vincular</button>
+    </div>
+    <div id="auth-panel-recover" class="auth-panel" hidden>
+      <p class="notice">Use o código de recuperação que recebeu ao criar ou importar o perfil. Sem esse código, a senha local não pode ser recuperada automaticamente.</p>
+      <label for="reset-user">Usuário</label>
+      <input id="reset-user" maxlength="16">
+      <label for="reset-code">Código de recuperação</label>
+      <input id="reset-code" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+      <label for="reset-pass">Nova senha</label>
+      <input id="reset-pass" type="password" autocomplete="new-password">
+      <button type="button" class="btn btn-primary" id="auth-recover">Redefinir senha</button>
+    </div>
+    <div id="recovery-box" class="auth-recovery" hidden>
+      <h2>Guarde seu código de recuperação</h2>
+      <p>Este código é mostrado apenas agora e será necessário se você esquecer a senha. Guarde fora do computador e não o envie a ninguém.</p>
+      <textarea id="recovery-value" readonly rows="2"></textarea>
+      <button id="recovery-ack" type="button" class="btn btn-primary">Guardei meu código — continuar</button>
+    </div>
+    <p class="auth-footnote">Seu login Fenys é salvo somente neste PC. O servidor Dauntless ainda usa sua chave de jogo individual. Para usar outro PC, importe a conta existente de forma segura.</p>
+  </div>
+</div>
+<div class="app-shell" id="app-shell" hidden>
   <aside class="sidebar">
     <div class="identity"><div class="brand-mark">F<span>✦</span></div><div><div class="brand-top">DAUNTLESS</div><strong>FENYS <em>ULTIMATE</em></strong><small>COMUNIDADE INDEPENDENTE</small></div></div>
     <div class="side-caption">PLATAFORMA</div>
     <nav class="side-nav" aria-label="Navegação principal">
       <button class="nav-item active" data-screen="dashboard"><span>◈</span> Visão geral</button>
-      <button class="nav-item" data-screen="services"><span>▣</span> Central do servidor</button>
+      <button class="nav-item admin-only" data-screen="services"><span>▣</span> Central do servidor</button>
       <button class="nav-item" data-screen="players"><span>♟</span> Jogadores online</button>
-      <button class="nav-item" data-screen="invites"><span>✉</span> Convites</button>
+      <button class="nav-item admin-only" data-screen="invites"><span>✉</span> Convites</button>
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
       <button class="nav-item" data-screen="activity"><span>≡</span> Atividades</button>
     </nav>
     <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> GERENCIAMENTO FENYS</div><p>Os controles do servidor são executados apenas neste computador.</p><div class="version">FENYS • DESENVOLVIMENTO</div></div>
   </aside>
   <div class="main-area">
-    <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE FENYS</span></div></header>
+    <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span id="profile-display" class="tag">SEM CONTA</span><button id="profile-change-password" class="btn btn-outline">Trocar senha</button><button id="profile-switch" class="btn btn-outline">Sair / Trocar perfil</button><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE FENYS</span></div></header>
+    <div id="global-feedback" class="global-feedback" role="status" aria-live="polite" hidden></div>
+    <div id="password-dialog" class="password-dialog" hidden><div class="panel">
+      <h3>Alterar senha deste perfil</h3>
+      <label for="password-old">Senha atual</label><input id="password-old" type="password">
+      <label for="password-new">Nova senha (mínimo 10 caracteres)</label><input id="password-new" type="password">
+      <div class="button-row"><button class="btn btn-primary" id="password-apply">Salvar nova senha</button><button class="btn btn-outline" id="password-cancel">Cancelar</button></div>
+    </div></div>
     <main class="content">
       <section class="screen active" id="screen-dashboard" aria-label="Visão geral">
         <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Gerencie o servidor ou conecte-se à comunidade Fenys para jogar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Inicia o cliente Dauntless 1.4.4 configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">F</div></div>
         <div class="section-heading"><div><span class="kicker">VISÃO OPERACIONAL</span><h2>Seu mundo, em tempo real</h2></div><button id="refresh" class="btn btn-subtle">↻ Atualizar status</button></div>
         <div class="metric-grid"><article class="metric"><div class="metric-label">METAGAME <span class="metric-icon">◇</span></div><div id="metagame" class="metric-value">Verificando…</div><small>Porta 61000 • Local</small></article><article class="metric"><div class="metric-label">DEPLOY SERVER <span class="metric-icon">▣</span></div><div id="deploy" class="metric-value">Verificando…</div><small>Porta 61001 • Local</small></article><article class="metric"><div class="metric-label">JOGADORES ONLINE <span class="metric-icon">♟</span></div><div id="players-count" class="metric-value">—</div><small>Informações reais do Metagame</small></article><article class="metric"><div class="metric-label">CONVITES <span class="metric-icon">✉</span></div><div class="metric-value">—</div><small>Integração pendente</small></article></div>
-        <div class="dashboard-bottom"><article class="panel"><div class="panel-title"><div><span class="kicker">ACESSO RÁPIDO</span><h3>Controle dos serviços</h3></div><span class="chip">LOCAL</span></div><p class="panel-description">Inicie ou encerre apenas os processos criados por este launcher.</p><div class="button-row"><button id="start" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop" class="btn btn-outline">■ Desligar</button><button id="restart" class="btn btn-outline">↻ Reiniciar</button></div><div id="service-detail" class="status-line">Verificando os serviços…</div></article><article class="panel"><div class="panel-title"><div><span class="kicker">COMUNIDADE</span><h3>Atividade dos jogadores</h3></div></div><div class="empty-state"><span class="empty-symbol">♟</span><strong>Dados do Metagame</strong><p>Acesse Jogadores online para consultar a lista real de jogadores conectados.</p></div></article></div>
+        <div class="dashboard-bottom"><article id="admin-control-card" class="panel"><div class="panel-title"><div><span class="kicker">ACESSO RÁPIDO</span><h3>Controle dos serviços</h3></div><span class="chip">LOCAL</span></div><p class="panel-description">Inicie ou encerre apenas os processos criados por este launcher.</p><div class="button-row"><button id="start" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop" class="btn btn-outline">■ Desligar</button><button id="restart" class="btn btn-outline">↻ Reiniciar</button></div><div id="service-detail" class="status-line">Verificando os serviços…</div></article><article class="panel"><div class="panel-title"><div><span class="kicker">COMUNIDADE</span><h3>Atividade dos jogadores</h3></div></div><div class="empty-state"><span class="empty-symbol">♟</span><strong>Dados do Metagame</strong><p>Acesse Jogadores online para consultar a lista real de jogadores conectados.</p></div></article></div>
       </section>
-      <section class="screen" id="screen-services" aria-label="Central do servidor" hidden><div class="page-title"><span class="kicker">ADMINISTRAÇÃO LOCAL</span><h1>Central do servidor</h1><p>Gerencie os serviços locais com segurança, sem encerrar processos externos.</p></div><article class="panel"><div class="service-row"><div><strong>Metagame</strong><small>127.0.0.1:61000</small></div><span id="metagame-service" class="state">Verificando</span></div><div class="service-row"><div><strong>DeployServer</strong><small>127.0.0.1:61001</small></div><span id="deploy-service" class="state">Verificando</span></div><div class="button-row"><button id="start2" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop2" class="btn btn-outline">■ Desligar</button><button id="restart2" class="btn btn-outline">↻ Reiniciar</button></div><p class="notice">Os comandos Desligar e Reiniciar afetam apenas processos que este launcher iniciou nesta sessão. Os serviços iniciados externamente não serão encerrados.</p><p class="notice">Por enquanto, serviços iniciados nesta sessão são encerrados ao sair do launcher.</p></article></section>
+      <section class="screen admin-only" id="screen-services" aria-label="Central do servidor" hidden><div class="page-title"><span class="kicker">ADMINISTRAÇÃO LOCAL</span><h1>Central do servidor</h1><p>Gerencie os serviços locais com segurança, sem encerrar processos externos.</p></div><article class="panel"><div class="service-row"><div><strong>Metagame</strong><small>127.0.0.1:61000</small></div><span id="metagame-service" class="state">Verificando</span></div><div class="service-row"><div><strong>DeployServer</strong><small>127.0.0.1:61001</small></div><span id="deploy-service" class="state">Verificando</span></div><div class="button-row"><button id="start2" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop2" class="btn btn-outline">■ Desligar</button><button id="restart2" class="btn btn-outline">↻ Reiniciar</button></div><p class="notice">Os comandos Desligar e Reiniciar afetam apenas processos que este launcher iniciou nesta sessão. Os serviços iniciados externamente não serão encerrados.</p><p class="notice">Por enquanto, serviços iniciados nesta sessão são encerrados ao sair do launcher.</p></article></section>
       <section class="screen" id="screen-players" aria-label="Jogadores online" hidden>
         <div class="page-title"><span class="kicker">MONITORAMENTO</span><h1>Jogadores online</h1><p>Informações reais do Metagame, atualizadas ao consultar a aba.</p></div>
         <article class="panel">
@@ -40,10 +107,11 @@
           <div id="playersList" class="fenys-player-list"></div>
         </article>
       </section>
-      <section class="screen" id="screen-invites" aria-label="Convites" hidden>
+      <section class="screen admin-only" id="screen-invites" aria-label="Convites" hidden>
         <div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Convites e contas</h1><p>Convites de uso único criados no Metagame e cadastro individual para seus amigos.</p></div>
         <article class="panel">
           <div class="panel-title"><h3>Administrador — gerar convite</h3><span class="chip">API REAL</span></div>
+          <p class="form-status" id="invite-status" role="status" aria-live="polite">Entre com um perfil de administrador para gerar um convite.</p>
           <p class="panel-description">Selecione sua chave administradora em Configurações. O servidor deve usar REGISTRATION_MODE=INVITECODE. O convite vale para uma pessoa.</p>
           <div class="form-preview">
             <label for="invite-name">Nome do amigo (observação opcional)</label>
@@ -53,18 +121,7 @@
             <input id="invite-result" readonly placeholder="Seu código aparecerá aqui">
           </div>
         </article>
-        <article class="panel fenys-panel-gap">
-          <div class="panel-title"><h3>Jogador — criar minha conta</h3><span class="chip">CADASTRO</span></div>
-          <p class="panel-description">Configure primeiro o endereço Tailscale do servidor. Cada amigo usa seu próprio convite e recebe uma chave de conta salva somente no computador dele.</p>
-          <div class="form-preview">
-            <label for="register-username">Nome de jogador (3–16 caracteres)</label>
-            <input id="register-username" type="text" maxlength="16" autocomplete="off" placeholder="SeuNick">
-            <label for="register-invite">Código recebido</label>
-            <input id="register-invite" type="text" maxlength="64" autocomplete="off" placeholder="XXXX-XXXX-XXXX">
-            <button class="btn btn-red" id="register-submit">Criar minha conta</button>
-          </div>
-          <p class="notice">Não compartilhe a chave de conta. Não é necessário copiar nem enviar a chave ao administrador.</p>
-        </article>
+        <p class="notice">Amigos devem criar a conta na tela inicial do Fenys. Use <strong>Sair / Trocar perfil</strong> para cadastrar outra pessoa neste PC.</p>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
         <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor Fenys.</p></div>
