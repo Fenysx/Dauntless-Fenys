@@ -46,4 +46,4 @@ async function createInvite(address,key,description){
  if(typeof result.code!=='string'||!/^[A-Z0-9-]{8,32}$/.test(result.code))throw new Error('O servidor não retornou um convite válido.');
  return {code:result.code,uses:1};
 }
-module.exports={inviteStatus,createInvite};
+module.exports={parseServerAddress:serverAddress,requestApi:apiRequest,inviteStatus,createInvite};
