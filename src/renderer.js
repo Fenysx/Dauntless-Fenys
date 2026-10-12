@@ -160,7 +160,7 @@ $('connection-join').addEventListener('click',async()=>{
  catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
 });
 $('connection-local').addEventListener('click',async()=>{
- try{const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
+ try{const google=await window.launcher.googleState();if(google.signedIn){await window.launcher.setServer('127.0.0.1:61000');}else {const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');}await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
  catch(e){note(e.message);}
 });
 $('connection-copy').addEventListener('click',async()=>{
@@ -176,7 +176,7 @@ async function globalRefresh(){
   if(r.localRole){$('global-role').value=r.localRole;$('global-role').disabled=true;}
   $('global-authorization-state').textContent=r.authorizationSelected?'Autorização selecionada.':'Nenhuma autorização Supabase selecionada.';
   $('global-authority-fields').hidden=$('global-role').value!=='authority';$('global-host-fields').hidden=$('global-role').value!=='host';
-  $('global-central-controls').hidden=r.localRole!=='authority';
+  $('global-central-controls').hidden=true;
  }catch(e){$('global-state').textContent=e.message;}
 }
 async function globalOperation(fn){if(globalWorking)return;globalWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação global não concluída.');await globalRefresh();await settings();await refresh();return r;}catch(e){note('Atenção: '+e.message);}finally{globalWorking=false;}}
@@ -189,3 +189,16 @@ $('global-backup-now').addEventListener('click',()=>void globalOperation(()=>glo
 $('global-recover').addEventListener('click',()=>void globalOperation(()=>window.launcher.globalRecover()));
 async function globalBackup(force){const r=await window.launcher.globalBackup(force);if(r.ok)$('global-backup-state').textContent=(r.lastSuccess?'Última cópia confirmada: '+new Date(r.lastSuccess).toLocaleString('pt-BR')+'. ':'Nenhuma cópia confirmada ainda. ')+(r.dirty?'Há alterações pendentes. ':'')+(r.error||'')+(r.ready===false?' Aguarde a confirmação inicial do Supabase antes de jogar.':'');return r;}
 setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRefresh();},10000);
+
+let googleWorking=false;
+async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;}catch(e){$('google-state').textContent=e.message;}}
+async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();return r;}catch(e){note(e.message);}finally{googleWorking=false;}}
+$('google-login').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogin()));
+$('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
+$('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
+$('google-refresh').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleRefresh()));
+$('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
+$('google-host-activate').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleActivate({address:$('connection-address').value,hostCode:$('google-host-code').value.trim()})));
+$('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
+$('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
+void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);

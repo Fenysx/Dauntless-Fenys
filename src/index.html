@@ -43,21 +43,28 @@
         </article>
       </section>
       <section class="screen" id="screen-invites" aria-label="Convites" hidden>
-        <div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Convites e contas</h1><p>Convites de uso único criados no Metagame e cadastro individual para seus amigos.</p></div>
+        <div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Conta Google e convites</h1><p>Entre com Google para recuperar o personagem e use o convite para escolher o servidor.</p></div>
+        <article class="panel">
+          <div class="panel-title"><h3>Meu personagem na nuvem</h3><span class="chip">GOOGLE</span></div>
+          <p id="google-state" class="notice" role="status" aria-live="polite">Consultando a integração Google…</p>
+          <div class="button-row"><button id="google-login" class="btn btn-red">Continuar com Google</button><button id="google-logout" class="btn btn-outline" hidden>Sair da conta Google</button><button id="google-refresh" class="btn btn-outline">Conferir personagem na nuvem</button></div>
+          <button id="google-link" class="btn btn-outline">Vincular meu personagem atual ao Google</button>
+          <p class="notice">Depois do primeiro vínculo confirmado, entre com o mesmo Google em outro PC para recuperar o personagem. Não é preciso guardar uma chave de jogador. Antes de formatar, confira o vínculo e o último save confirmado. O login abre somente no navegador oficial; não há senha do launcher.</p>
+        </article>
         <article class="panel">
           <div class="panel-title"><h3>Administrador — gerar convite</h3><span class="chip">API REAL</span></div>
           <p class="panel-description">Selecione sua chave administradora em Configurações. O servidor deve usar REGISTRATION_MODE=INVITECODE. O convite vale para uma pessoa.</p>
           <div class="form-preview">
             <label for="invite-name">Nome do amigo (observação opcional)</label>
-            <input id="invite-name" type="text" maxlength="64" placeholder="Ex.: amigo João">
+            <input id="invite-name" type="text" maxlength="64" placeholder="Usuário">
             <button class="btn btn-red" id="invite-create">✉ Gerar convite</button>
             <label for="invite-result">Código criado — compartilhe apenas com seu amigo</label>
             <input id="invite-result" readonly placeholder="Seu código aparecerá aqui">
           </div>
         </article>
-        <article class="panel fenys-panel-gap">
-          <div class="panel-title"><h3>Jogador — criar minha conta</h3><span class="chip">CADASTRO</span></div>
-          <p class="panel-description">Configure primeiro o endereço Tailscale do servidor. Cada amigo usa seu próprio convite e recebe uma chave de conta salva somente no computador dele.</p>
+        <article class="panel fenys-panel-gap" hidden>
+          <div class="panel-title"><h3>Cadastro antigo — apenas servidores clássicos</h3><span class="chip">CADASTRO</span></div>
+          <p class="panel-description">Configure primeiro o endereço Tailscale do servidor. Para servidores novos, use Continuar com Google e o código de conexão. Este cadastro é apenas para servidores clássicos.</p>
           <div class="form-preview">
             <label for="register-username">Nome de jogador (3–16 caracteres)</label>
             <input id="register-username" type="text" maxlength="16" autocomplete="off" placeholder="SeuNick">
@@ -99,13 +106,20 @@
         <article class="panel fenys-panel-gap">
           <div class="panel-title"><h3>Entrar no servidor do meu amigo</h3></div>
           <div class="form-preview">
-            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="Código de conexão global">
-            <label for="connection-username">Meu nome de jogador (primeiro acesso)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Usuário">
+            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="Código recebido do servidor Google">
+            <label for="connection-username">Nome de jogador (somente personagem novo)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Usuário">
             <button id="connection-join" class="btn btn-red">Conectar ao servidor</button>
           </div>
-          <p class="notice">Sua chave de jogador fica salva neste PC. Nos hosts integrados, ela abre o mesmo personagem e progresso. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
+          <p class="notice">Nos servidores Google, o mesmo login recupera personagem e progresso na nuvem. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
         </article>
         <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Servidor com personagens Google</h3></div>
+          <p class="notice">Cada host executa seu próprio servidor e carrega o progresso do Supabase. O primeiro servidor recebe a autorização do dono; os demais usam uma autorização de host. Os serviços locais podem ser iniciados sem login Google.</p>
+          <div class="form-preview"><button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
+          <p class="notice">Mantenha todos fora do jogo. Quem já tem personagem deve vinculá-lo no servidor de origem antes da primeira troca; a integração não cria outro por cima do personagem antigo.</p>
+          <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
+        </article>
+        <article class="panel fenys-panel-gap" hidden>
           <div class="panel-title"><h3>Meu personagem em vários servidores</h3></div>
           <p id="global-state" class="notice" role="status" aria-live="polite">Consultando a rede global…</p>
           <p class="notice">Os hosts integrados usam o mesmo banco: personagem, nível, inventário, guildas, amizades e placares. O PC central mantém o Metagame ligado; o Supabase preserva cópias criptografadas e confirma a persistência ao trocar de host. Não há login ou senha do launcher.</p>
