@@ -44,7 +44,7 @@ npm run build:linux
 2. Tenha uma cópia do **Dauntless 1.4.4 compatível** já instalada por meios autorizados.
 3. No Fenys, em **Configurações**, informe o IP Tailscale do dono e selecione o executável `Dauntless.exe` da pasta do jogo.
 4. Abra **Convites**, informe um nome de jogador (3–16 caracteres, letras, números ou `_`) e o código recebido. Clique em **Criar minha conta**.
-5. O Fenys salva uma chave exclusiva em seu diretório de dados do aplicativo; não a compartilhe. Clique em **JOGAR**.
+5. O Fenys salva a chave exclusiva criptografada usando a proteção do sistema operacional (Windows DPAPI via Electron safeStorage); não a compartilhe. Se a proteção do sistema não estiver disponível, o cadastro será bloqueado. Clique em **JOGAR**.
 
 Uma pessoa pode vincular uma chave existente em **Configurações** em vez de abrir outra conta. Para partidas remotas, o host deve manter Metagame, DeployServer e servidores de jogo disponíveis.
 
@@ -57,7 +57,7 @@ Uma pessoa pode vincular uma chave existente em **Configurações** em vez de ab
 | Gerar convite | `POST /undaunted/api/CreateInvite` | Conta administradora |
 | Registrar amigo | `POST /undaunted/api/Register` | Código de convite |
 
-O Fenys restringe os endpoints HTTP configuráveis a localhost e endereços Tailscale (`100.64.0.0/10` e `*.ts.net`). Não devolve chaves de jogador à interface. No protótipo atual, as chaves cadastradas ficam em arquivos locais do perfil do sistema: proteja seus backups e não publique os arquivos.
+O Fenys restringe os endpoints HTTP configuráveis a localhost e endereços Tailscale (`100.64.0.0/10` e `*.ts.net`). Não devolve chaves de jogador à interface. As novas chaves cadastradas são criptografadas localmente via Electron safeStorage. Chaves importadas do friend-kit ou de backups podem estar em texto puro; proteja esses arquivos, não os publique nem os compartilhe.
 
 ## Segurança e atribuição
 
