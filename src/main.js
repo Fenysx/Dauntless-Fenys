@@ -1,5 +1,5 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,clipboard}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const net=require('node:net');
@@ -135,6 +135,11 @@ app.whenReady().then(()=>{
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
  ipcMain.handle('app:version',()=>app.getVersion());
+ ipcMain.handle('invites:copy',(_event,code)=>{
+  if(typeof code!=='string'||!/^[A-Z0-9-]{8,32}$/.test(code))return {ok:false,error:'Código de convite inválido.'};
+  clipboard.writeText(code);
+  return {ok:true};
+ });
  ipcMain.handle('invites:status',async()=>{
   try{return {ok:true,...await inviteStatus(backendAddress())};}
   catch(e){return {ok:false,error:e.message};}
