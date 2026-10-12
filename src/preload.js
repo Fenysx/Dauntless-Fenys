@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('launcher',{
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
  createInvite:name=>ipcRenderer.invoke('invites:create',name),
+ listAccounts:offset=>ipcRenderer.invoke('admin:accounts',offset),
+ removeAccount:(id,username,offset)=>ipcRenderer.invoke('admin:remove',id,username,offset),
  register:(username,inviteCode)=>ipcRenderer.invoke('account:register',username,inviteCode),
  status:()=>ipcRenderer.invoke('server:status'),
  players:()=>ipcRenderer.invoke('players:online'),
