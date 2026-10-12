@@ -1,5 +1,5 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,safeStorage}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const net=require('node:net');
@@ -86,7 +86,18 @@ function backendAddress(){
  }
  return parseServerAddress(raw).address;
 }
+function canProtectAccount(){
+ // Linux basic_text does not provide useful system-level encryption.
+ return safeStorage.isEncryptionAvailable() &&
+  !(process.platform==='linux'&&typeof safeStorage.getSelectedStorageBackend==='function'&&safeStorage.getSelectedStorageBackend()==='basic_text');
+}
 function readKeyFile(file){
+ if(path.extname(file).toLowerCase()==='.bin'){
+  if(!canProtectAccount())throw new Error('Proteção de credenciais indisponível neste computador.');
+  const key=safeStorage.decryptString(fs.readFileSync(file)).trim();
+  if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Chave de conta protegida inválida.');
+  return key;
+ }
  const raw=fs.readFileSync(file,'utf8').trim();
  const parts=raw.split(/\r?\n/);
  const key=parts.length===3&&parts[0]==='DRK2'?parts[2]:raw;
@@ -206,12 +217,13 @@ app.whenReady().then(()=>{
    const c=load();
    if(c.accountFiles&&c.accountFiles[server]&&fs.existsSync(c.accountFiles[server]))throw new Error('Já existe uma conta cadastrada para este servidor.');
    if(parseServerAddress(server).local && fs.existsSync(path.join(friendKitDir(),'account.key')))throw new Error('Este computador já possui uma conta local. Não cadastre outra por cima.');
+   if(!canProtectAccount())throw new Error('O sistema de proteção de credenciais está indisponível. Não vamos criar uma conta sem proteger sua chave.');
    const key=await registerPlayer(server,username,inviteCode);
    const id=crypto.createHash('sha256').update(server).digest('hex').slice(0,20);
    const dir=path.join(app.getPath('userData'),'contas',id);
-   const file=path.join(dir,'account.key');
+   const file=path.join(dir,'account.bin');
    fs.mkdirSync(dir,{recursive:true,mode:0o700});
-   fs.writeFileSync(file,key,{encoding:'utf8',flag:'wx',mode:0o600});
+   fs.writeFileSync(file,safeStorage.encryptString(key),{flag:'wx',mode:0o600});
    c.accountFiles={...(c.accountFiles||{}),[server]:file};save(c);
    return {ok:true,username:String(username).trim()};
   }catch(e){return {ok:false,error:e.message};}
