@@ -6,7 +6,10 @@ const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fenys-api');
+const {ProfileVault,checkUsername,checkPassword}=require('./fenys-profiles');
 let win;
+let vault;
+let activeGame=null;
 const owned=new Map();
 const PORTS={metagame:61000,deploy:61001};
 const DIRS={metagame:'UndauntedMetagame',deploy:'UndauntedDeployServer'};
@@ -28,7 +31,7 @@ async function status(){
  const sv=parseServerAddress(backendAddress());
  return {metagame:await tcp(sv.port,sv.host),deploy:sv.local?await tcp(PORTS.deploy):false,owned:[...owned.keys()],remote:!sv.local,server:sv.address};
 }
-function notify(msg){if(win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
+function notify(msg){if(vault?.current()?.role==='admin'&&win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
 function launchService(name,dir){
  const base=path.join(load().repoPath,dir);
  if(!fs.existsSync(path.join(base,'dist','server.js'))||!fs.existsSync(path.join(base,'.env')))throw new Error(`${dir}: dist/server.js ou .env não encontrado. Compile/configure o serviço primeiro.`);
@@ -75,6 +78,8 @@ async function verifyGame(dir){
 }
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
+ const current=vault?.current();
+ if(current)return parseServerAddress(current.server).address;
  const c=load();
  let raw=String(c.gameServer||'').trim();
  if(!raw){
@@ -106,6 +111,13 @@ function readKeyFile(file){
 }
 
 async function accountKey(){
+ vault.requireLogin();
+ if(!canProtectAccount())throw new Error('Proteção de credenciais indisponível.');
+ const key=safeStorage.decryptString(vault.encryptedKey()).trim();
+ if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Chave deste perfil inválida.');
+ return key;
+}
+async function legacyAccountKey(){
  const c=load();
  const server=backendAddress();
  const own=c.accountFiles && c.accountFiles[server];
@@ -122,22 +134,16 @@ async function accountKey(){
 }
 
 async function playerOverview(){
- const server=backendAddress();
- const c=load();
- const linked=c.accountFiles && c.accountFiles[server];
- const local=parseServerAddress(server).local;
- const file=linked&&fs.existsSync(linked) ? linked : (local ? c.gameKeyFile||path.join(friendKitDir(),'account.key') : null);
- let key;
- if(file&&fs.existsSync(file)){
-  try{key=readKeyFile(file);}catch{key=undefined;}
- }
- const data=await requestApi(server,'/undaunted/api/ServerStatus',key?{key}:{});
+ const me=vault.requireLogin();
+ const key=await accountKey();
+ const data=await requestApi(me.server,'/undaunted/api/ServerStatus',{key});
  if(!data || !Array.isArray(data.players))throw new Error('A API não retornou a lista de jogadores.');
- if(data.limited===true)return {limited:true,count:0,players:[],server};
+ if(data.limited===true)return {limited:true,count:0,players:[],server:me.server};
  const players=data.players.slice(0,100).filter(p=>p&&typeof p.name==='string')
-   .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
- return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server};
+  .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
+ return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server:me.server};
 }
+
 function configureChat(server){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
@@ -158,10 +164,12 @@ function configureChat(server){
  fs.writeFileSync(file,[...xmpp,'',...keep].join('\r\n'),'utf8');
 }
 async function spawnGame(exe,args){
+ if(activeGame&&activeGame.exitCode===null)throw new Error('Já existe uma instância do jogo aberta. Feche-a antes de trocar de conta.');
  return new Promise((resolve,reject)=>{
   const child=spawn(exe,args,{cwd:path.dirname(exe),detached:true,stdio:'ignore',windowsHide:false});
-  child.once('error',reject);
-  child.once('spawn',()=>{child.unref();resolve();});
+  child.once('error',err=>{if(activeGame===child)activeGame=null;reject(err);});
+  child.once('spawn',()=>{activeGame=child;child.unref();resolve();});
+  child.once('exit',()=>{if(activeGame===child)activeGame=null;});
  });
 }
 function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
@@ -171,81 +179,78 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
  '-epicsandboxid=sandboxidlol','-epicdeploymentid=deploymentidlol','-NoEAC'];}
 
 app.whenReady().then(()=>{
+ vault=new ProfileVault(path.join(app.getPath('userData'),'fenys-auth'));
  createWindow();
- ipcMain.handle('settings:get',()=>{
-  const {adminKeyFile,...safe}=load();
-  const server=backendAddress();
-  const c=load();
-  const linked=c.accountFiles && c.accountFiles[server];
-  const local=parseServerAddress(server).local;
-  const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
-  return {...safe,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
- });
- ipcMain.handle('settings:setServer',(_event,value)=>{
-  const sv=parseServerAddress(value);
-  const c=load();c.gameServer=sv.address;save(c);
-  return {server:sv.address,remote:!sv.local};
- });
- ipcMain.handle('settings:pickPlayerKey',async()=>{
-  const r=await dialog.showOpenDialog(win,{title:'Selecionar chave de sua conta existente',properties:['openFile'],filters:[{name:'Chave de conta',extensions:['key','txt']}]});
-  if(r.canceled||!r.filePaths.length)return {selected:false};
+ const reply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e?.message||'Operação não concluída.'};}};
+ function protect(key){
+  if(!canProtectAccount())throw new Error('A proteção de credenciais do sistema está indisponível.');
+  return safeStorage.encryptString(key);
+ }
+ ipcMain.handle('auth:state',()=>({current:vault.current(),profiles:vault.list()}));
+ ipcMain.handle('auth:login',(_event,username,password)=>reply(async()=>({current:vault.login(username,password)})));
+ ipcMain.handle('auth:logout',()=>{vault.logout();return {ok:true};});
+ ipcMain.handle('auth:reset',(_event,username,recoveryCode,newPassword)=>reply(async()=>vault.reset(username,recoveryCode,newPassword)));
+ ipcMain.handle('auth:change',(_event,oldPassword,newPassword)=>reply(async()=>vault.changePassword(oldPassword,newPassword)));
+ ipcMain.handle('auth:forgetLocal',(_event,password)=>reply(async()=>{vault.forgetLocalProfile(password);return {};}));
+ ipcMain.handle('auth:import',(_event,username,password)=>reply(async()=>{
+  checkUsername(username);checkPassword(password);
+  if(vault.list().some(p=>p.username.toLowerCase()===String(username).trim().toLowerCase()))
+   throw new Error('Esse login já existe neste computador.');
+  const r=await dialog.showOpenDialog(win,{title:'Selecionar chave de uma conta Dauntless Revived existente',properties:['openFile'],filters:[{name:'Chave Dauntless',extensions:['key','txt']}]});
+  if(r.canceled||!r.filePaths.length)throw new Error('Seleção cancelada.');
   const server=backendAddress();
   const key=readKeyFile(r.filePaths[0]);
   const info=await requestApi(server,'/undaunted/api/GetUserInfo',{key});
-  if(!info || typeof info.Username!=='string')throw new Error('O servidor não reconheceu essa conta.');
-  const c=load();c.accountFiles={...(c.accountFiles||{}),[server]:r.filePaths[0]};save(c);
-  return {selected:true,username:info.Username};
+  if(!info || typeof info.Username!=='string')throw new Error('Conta não reconhecida no servidor.');
+  const created=vault.create({username,password,role:info.IsAdmin===true?'admin':'user',server,encryptedKey:protect(key)});
+  return {...created,gameUsername:info.Username};
+ }));
+ ipcMain.handle('auth:register',(_event,username,password,inviteCode)=>reply(async()=>{
+  checkUsername(username);checkPassword(password);
+  if(vault.list().some(p=>p.username.toLowerCase()===String(username).trim().toLowerCase()))
+   throw new Error('Esse login já existe neste computador.');
+  const server=backendAddress();
+  if(!canProtectAccount())throw new Error('Não é possível proteger a chave de conta neste sistema.');
+  const key=await registerPlayer(server,username,inviteCode);
+  return vault.create({username,password,role:'user',server,encryptedKey:protect(key)});
+ }));
+ ipcMain.handle('settings:get',()=>{
+  const me=vault.current(),c=load();
+  return {repoPath:me?.role==='admin'?c.repoPath:null,launcherExe:c.launcherExe,gameServer:backendAddress(),accountKeySelected:!!me,adminKeySelected:me?.role==='admin',role:me?.role||null};
  });
- ipcMain.handle('settings:pickAdminKey',async()=>{
-  const r=await dialog.showOpenDialog(win,{title:'Escolha a chave da conta administradora (somente nesta máquina)',properties:['openFile'],filters:[{name:'Arquivo de chave',extensions:['key','txt']}]});
-  if(r.canceled||!r.filePaths.length)return {selected:Boolean(load().adminKeyFile)};
-  readKeyFile(r.filePaths[0]);
-  const c=load();c.adminKeyFile=r.filePaths[0];save(c);
-  return {selected:true};
- });
- ipcMain.handle('invites:create',async(_event,name)=>{
-  try{
-   const c=load();
-   if(!c.adminKeyFile||!fs.existsSync(c.adminKeyFile))throw new Error('Selecione a chave administradora em Configurações.');
-   const code=await createInvite(backendAddress(),readKeyFile(c.adminKeyFile),name);
-   return {ok:true,code};
-  }catch(e){return {ok:false,error:e.message};}
- });
- ipcMain.handle('account:register',async(_event,username,inviteCode)=>{
-  try{
-   const server=backendAddress();
-   const c=load();
-   if(c.accountFiles&&c.accountFiles[server]&&fs.existsSync(c.accountFiles[server]))throw new Error('Já existe uma conta cadastrada para este servidor.');
-   if(parseServerAddress(server).local && fs.existsSync(path.join(friendKitDir(),'account.key')))throw new Error('Este computador já possui uma conta local. Não cadastre outra por cima.');
-   if(!canProtectAccount())throw new Error('O sistema de proteção de credenciais está indisponível. Não vamos criar uma conta sem proteger sua chave.');
-   const key=await registerPlayer(server,username,inviteCode);
-   const id=crypto.createHash('sha256').update(server).digest('hex').slice(0,20);
-   const dir=path.join(app.getPath('userData'),'contas',id);
-   const file=path.join(dir,'account.bin');
-   fs.mkdirSync(dir,{recursive:true,mode:0o700});
-   fs.writeFileSync(file,safeStorage.encryptString(key),{flag:'wx',mode:0o600});
-   c.accountFiles={...(c.accountFiles||{}),[server]:file};save(c);
-   return {ok:true,username:String(username).trim()};
-  }catch(e){return {ok:false,error:e.message};}
- });
- ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
- ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('settings:setServer',(_event,value)=>reply(async()=>{
+  if(vault.current())throw new Error('Saia da conta para configurar outro servidor. A conta atual permanece vinculada ao original.');
+  const server=parseServerAddress(value).address;
+  const c=load();c.gameServer=server;save(c);
+  return {server};
+ }));
+ ipcMain.handle('settings:pickPlayerKey',()=>reply(async()=>{throw new Error('Saia e selecione Importar conta existente na tela de login.');}));
+ ipcMain.handle('settings:pickAdminKey',()=>reply(async()=>{throw new Error('Entre com um perfil administrador validado pelo Metagame usando Importar conta existente.');}));
+ ipcMain.handle('invites:create',(_event,name)=>reply(async()=>{
+  vault.requireAdmin();
+  return {code:await createInvite(backendAddress(),await accountKey(),name)};
+ }));
+ ipcMain.handle('account:register',()=>({ok:false,error:'Use Criar conta no painel de login com senha e convite.'}));
+ ipcMain.handle('settings:pickRepo',async()=>{vault.requireAdmin();const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('settings:pickLauncher',async()=>{vault.requireLogin();const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
  ipcMain.handle('players:online',async()=>{
   try{return {ok:true,data:await playerOverview()};}
   catch(e){return {ok:false,error:e.message};}
  });
- ipcMain.handle('server:status',()=>status());
- ipcMain.handle('server:start',()=>runLocked(startAll));
- ipcMain.handle('server:stop',()=>runLocked(stopOwned));
- ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
+ ipcMain.handle('server:status',()=>{vault.requireLogin();return status();});
+ ipcMain.handle('server:start',()=>runLocked(async()=>{vault.requireAdmin();return startAll();}));
+ ipcMain.handle('server:stop',()=>runLocked(async()=>{vault.requireAdmin();return stopOwned();}));
+ ipcMain.handle('server:restart',()=>runLocked(async()=>{vault.requireAdmin();if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
+  const me=vault.requireLogin();
   if(process.platform!=='win32')throw new Error('O jogo no Linux ainda precisa de integração com Wine/Proton. O launcher Linux suporta as telas, não a execução do jogo.');
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
   const server=backendAddress();
   const key=await accountKey();
-  const s=parseServerAddress(server).local?await startAll():await status();
+  const localAdmin=me.role==='admin'&&parseServerAddress(server).local;
+  const s=localAdmin?await startAll():await status();
   if(!s.metagame)throw new Error('Servidor remoto offline. Confira o Tailscale e a porta 61000.');
   configureChat(server);
   await spawnGame(exe,gameArgs(server,key));
