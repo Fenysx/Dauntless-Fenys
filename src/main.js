@@ -5,7 +5,9 @@ const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
-const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fenys-api');
+const {parseServerAddress,requestApi,createInvite,registerPlayer,getAdminAccounts}=require('./fenys-api');
+const {revokePlayer}=require('./fenys-host-admin');
+const os=require('node:os');
 const {ProfileVault,checkUsername,checkPassword}=require('./fenys-profiles');
 let win;
 let vault;
@@ -27,9 +29,24 @@ function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-re
 function load(){try{return {...defaults(),...JSON.parse(fs.readFileSync(configFile(),'utf8'))};}catch{return defaults();}}
 function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.writeFileSync(configFile(),JSON.stringify(c,null,2));}
 function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
+function hostedOnThisPC(server){
+ const sv=parseServerAddress(server);
+ if(sv.local)return true;
+ for(const devices of Object.values(os.networkInterfaces())){
+  for(const item of devices||[]){
+   if(item.family==='IPv4'&&item.address===sv.host)return true;
+  }
+ }
+ return false;
+}
+async function assertOnlineAdmin(){
+ vault.requireAdmin();
+ const profile=await requestApi(backendAddress(),'/undaunted/api/GetUserInfo',{key:await accountKey()});
+ if(profile.IsAdmin!==true)throw new Error('O Metagame não confirma permissão de administrador para esta conta.');
+}
 async function status(){
  const sv=parseServerAddress(backendAddress());
- return {metagame:await tcp(sv.port,sv.host),deploy:sv.local?await tcp(PORTS.deploy):false,owned:[...owned.keys()],remote:!sv.local,server:sv.address};
+ return {metagame:await tcp(sv.port,sv.host),deploy:hostedOnThisPC(sv.address)?await tcp(PORTS.deploy):false,owned:vault.current()?.role==='admin'?[...owned.keys()]:[],remote:!hostedOnThisPC(sv.address),server:sv.address};
 }
 function notify(msg){if(vault?.current()?.role==='admin'&&win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
 function launchService(name,dir){
@@ -43,7 +60,7 @@ function launchService(name,dir){
  child.on('exit',code=>{if(owned.get(name)===child)owned.delete(name);notify(`${name} finalizou (código ${code})`);});
 }
 async function waitReady(){for(let i=0;i<35;i++){const s=await status();if(s.metagame&&s.deploy)return s;await new Promise(r=>setTimeout(r,1000));}throw new Error('Serviços indisponíveis após 35 segundos. Verifique a aba Atividades.');}
-async function startAll(){if(!parseServerAddress(backendAddress()).local)throw new Error('Serviço remoto: somente o administrador inicia o servidor na máquina hospedeira.');let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
+async function startAll(){if(!hostedOnThisPC(backendAddress()))throw new Error('Serviço remoto: somente o computador hospedeiro pode iniciar o servidor.');let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
 async function killOwned(name){const child=owned.get(name);if(!child)return;if(child.exitCode!==null||child.killed){owned.delete(name);return;}
  await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timeout);resolve();};
  const timeout=setTimeout(finish,3500);child.once('exit',finish);
@@ -231,6 +248,28 @@ app.whenReady().then(()=>{
   return {code:await createInvite(backendAddress(),await accountKey(),name)};
  }));
  ipcMain.handle('account:register',()=>({ok:false,error:'Use Criar conta no painel de login com senha e convite.'}));
+ ipcMain.handle('admin:accounts',(_event,offset)=>reply(async()=>{
+  await assertOnlineAdmin();
+  return getAdminAccounts(backendAddress(),await accountKey(),offset===undefined?0:offset);
+ }));
+ ipcMain.handle('admin:remove',(_event,accountId,typedName)=>reply(async()=>{
+  await assertOnlineAdmin();
+  if(!hostedOnThisPC(backendAddress()))throw new Error('A remoção só pode ser executada no computador que hospeda o Metagame.');
+  const list=await getAdminAccounts(backendAddress(),await accountKey(),0);
+  let match=list.accounts.find(x=>x.id===accountId);
+  if(!match){
+   // Bounded pagination: the administrator must first load the intended account.
+   throw new Error('Conta não localizada na primeira página. Solicite uma página menor para administrar.');
+  }
+  if(match.admin)throw new Error('Não é possível remover uma conta administradora.');
+  if(match.name!==typedName)throw new Error('Para confirmar, digite o nome do jogador exatamente como aparece na lista.');
+  if(!match.active)throw new Error('Este jogador já está sem credenciais de acesso.');
+  const base=path.join(load().repoPath,DIRS.metagame);
+  const backupDir=path.join(app.getPath('userData'),'backups-de-seguranca');
+  const result=await revokePlayer(base,accountId,backupDir);
+  notify('Acesso removido de '+result.name+'. Backup de segurança salvo na pasta do Fenys.');
+  return {username:result.name,backupLocation:result.backup};
+ }));
  ipcMain.handle('settings:pickRepo',async()=>{vault.requireAdmin();const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{vault.requireLogin();const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
  ipcMain.handle('players:online',async()=>{
@@ -249,7 +288,7 @@ app.whenReady().then(()=>{
   await verifyGame(path.dirname(exe));
   const server=backendAddress();
   const key=await accountKey();
-  const localAdmin=me.role==='admin'&&parseServerAddress(server).local;
+  const localAdmin=me.role==='admin'&&hostedOnThisPC(server);
   const s=localAdmin?await startAll():await status();
   if(!s.metagame)throw new Error('Servidor remoto offline. Confira o Tailscale e a porta 61000.');
   configureChat(server);
