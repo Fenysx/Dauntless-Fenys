@@ -301,11 +301,25 @@ app.whenReady().then(()=>{
   if(load().cloudRole&&load().cloudRole!==options.role)throw Error('Este computador já pertence à rede global. Mantenha a função configurada para preservar a autoridade dos dados.');
   if(roaming.read(me)&&!cloud.state(me).global&&roaming.state(me).connected)throw Error('Retorne o personagem portátil ao servidor original antes de ativar a nuvem global.');
   if(!load().cloudRole){const profile=await requestApi(me.server,'/undaunted/api/GetUserInfo',{key:await originalAccountKey()});if(profile.IsAdmin!==true)throw Error('Administrador local não confirmado.');}
-  const online=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await originalAccountKey()});
-  if(online.limited===true||!Array.isArray(online.players)||online.players.length)throw Error('Ative a rede global com todos os jogadores fora do jogo.');
+  if(load().cloudRole==='host'){
+   const local=await cloudRequest('127.0.0.1:61000','events',{cursor:null},await originalAccountKey());
+   if(local.onlineCount)throw Error('Atualize o host com os jogadores deste computador fora do jogo.');
+  }else{
+   const online=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await originalAccountKey()});
+   if(online.limited===true||!Array.isArray(online.players)||online.players.length)throw Error('Ative a rede global com todos os jogadores fora do jogo.');
+  }
   if(!owned.size)throw Error('Inicie os serviços por este launcher antes de ativar a integração global.');
   await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Há serviços externos ativos. Encerre-os antes de configurar.');
-  const result=await installCloud(load().repoPath,{address:options.address,role:options.role,hostCode:String(options.hostCode||''),rcloneBinary:String(options.rcloneBinary||'rclone')});
+  let result;
+  try{result=await installCloud(load().repoPath,{address:options.address,role:options.role,hostCode:String(options.hostCode||''),rcloneBinary:String(options.rcloneBinary||'rclone')});}
+  catch(e){
+   if(e.configuredRole==='host'){
+    const config=load();config.cloudRole='host';config.cloudAuthority=e.authority;save(config);
+    launchService('metagame',DIRS.metagame);launchService('deploy',DIRS.deploy);
+    throw Error('Host mantém o modo global; migração pendente: '+e.message+'. Reconecte o PC central e repita Ativar rede global para confirmar a importação.');
+   }
+   throw e;
+  }
   const config=load();config.cloudRole=result.role;config.cloudAuthority=result.authority;save(config);
   if(!await tcp(PORTS.metagame))launchService('metagame',DIRS.metagame);
   if(!await tcp(PORTS.deploy))launchService('deploy',DIRS.deploy);

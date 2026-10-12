@@ -49,6 +49,11 @@ function importState(db,hostId,snapshot){
   db.prepare('INSERT INTO fenys_cloud_migrations VALUES(?,?,?,?)').run(hostId,digest,incoming.size,Date.now());return {accounts:incoming.size,alreadyImported:false};
  }).immediate();
 }
+function previewState(db,hostId,snapshot){
+ let result;const stop=new Error('fenys_preview_rollback');
+ try{db.transaction(()=>{result=importState(db,hostId,snapshot);throw stop;}).immediate();}catch(e){if(e!==stop)throw e;}
+ return result;
+}
 async function run(){
  const base=process.cwd(),Database=createRequire(path.join(base,'package.json'))('better-sqlite3');
  const config=JSON.parse(fs.readFileSync(path.join(base,'fenys','cloud-host.json'),'utf8'));
@@ -56,7 +61,7 @@ async function run(){
  if(status.migrated){console.log(JSON.stringify({alreadyImported:true}));return;}
  const file=process.env.DB_FILENAME;if(!file||file===':memory:')throw Error('Banco local não configurado.');
  const db=new Database(path.resolve(base,file),{fileMustExist:true,timeout:8000});
- try{const snapshot=capture(db);const result=await call(config.authority,'migrate',sign(config,{operation:'migrate',hostId:config.hostId,realm:config.realm,time:Date.now(),requestId:crypto.randomUUID(),snapshot}),undefined,300000);console.log(JSON.stringify(result));}finally{db.close();}
+ try{const snapshot=capture(db),operation=process.argv.includes('--check')?'migrate-check':'migrate';const result=await call(config.authority,operation,sign(config,{operation,hostId:config.hostId,realm:config.realm,time:Date.now(),requestId:crypto.randomUUID(),snapshot}),undefined,300000);console.log(JSON.stringify(result));}finally{db.close();}
 }
 if(require.main===module)run().catch(e=>{console.error(e.message);process.exitCode=1;});
-module.exports={capture,importState,TABLES};
+module.exports={capture,importState,previewState,TABLES};

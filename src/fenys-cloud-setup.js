@@ -77,11 +77,13 @@ async function installCloud(repo,{address,role,hostCode,rcloneBinary='rclone'}){
  for(const [key,file] of Object.entries(files))fs.writeFileSync(path.join(backup,key+'.bak'),original[key],{mode:0o600});
  for(const name of fs.readdirSync(__dirname).filter(x=>/^fenys-.*\.js$/.test(x)))fs.copyFileSync(path.join(__dirname,name),path.join(moduleDir,name));
  if(hostConfig)fs.writeFileSync(path.join(moduleDir,'cloud-host.json'),JSON.stringify(hostConfig),{mode:0o600});
- if(hostConfig)await command(base,['--env-file=.env',path.join(moduleDir,'fenys-cloud-migration.js')]);
+ if(hostConfig)await command(base,['--env-file=.env',path.join(moduleDir,'fenys-cloud-migration.js'),'--check']);
  const ignore=path.join(base,'.gitignore'),previous=fs.existsSync(ignore)?fs.readFileSync(ignore,'utf8'):'';
  if(!previous.includes('fenys-cloud-backups/'))fs.writeFileSync(ignore,previous+'\nfenys/\nfenys-backups/\nfenys-cloud-backups/\n');
  try{for(const [key,file] of Object.entries(files))fs.writeFileSync(file,prepared[key],{mode:0o600});await command(base,[path.join(base,'node_modules/typescript/bin/tsc')]);}
  catch(e){for(const [key,file] of Object.entries(files))fs.writeFileSync(file,original[key],{mode:0o600});try{await command(base,[path.join(base,'node_modules/typescript/bin/tsc')]);}catch{}throw e;}
+ if(hostConfig)try{await command(base,['--env-file=.env',path.join(moduleDir,'fenys-cloud-migration.js')]);}
+ catch(e){e.configuredRole='host';e.authority=authority;throw e;}
  return {role,authority:role==='authority'?sv.address:authority,address:sv.address,backup};
 }
 module.exports={prepareCloudFiles,patchMatchmaking,installCloud};

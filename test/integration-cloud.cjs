@@ -46,7 +46,9 @@ async function main(){
    instance.config={...pair,...registration,address:instance.address};fs.writeFileSync(path.join(instance.base,'fenys/cloud-host.json'),JSON.stringify(instance.config));
    await boot(instance);instance.player=seed(instance.db,instance===instances[1]?'Ygor':'OtherHost',1);
    instance.gameKey=crypto.randomBytes(24).toString('hex');instance.db.prepare('INSERT INTO gameserverapikeys(keyHash) VALUES(?)').run(hash(instance.gameKey));
-   const migrated=await call(source.address,'migrate',sign(instance.config,{operation:'migrate',hostId:instance.config.hostId,realm:instance.config.realm,snapshot:capture(instance.db),time:Date.now(),requestId:crypto.randomUUID()}));assert.equal(migrated.accounts,1);
+   const snapshot=capture(instance.db);
+   const preview=await call(source.address,'migrate-check',sign(instance.config,{operation:'migrate-check',hostId:instance.config.hostId,realm:instance.config.realm,snapshot,time:Date.now(),requestId:crypto.randomUUID()}));assert.equal(preview.accounts,1);assert.equal(source.db.prepare('SELECT userId FROM users WHERE userId=?').get(instance.player.userId),undefined);
+   const migrated=await call(source.address,'migrate',sign(instance.config,{operation:'migrate',hostId:instance.config.hostId,realm:instance.config.realm,snapshot,time:Date.now(),requestId:crypto.randomUUID()}));assert.equal(migrated.accounts,1);
   }
   const [hostA,hostB]=instances.slice(1);
   async function join(player,instance){

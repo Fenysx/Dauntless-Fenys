@@ -8,7 +8,7 @@ Todos os hosts da mesma rede usam o banco do PC central. Personagem, UID, nível
 
 O computador do host continua executando seus próprios servidores nativos/Ramsgate/caçadas. Sua instância de Metagame funciona como gateway autenticado: encaminha as APIs para a autoridade, valida a chave dos game servers locais e recebe alocações assinadas. Chat/XMPP também é encaminhado ao PC central, com os mesmos tokens e relações sociais. Filas públicas são separadas por host; parties podem ser alocadas juntas em um host autorizado.
 
-Se o PC central ou a VPN ficarem offline, as APIs recusam gravações locais e o launcher não usa um personagem antigo. **Seu PC central precisa ficar ligado**. O Google Drive guarda backups; o serviço de jogo e a autoridade SQLite rodam no PC central escolhido pelo usuário.
+Se o PC central ou a VPN ficarem offline, as APIs recusam gravações locais e o launcher não usa um personagem antigo. **Seu PC central e o serviço Metagame precisam ficar ligados**. Serviços iniciados pelo launcher são encerrados ao fechar o Fenys; mantenha os launchers dos hosts abertos durante a sessão. O Google Drive guarda backups; o serviço de jogo e a autoridade SQLite rodam no PC central escolhido pelo usuário.
 
 ## Ativar no PC do dono
 
@@ -35,6 +35,8 @@ Autorizações de host e códigos de jogador têm funções distintas, são alea
 Para voltar ao PC central, feche o jogo e use **Voltar ao PC central**. Para outro host, use o código dele. A confirmação de saída pode levar até 90 segundos para o heartbeat expirar. O vínculo global é persistido antes da requisição; **Recuperar sincronização** confirma uma operação cuja resposta se perdeu sem duplicar o vínculo.
 
 ### Migração sem substituição de personagens
+
+Antes de compilar/alterar o host, uma pré-validação transacional confirma a migração e reverte sua cópia de teste. A importação definitiva só ocorre depois da compilação. Se a resposta da importação se perder, o host mantém o modo global e confirma o resultado ao repetir a ativação; não volta a gravar um save local.
 
 A integração inicial importa 37 tabelas de jogo/sociais/auditoria, incluindo usuários, hashes de chaves, personagens, inventários, progressão, guildas, amizades, links e resultados de Trials. IDs de logs autoincrementais são remapeados. Usuários importados têm `isAdmin=0` no banco central; ser dono de um host não concede administração de toda a rede.
 

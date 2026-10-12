@@ -7,7 +7,7 @@ const {identity,sign,call,decodeCode,hash}=require('../src/fenys-cloud-protocol'
 const {CloudClient}=require('../src/fenys-cloud-client');
 const {createBackup}=require('../src/fenys-cloud-backup');
 const {prepareCloudFiles}=require('../src/fenys-cloud-setup');
-const {capture,importState}=require('../src/fenys-cloud-migration');
+const {capture,importState,previewState}=require('../src/fenys-cloud-migration');
 function player(db,name,admin=0){const uid='UID-'+crypto.randomUUID(),cid=crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');db.prepare('INSERT INTO users VALUES(?,?,?,?)').run(uid,name,0,admin);db.prepare('INSERT INTO userapikeys VALUES(?,?)').run(uid,hash(key));db.prepare('INSERT INTO characters VALUES(?,?,?,?,?,?,?)').run(cid,uid,'2026-10-12','2026-10-12',name,1,'{"Level":20}');db.prepare('INSERT INTO inventories VALUES(?,?,?)').run(cid,'[]','{"rams":1000}');return {uid,cid,key};}
 async function server(t,db){
  let middleware=(_req,_res,next)=>next();
@@ -121,4 +121,12 @@ test('migração com nome conflitante reverte tudo e conserva os dois bancos',t=
  assert.throws(()=>importState(b,'new-host',capture(a)),/outra conta global/);
  assert.equal(b.prepare('SELECT count(*) n FROM users').get().n,1);assert.equal(b.prepare('SELECT userId FROM users').get().userId,original.uid);
  assert.equal(a.prepare('SELECT count(*) n FROM characters').get().n,1);
+});
+test('pré-validação de migração verifica banco inteiro e reverte a cópia antes de compilar o host',t=>{
+ const a=database(t),b=database(t);player(a,'Preview');const snapshot=capture(a);
+ assert.equal(previewState(b,'new-host',snapshot).accounts,1);
+ assert.equal(b.prepare('SELECT count(*) n FROM users').get().n,0);
+ assert.equal(b.prepare('SELECT count(*) n FROM characters').get().n,0);
+ assert.equal(b.prepare("SELECT name FROM sqlite_master WHERE name='fenys_cloud_migrations'").get(),undefined);
+ assert.equal(importState(b,'new-host',snapshot).accounts,1);
 });

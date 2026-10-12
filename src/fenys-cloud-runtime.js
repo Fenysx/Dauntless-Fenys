@@ -5,7 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {parseServerAddress}=require('./fenys-api');
 const {identity,hash,sign,verify,encodeCode,call,privateRequest,localRequest,VERSION}=require('./fenys-cloud-protocol');
 const {createBackup}=require('./fenys-cloud-backup');
-const {importState}=require('./fenys-cloud-migration');
+const {importState,previewState}=require('./fenys-cloud-migration');
 let running=null;
 function routeOK(route){
  if(typeof route!=='string'||route.length>16384||!route.startsWith('/')||route.startsWith('//')||/[\\\r\n#]/.test(route))return false;
@@ -79,7 +79,8 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
   if(cursor===null||!Number.isSafeInteger(cursor))cursor=last;
   const events=db.prepare('SELECT id,name,kind,time FROM fenys_cloud_events WHERE hostId=? AND id>? ORDER BY id LIMIT 100').all(hostId,cursor);
   const players=db.prepare('SELECT u.name FROM fenys_cloud_players p JOIN users u ON u.userId=p.userId WHERE p.hostId=? AND p.lastSeen>?').all(hostId,now()-45000);
-  return {events,players,cursor:events.length?events.at(-1).id:last};
+  const onlineCount=online().filter(p=>hostForPlayer(p.UserId)===hostId||db.prepare('SELECT userId FROM fenys_cloud_allocations WHERE userId=? AND hostId=? AND expiresAt>?').get(p.UserId,hostId,now())).length;
+  return {events,players,onlineCount,cursor:events.length?events.at(-1).id:last};
  }
  function getIds(headers,body,route,targets=false){
   const ids=new Set(),me=account(headers['x-undaunted-user-api-key']);if(me)ids.add(me.userId);
@@ -192,6 +193,7 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
    if(route==='host-pulse'){res.json(await signedRequest(req.body,'host-pulse',p=>{db.prepare('UPDATE fenys_cloud_hosts SET lastSeen=? WHERE id=?').run(now(),p.hostId);return events(p.hostId,p.cursor);}));return;}
    if(route==='rpc'){res.json(await signedRequest(req.body,'rpc',rpc));return;}
    if(route==='migrate'){res.json(await signedRequest(req.body,'migrate',p=>{const result=importState(db,p.hostId,p.snapshot);backup?.mark();return result;}));return;}
+   if(route==='migrate-check'){res.json(await signedRequest(req.body,'migrate-check',p=>previewState(db,p.hostId,p.snapshot)));return;}
    if(route==='migration-status'){res.json(await signedRequest(req.body,'migration-status',p=>{const exists=db.prepare("SELECT name FROM sqlite_master WHERE name='fenys_cloud_migrations'").get();return {migrated:!!(exists&&db.prepare('SELECT hostId FROM fenys_cloud_migrations WHERE hostId=?').get(p.hostId))};}));return;}
    if(route==='events'){
     if(!account(key)?.isAdmin)throw Error('Acesso administrativo necessário.');res.json(events(rootId,req.body?.cursor));return;
