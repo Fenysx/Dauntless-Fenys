@@ -1,5 +1,5 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog,safeStorage}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,safeStorage,shell}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const net=require('node:net');
@@ -9,6 +9,8 @@ const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fen
 const {encodeConnection,decodeConnection}=require('./fenys-connection-code');
 const {installServer,tailscaleAddresses}=require('./fenys-server-setup');
 const {ProfileVault}=require('./fenys-profiles');
+const {createTailscale}=require('./fenys-tailscale');
+let tailscale;
 let win;
 let activeGame=null;
 if(!app.requestSingleInstanceLock())app.exit(0);
@@ -228,9 +230,16 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
  '-epicsandboxid=sandboxidlol','-epicdeploymentid=deploymentidlol','-NoEAC'];}
 
 app.whenReady().then(()=>{
+ tailscale=createTailscale({installerDirectory:path.join(app.getPath('userData'),'instaladores-tailscale'),openExternal:url=>shell.openExternal(url),openInstaller:file=>shell.openPath(file),onProgress:notify});
  restoreSavedKeys();
  createWindow();
  setInterval(()=>void monitorPlayers(),10000).unref();
+ const vpnReply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e.message||'Não foi possível configurar o Tailscale.'};}};
+ ipcMain.handle('tailscale:status',()=>vpnReply(()=>tailscale.status()));
+ ipcMain.handle('tailscale:install',()=>vpnReply(()=>tailscale.install()));
+ ipcMain.handle('tailscale:connect',()=>vpnReply(()=>tailscale.connect()));
+ ipcMain.handle('tailscale:background',()=>vpnReply(()=>tailscale.background()));
+ ipcMain.handle('tailscale:share',()=>vpnReply(async()=>{await shell.openExternal('https://login.tailscale.com/admin/machines');return {message:'No painel Tailscale, encontre este PC e use Share para compartilhar com seu amigo. Ele deve aceitar o convite na conta dele.'};}));
  ipcMain.handle('connection:addresses',()=>tailscaleAddresses());
  ipcMain.handle('connection:setup',(_event,address)=>runLocked(async()=>{
   assertGameClosed();
@@ -358,4 +367,4 @@ app.whenReady().then(()=>{
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
-app.on('before-quit',()=>{for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+app.on('before-quit',()=>{tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});

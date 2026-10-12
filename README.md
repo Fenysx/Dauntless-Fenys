@@ -10,7 +10,20 @@ O launcher volta a abrir diretamente, sem login ou senha local. Iniciar, desliga
 
 As chaves dos perfis da versão anterior são recuperadas automaticamente como arquivos criptografados; os perfis e arquivos originais são preservados. Esta versão não ativa a rede de dados globais nem modifica personagens, banco SQLite ou configuração do Google Drive.
 
-## Status
+## Tailscale no launcher (1.4.2)
+
+Abra **Conectar servidor → Conexão Tailscale**. O painel detecta a instalação e mostra conexão, IP e modo em segundo plano, com atualização automática enquanto a aba estiver aberta.
+
+- **Instalar Tailscale:** no Windows, baixa o instalador oficial 1.104.1, verifica checksum e assinatura Authenticode do publicador e abre a instalação. Conclua o assistente e a permissão do Windows. No Linux, abre as instruções oficiais de instalação.
+- **Conectar Tailscale:** usa a CLI instalada e abre o login oficial no navegador, quando necessário. Não pede senha do launcher, guarda senhas ou usa chaves de autenticação embutidas. Não redefine outras configurações da VPN.
+- **Manter ligado em segundo plano:** no Windows, solicita a permissão do sistema para ativar `tailscale set --unattended=true` e confirma a preferência antes de informar sucesso. No Linux, a execução do cliente é feita pelo serviço `tailscaled`.
+- **Compartilhar meu PC com um amigo:** abre o painel oficial de máquinas. O dono usa **Share**, compartilha apenas seu PC e o amigo aceita o convite na conta Tailscale dele. O código `FENYS1` não substitui esse compartilhamento.
+
+A instalação e entrada na conta precisam da interação do usuário. O launcher não desliga a VPN ao fechar; somente encerra a CLI de autenticação se ainda estiver aguardando login. Para hospedar, o PC deve continuar ligado, sem suspensão, com o launcher e os serviços abertos.
+
+Referências: [CLI Tailscale](https://tailscale.com/docs/reference/tailscale-cli), [modo em segundo plano](https://tailscale.com/docs/how-to/run-unattended), [instalador oficial](https://pkgs.tailscale.com/stable/).
+
+## Validação e limitações
 
 - Windows: launcher e botão JOGAR foram testados localmente na versão 1.0.0.
 - Convites, cadastro e Tailscale: integração em desenvolvimento; teste ponta a ponta com jogadores externos ainda é necessário.

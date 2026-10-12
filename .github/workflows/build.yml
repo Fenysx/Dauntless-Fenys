@@ -33,7 +33,11 @@ jobs:
         run: npm ci
 
       - name: Gerar instalador Windows
+        # Also validates the official VPN installer on real Windows without installing it.
         run: npm run build:win
+
+      - name: Conferir instalador oficial do Tailscale no Windows
+        run: node -e "require('./src/fenys-tailscale').downloadInstaller(require('node:path').join(process.env.RUNNER_TEMP,'fenys-tailscale-check')).then(()=>console.log('Checksum e assinatura oficial do Tailscale confirmados.')).catch(e=>{console.error(e.message);process.exit(1)})"
 
       - name: Salvar instalador
         uses: actions/upload-artifact@v4

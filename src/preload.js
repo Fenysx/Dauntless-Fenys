@@ -1,5 +1,10 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ tailscaleStatus:()=>ipcRenderer.invoke('tailscale:status'),
+ tailscaleInstall:()=>ipcRenderer.invoke('tailscale:install'),
+ tailscaleConnect:()=>ipcRenderer.invoke('tailscale:connect'),
+ tailscaleBackground:()=>ipcRenderer.invoke('tailscale:background'),
+ tailscaleShare:()=>ipcRenderer.invoke('tailscale:share'),
  connectionAddresses:()=>ipcRenderer.invoke('connection:addresses'),
  setupConnection:address=>ipcRenderer.invoke('connection:setup',address),
  createConnection:(address,name)=>ipcRenderer.invoke('connection:create',address,name),
