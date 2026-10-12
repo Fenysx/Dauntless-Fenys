@@ -13,6 +13,11 @@ function serverAddress(value){
  if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Porta inválida.');
  return host+':'+port;
 }
+function parseServerAddress(value){
+ const address=serverAddress(value);
+ const host=address.split(':')[0].toLowerCase();
+ return {address,host,local:host==='localhost'||host==='127.0.0.1'};
+}
 async function apiRequest(address,route,{key,method='GET',body}={}){
  if(!/^\/undaunted\/api\/[A-Za-z]+$/.test(route))throw new Error('Rota inválida.');
  const headers={accept:'application/json'};
@@ -46,4 +51,4 @@ async function createInvite(address,key,description){
  if(typeof result.code!=='string'||!/^[A-Z0-9-]{8,32}$/.test(result.code))throw new Error('O servidor não retornou um convite válido.');
  return {code:result.code,uses:1};
 }
-module.exports={parseServerAddress:serverAddress,requestApi:apiRequest,inviteStatus,createInvite};
+module.exports={parseServerAddress,requestApi:apiRequest,inviteStatus,createInvite};
