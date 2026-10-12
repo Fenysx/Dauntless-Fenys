@@ -24,6 +24,7 @@
   </aside>
   <div class="main-area">
     <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE FENYS</span></div></header>
+    <div id="global-feedback" class="global-feedback" role="status" aria-live="polite" hidden></div>
     <main class="content">
       <section class="screen active" id="screen-dashboard" aria-label="Visão geral">
         <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Gerencie o servidor ou conecte-se à comunidade Fenys para jogar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Inicia o cliente Dauntless 1.4.4 configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">F</div></div>
@@ -44,6 +45,7 @@
         <div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Convites e contas</h1><p>Convites de uso único criados no Metagame e cadastro individual para seus amigos.</p></div>
         <article class="panel">
           <div class="panel-title"><h3>Administrador — gerar convite</h3><span class="chip">API REAL</span></div>
+          <p id="invite-status" class="form-status" role="status" aria-live="polite">Selecione a chave de uma conta administradora em Configurações para criar convites.</p>
           <p class="panel-description">Selecione sua chave administradora em Configurações. O servidor deve usar REGISTRATION_MODE=INVITECODE. O convite vale para uma pessoa.</p>
           <div class="form-preview">
             <label for="invite-name">Nome do amigo (observação opcional)</label>
@@ -55,6 +57,7 @@
         </article>
         <article class="panel fenys-panel-gap">
           <div class="panel-title"><h3>Jogador — criar minha conta</h3><span class="chip">CADASTRO</span></div>
+          <p id="register-status" class="form-status" role="status" aria-live="polite">Para cadastrar, informe um nome e um convite recebido do administrador.</p>
           <p class="panel-description">Configure primeiro o endereço Tailscale do servidor. Cada amigo usa seu próprio convite e recebe uma chave de conta salva somente no computador dele.</p>
           <div class="form-preview">
             <label for="register-username">Nome de jogador (3–16 caracteres)</label>
