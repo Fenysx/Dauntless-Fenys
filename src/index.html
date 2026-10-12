@@ -121,6 +121,14 @@
             <input id="invite-result" readonly placeholder="Seu código aparecerá aqui">
           </div>
         </article>
+        <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Jogadores cadastrados</h3><button id="admin-list" class="btn btn-outline">↻ Atualizar contas</button></div>
+          <p class="panel-description">Adicione amigos com convites aleatórios de uso único. Para emergências, você pode remover o acesso de um jogador sem bani-lo e sem apagar o personagem ou o progresso.</p>
+          <p class="notice">Remover acesso invalida a chave do jogo e as sessões autenticadas. A operação é restrita ao administrador no computador do servidor e faz backup do banco. Para reconectar a mesma conta depois, será necessária a reemissão segura de uma chave de jogo.</p>
+          <p id="admin-list-message" class="form-status" role="status" aria-live="polite">Clique em Atualizar contas para consultar os jogadores reais do Metagame.</p>
+          <div id="admin-accounts" class="fenys-player-list"></div>
+          <button class="btn btn-outline" id="admin-next" hidden>Mostrar mais jogadores</button>
+        </article>
         <p class="notice">Amigos devem criar a conta na tela inicial do Fenys. Use <strong>Sair / Trocar perfil</strong> para cadastrar outra pessoa neste PC.</p>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
