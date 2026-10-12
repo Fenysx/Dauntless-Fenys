@@ -1,5 +1,13 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ authState:()=>ipcRenderer.invoke('auth:state'),
+ login:(username,password)=>ipcRenderer.invoke('auth:login',username,password),
+ logout:()=>ipcRenderer.invoke('auth:logout'),
+ createAccount:(username,password,invite)=>ipcRenderer.invoke('auth:register',username,password,invite),
+ importAccount:(username,password)=>ipcRenderer.invoke('auth:import',username,password),
+ recoverAccount:(username,code,newPassword)=>ipcRenderer.invoke('auth:reset',username,code,newPassword),
+ changePassword:(oldPassword,newPassword)=>ipcRenderer.invoke('auth:change',oldPassword,newPassword),
+ forgetLocalProfile:password=>ipcRenderer.invoke('auth:forgetLocal',password),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
@@ -7,6 +15,8 @@ contextBridge.exposeInMainWorld('launcher',{
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
  createInvite:name=>ipcRenderer.invoke('invites:create',name),
+ listAccounts:offset=>ipcRenderer.invoke('admin:accounts',offset),
+ removeAccount:(id,username,offset)=>ipcRenderer.invoke('admin:remove',id,username,offset),
  register:(username,inviteCode)=>ipcRenderer.invoke('account:register',username,inviteCode),
  status:()=>ipcRenderer.invoke('server:status'),
  players:()=>ipcRenderer.invoke('players:online'),

@@ -11,3 +11,28 @@
 .fenys-player{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#151119;padding:13px 15px;border:1px solid #32202b;border-radius:10px}
 .fenys-player strong{font-size:13px;overflow-wrap:anywhere}
 .fenys-player span{font-size:12px;color:#f2a5b3;white-space:nowrap}
+
+/* Fenys multi-profile authentication */
+.app-shell[hidden],.auth-overlay[hidden],.auth-panel[hidden],.auth-tabs[hidden],
+.auth-recovery[hidden],.password-dialog[hidden],.admin-only[hidden],#admin-control-card[hidden]{display:none!important}
+.auth-overlay{position:fixed;inset:0;z-index:20;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:5vh 18px;background:radial-gradient(ellipse at 80% 10%,#71243f55,transparent 50%),#08090e}
+.auth-card{width:min(570px,100%);padding:34px;background:linear-gradient(145deg,#271723,#100e17);border:1px solid #793346;border-radius:20px;box-shadow:0 20px 90px #0009}
+.auth-brand{font-size:23px;font-weight:900;color:#f74c6a;margin:0 0 12px}.auth-brand span{font-size:17px;letter-spacing:2px;color:#f6e6ed}
+.auth-card h1{font-size:26px;margin:10px 0}.auth-explainer{font-size:13px;color:#b7a7b2;line-height:1.6}
+.auth-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:25px 0 15px}
+.auth-tab{background:#271725;border:1px solid #633346;border-radius:8px;padding:9px 11px;color:#e9c4d2;font-size:12px}
+.auth-tab.active{background:#ab233f;border-color:#f65c7b;color:white}
+#auth-message{background:#261a25;border:1px solid #593747;color:#f6bed0;padding:12px;border-radius:10px;line-height:1.5;font-size:12px}
+#auth-message.is-error,.global-feedback.is-error,.form-status.is-error{background:#47182a;border-color:#ff5f79;color:#ffe5ed}
+.auth-panel{display:grid;gap:11px}.auth-panel label,.password-dialog label{font-size:12px;color:#e9c6d2;margin-top:4px}
+.auth-panel input,.auth-panel select,.auth-recovery textarea,.password-dialog input{background:#0f0e16;border:1px solid #694057;color:#f8e9ef;border-radius:9px;padding:12px;min-width:0;width:100%;font:inherit;font-size:13px}
+.auth-panel .btn{margin-top:10px}.auth-footnote{font-size:11px;color:#978591;line-height:1.6;margin-top:22px}
+.auth-recovery{background:#301b2b;padding:22px;border-radius:12px;border:1px solid #c3456c;margin-top:15px}
+.auth-recovery h2{font-size:18px}.auth-recovery p{font-size:12px;line-height:1.7}
+.auth-recovery textarea{resize:none;letter-spacing:1px;font-family:Consolas,monospace;word-break:break-all;margin:8px 0 14px}
+.global-feedback{margin:12px 38px 0;padding:11px 15px;background:#22202b;border:1px solid #624457;border-radius:9px;color:#f1c9d5;font-size:12px;line-height:1.5}
+.global-feedback[hidden]{display:none!important}
+.form-status{margin:15px 0 0;padding:12px;background:#241927;border:1px solid #603749;border-radius:9px;color:#fac6d4;font-size:12px}
+.password-dialog{position:fixed;inset:0;z-index:15;display:flex;justify-content:center;align-items:center;background:#000b}
+.password-dialog .panel{width:min(460px,92vw);display:grid;gap:12px}
+@media(max-width:780px){.auth-overlay{padding:16px}.auth-card{padding:20px}.global-feedback{margin:10px 16px 0}}

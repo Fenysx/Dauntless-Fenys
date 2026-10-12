@@ -1,66 +1,62 @@
-# Dauntless Fenys
+# Dauntless Fenys — 1.2.0 beta
 
-Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de serviços, conexão privada por Tailscale, cadastro individual de jogadores e convites de uso único do Metagame.
+Launcher independente para Dauntless Revived 1.4.4 (Windows), com login local, contas separadas por jogador, convites do Metagame e gerenciamento no computador hospedeiro. **Não distribui o jogo original.** Projeto não afiliado à Phoenix Labs ou Epic Games.
 
-**Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O suporte à execução do jogo é **Windows**; os pacotes Linux abrem o launcher, mas a integração de Wine/Proton ainda está pendente.
+## Contas e senhas do Fenys
 
-## Status
+O launcher tem dois perfis: **Administrador** e **Jogador**.
 
-- Windows: launcher e botão JOGAR foram testados localmente na versão 1.0.0.
-- Convites, cadastro e Tailscale: integração em desenvolvimento; teste ponta a ponta com jogadores externos ainda é necessário.
-- Linux: instaladores AppImage/DEB compilam. O jogo não é iniciado no Linux por esta versão.
-- Atualização automática do jogo e mods: ainda não implementada.
+- **Administrador**: para obter essa função, selecione **Importar conta** na tela de login e forneça a chave de uma conta que já tenha `IsAdmin=true` no Metagame. Só essa função libera as telas administrativas e os comandos internos `server:start`, `server:stop`, `server:restart`. Apenas a máquina hospedeira pode iniciar/parar serviços locais.
+- **Jogador**: selecione **Criar conta**, informe endereço Tailscale do servidor, um nome de 3–16 caracteres, senha de pelo menos 10 caracteres e o código de convite de uso único. A conta gerada pertence a esse personagem.
+- **Vários usuários em um PC**: cada um tem login e senha próprios. Use **Sair / Trocar perfil** antes de iniciar o jogo. Cada perfil usa a própria chave de jogo. No beta, **não há isolamento para executar duas instâncias simultâneas** com perfis distintos; feche o jogo antes de trocar de usuário.
+- **Esqueci a senha**: forneça o código de recuperação único mostrado no momento do cadastro, junto com uma senha nova. Um novo código substitui o anterior após recuperação ou troca de senha. **Não existe recuperação automática por e-mail** neste beta. Sem código, não há restauração automática do login local.
+- **Importar conta existente**: o jogador ou administrador que já possui uma chave `account.key` pode usá-la para criar login e senha Fenys, desde que o Metagame reconheça a chave. Não compartilhe sua chave secreta com ninguém.
+- **Mesmo perfil em outro computador**: os logins/senhas Fenys desta versão são **locais ao Windows**; não são sincronizados com o servidor. Para outro PC, importe uma cópia segura de sua chave de jogo e configure um novo login local. A senha local **não substitui** a chave UUK do Dauntless Revived.
 
-## Executar o código
+Senhas são guardadas como hashes de `scrypt` com sal. As chaves de jogo dos novos perfis são protegidas por `Electron safeStorage` (Windows DPAPI). Arquivos de perfis e cópias de banco não devem ir para o GitHub ou compartilhamentos públicos. Para isolamento de segurança forte entre moradores, também use contas diferentes do Windows.
 
-Node.js 22 ou superior:
+## Convites e permanência no servidor
+
+O administrador cria convites aleatórios diretamente pelo endpoint `POST /undaunted/api/CreateInvite`, com **1 utilização** por código, e configura `REGISTRATION_MODE=INVITECODE` no Metagame. O amigo usa o código somente no primeiro cadastro. Nas próximas entradas basta autenticar no Fenys, iniciar o cliente e conectar-se ao servidor ligado e alcançável pelo Tailscale.
+
+O Metagame continua sendo a fonte de verdade das contas, da autenticação de jogo e do progresso; não há um segundo banco remoto duplicado de personagens no Fenys.
+
+## Administração: remover sem banir
+
+A seção **Convites / Jogadores cadastrados** lista as contas reais via `GET /undaunted/api/DashboardAccounts`. No **computador hospedeiro**, o administrador autenticado pode executar **Remover acesso** com uma confirmação digitando o nome do jogador.
+
+Essa operação:
+1. Salva um backup SQLite do Metagame no diretório privado de dados do Fenys.
+2. Remove apenas a chave de autenticação (`userapikeys`) e qualquer chave pendente (`userapikeystoregister`) daquela conta.
+3. Incrementa `authepochs` para invalidar tokens autenticados; preserva as linhas de usuário, personagem e progressão.
+4. Não cria `account_bans` e não apaga inventários ou personagens.
+
+**Atenção:** não use essa operação só para encerrar uma sessão. É uma remoção de acesso persistente, indicada para emergências; a conta precisará receber **uma nova chave emitida com segurança** para ser reativada com o mesmo personagem. A reemissão guiada ainda não foi implementada. O encerramento de uma sessão de jogo já conectada pode não ocorrer imediatamente. Não altere o banco diretamente em caso de falha; preserve o backup e os logs.
+
+A rotina exige o projeto `UndauntedMetagame` instalado, seu `.env` local com `DB_FILENAME` e a dependência `better-sqlite3` instalada no host. Essa funcionalidade depende do esquema atual de `dauntless-revived`; teste em um banco de **desenvolvimento** antes de usar dados de jogadores reais.
+
+## Rede Tailscale e servidor
+
+1. No computador hospedeiro, instale o Tailscale, compartilhe **a máquina** com o amigo e limite as portas no firewall.
+2. Configure o Metagame com `AUTH_MODE=APIKEY`, `NODE_ENV=production`, `REGISTRATION_MODE=INVITECODE` e endereço de escuta na interface Tailscale; configure `MY_IP` do DeployServer e `QOS_TARGET_URL` de acordo com o host.
+3. Mantenha `DEPLOYSERVER_URL` e a porta `61001` **somente locais**; nunca os exponha à internet. O protocolo HTTP do Metagame precisa ficar restrito à rede privada protegida pelo Tailscale.
+4. A conta administradora deve existir no banco do Metagame e já ter `isAdmin=1`. O launcher **não cria um administrador automaticamente**.
+5. Cada amigo instala o launcher, conecta-se ao Tailscale e configura o executável compatível `Dauntless.exe` / `Dauntless-Win64-Shipping.exe`.
+
+Documentação upstream: https://github.com/mixutin/dauntless-revived/blob/dauntless-revived/docs/setup/admin.md
+
+## Compilar e testar
 
 ```bash
 npm ci
+npm test
 npm start
 ```
 
-Gerar instaladores:
+Para gerar instaladores: `npm run build:win` (Windows) ou `npm run build:linux` (Linux).
 
-```bash
-npm run build:win
-npm run build:linux
-```
+**Limitações:** a compilação Linux do launcher não implementa execução de Dauntless por Proton/Wine. Nenhum download de arquivos proprietários do jogo ou atualização automática de mods foi implementado nesta beta. O acesso remoto e a remoção real devem ser testados em máquina/banco de desenvolvimento antes da produção. A compilação bem-sucedida não substitui testes de contas reais.
 
-## Configurar o servidor (dono)
+## Licença e créditos
 
-1. Instale e configure o [Tailscale](https://tailscale.com/) no computador que hospeda os serviços. Compartilhe **somente esse computador** com os amigos, cada um usando a própria conta Tailscale.
-2. Consulte a [documentação de hospedagem do Dauntless Revived](https://github.com/mixutin/dauntless-revived/blob/dauntless-revived/docs/setup/admin.md) para configurar `BIND_HOST` do Metagame e `MY_IP` do DeployServer com o **IP 100.x.y.z do Tailscale**, além de `QOS_TARGET_URL` e do firewall. `DEPLOYSERVER_URL` e `BIND_HOST` do DeployServer devem continuar locais.
-3. No `.env` de `UndauntedMetagame`, use `AUTH_MODE=APIKEY`, `NODE_ENV=production` e `REGISTRATION_MODE=INVITECODE`. Reinicie o Metagame depois das mudanças.
-4. Tenha **uma conta administradora** no próprio Metagame. A API não promove contas automaticamente; a permissão `isAdmin` deve ser configurada pelo administrador no banco, conforme a documentação acima.
-5. Abra o Fenys, em **Configurações**, informe `100.x.y.z:61000`. Se já possui conta, clique em **Vincular conta existente** e selecione seu `account.key`; o aplicativo confere a chave com o servidor.
-6. Selecione também o arquivo da **chave administradora**. Em **Convites**, clique em **Gerar convite** para receber um código válido para um cadastro.
-
-**Não exponha a porta TCP 61001**, pois o DeployServer não possui autenticação. Evite expor a 61000 à internet pública; o protocolo privado usa HTTP e chaves de conta, portanto limite o acesso à rede Tailscale. Abra apenas as portas necessárias ao jogo na interface Tailscale, conforme as instruções do projeto original.
-
-## Configurar o computador de um amigo
-
-1. Instale Tailscale e aceite o compartilhamento da máquina do dono. Confirme que ele consegue acessar o IP Tailscale do servidor.
-2. Tenha uma cópia do **Dauntless 1.4.4 compatível** já instalada por meios autorizados.
-3. No Fenys, em **Configurações**, informe o IP Tailscale do dono e selecione o executável `Dauntless.exe` da pasta do jogo.
-4. Abra **Convites**, informe um nome de jogador (3–16 caracteres, letras, números ou `_`) e o código recebido. Clique em **Criar minha conta**.
-5. O Fenys salva a chave exclusiva criptografada usando a proteção do sistema operacional (Windows DPAPI via Electron safeStorage); não a compartilhe. Se a proteção do sistema não estiver disponível, o cadastro será bloqueado. Clique em **JOGAR**.
-
-Uma pessoa pode vincular uma chave existente em **Configurações** em vez de abrir outra conta. Para partidas remotas, o host deve manter Metagame, DeployServer e servidores de jogo disponíveis.
-
-## API já usada
-
-| Função | Rota do Metagame | Autorização |
-| --- | --- | --- |
-| Conferir conta | `GET /undaunted/api/GetUserInfo` | Chave da conta |
-| Conferir modo de cadastro | `GET /undaunted/api/RegistrationStatus` | Nenhuma |
-| Gerar convite | `POST /undaunted/api/CreateInvite` | Conta administradora |
-| Registrar amigo | `POST /undaunted/api/Register` | Código de convite |
-
-O Fenys restringe os endpoints HTTP configuráveis a localhost e endereços Tailscale (`100.64.0.0/10` e `*.ts.net`). Não devolve chaves de jogador à interface. As novas chaves cadastradas são criptografadas localmente via Electron safeStorage. Chaves importadas do friend-kit ou de backups podem estar em texto puro; proteja esses arquivos, não os publique nem os compartilhe.
-
-## Segurança e atribuição
-
-Não envie `.env`, tokens, chaves `UUK_`, banco SQLite ou arquivos do jogo ao GitHub. Conexões remotas ainda precisam de teste real de acesso e da configuração correta de firewall/Tailscale.
-
-Código do launcher Fenys e integrações derivadas de [Dauntless Revived](https://github.com/mixutin/dauntless-revived), baseado em [Undaunted](https://github.com/SyST3MDeV/Undaunted), conforme avisos do projeto original. Licença **AGPL-3.0-only**. Consulte o arquivo de licença e `NOTICE.md`. Projeto não afiliado à Phoenix Labs ou Epic Games.
+Fenys é comunitário e independente. Consulte `LICENSE.txt` e `NOTICE.md`. As integrações seguem a documentação do projeto [Dauntless Revived](https://github.com/mixutin/dauntless-revived) e os termos aplicáveis de AGPL-3.0-only. Não publique `.env`, banco de dados, chaves `UUK_`, hashes de senha nem backups.

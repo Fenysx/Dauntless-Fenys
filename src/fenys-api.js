@@ -24,7 +24,7 @@ function parseServerAddress(value) {
 
 async function requestApi(address, route, options = {}) {
   const server = parseServerAddress(address);
-  if (!/^\/undaunted\/api\/[A-Za-z]+$/.test(route)) throw new Error('Rota da API inválida.');
+  if (!/^\/undaunted\/api\/[A-Za-z]+(?:\?offset=(?:0|[1-9][0-9]{0,7}))?$/.test(route)) throw new Error('Rota da API inválida.');
   const headers = { accept: 'application/json' };
   if (options.key) headers['x-undaunted-user-api-key'] = options.key;
   if (options.body !== undefined) headers['content-type'] = 'application/json';
@@ -92,4 +92,16 @@ async function registerPlayer(address, username, inviteCode) {
   return response.UUK;
 }
 
-module.exports = { parseServerAddress, requestApi, createInvite, registerPlayer };
+async function getAdminAccounts(address,adminKey,offset=0){
+ if(!Number.isSafeInteger(offset)||offset<0||offset>10000000)throw new Error('Página inválida.');
+ const profile=await requestApi(address,'/undaunted/api/GetUserInfo',{key:adminKey});
+ if(profile.IsAdmin!==true)throw new Error('Sua conta não tem permissão de administrador no Metagame.');
+ const response=await requestApi(address,'/undaunted/api/DashboardAccounts?offset='+offset,{key:adminKey});
+ if(!response||!Array.isArray(response.accounts))throw new Error('O servidor não retornou as contas.');
+ return {accounts:response.accounts.slice(0,100).filter(x=>
+  x&&typeof x.id==='string'&&/^UID-[a-f0-9-]{16,80}$/i.test(x.id)&&typeof x.name==='string')
+  .map(x=>({id:x.id,name:x.name.slice(0,32),admin:x.admin===true||x.admin===1,
+    active:typeof x.keyFingerprint==='string'&&x.keyFingerprint.length>0})),
+  nextOffset:Number.isSafeInteger(response.nextOffset)?response.nextOffset:null};
+}
+module.exports = {parseServerAddress,requestApi,createInvite,registerPlayer,getAdminAccounts};
