@@ -1,13 +1,33 @@
 {
-  "name": "dauntless-launcher-lite",
-  "version": "0.1.0",
+  "name": "dauntless-fenys",
+  "version": "1.0.0",
   "private": true,
-  "description": "Launcher local para Dauntless Revived",
+  "description": "Launcher comunitario do Dauntless Fenys",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis --x64 --publish never",
+    "build:linux": "electron-builder --linux AppImage deb --x64 --publish never"
   },
   "devDependencies": {
-    "electron": "^38.0.0"
+    "electron": "^38.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "productName": "Dauntless Fenys",
+  "build": {
+    "appId": "br.com.fenys.dauntless",
+    "productName": "Dauntless Fenys",
+    "directories": {
+      "output": "release"
+    },
+    "linux": {
+      "category": "Game"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "LICENSE*",
+      "NOTICE*"
+    ]
   }
 }

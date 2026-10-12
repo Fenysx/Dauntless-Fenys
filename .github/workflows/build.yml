@@ -1,0 +1,67 @@
+name: Dauntless Fenys - Instaladores
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Instalador Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Gerar instalador Windows
+        run: npm run build:win
+
+      - name: Salvar instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dauntless-Fenys-Windows
+          path: release/*.exe
+          if-no-files-found: error
+
+  linux:
+    name: Instaladores Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Gerar instaladores Linux
+        run: npm run build:linux
+
+      - name: Salvar instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dauntless-Fenys-Linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
