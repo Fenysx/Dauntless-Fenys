@@ -42,7 +42,7 @@ async function status(){
  const sv=parseServerAddress(backendAddress());
  return {metagame:await tcp(PORTS.metagame),deploy:await tcp(PORTS.deploy),gameOnline:await tcp(sv.port,sv.host),owned:[...owned.keys()],remote:!hostedOnThisPC(sv.address),server:sv.address};
 }
-function hostedOnThisPC(server){const sv=parseServerAddress(server);return sv.local||Object.values(os.networkInterfaces()).flat().some(x=>x?.family==='IPv4'&&x.address===sv.host);}
+function hostedOnThisPC(server){const sv=parseServerAddress(server);if(sv.local)return true;try{return Object.values(os.networkInterfaces()).flat().some(x=>x?.family==='IPv4'&&x.address===sv.host);}catch{return false;}}
 function notify(msg){if(win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
 function launchService(name,dir){
  const base=path.join(load().repoPath,dir);
