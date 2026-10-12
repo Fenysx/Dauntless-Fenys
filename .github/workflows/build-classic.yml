@@ -1,4 +1,4 @@
-name: Fenys Classic 1.0.1 - instalador Windows
+name: Fenys Classic 1.0.2 - instalador Windows
 on:
   push:
     branches:
@@ -28,6 +28,6 @@ jobs:
       - name: Disponibilizar instalador para testes
         uses: actions/upload-artifact@v4
         with:
-          name: Dauntless-Fenys-Classic-1.0.1-Windows
+          name: Dauntless-Fenys-Classic-1.0.2-Windows
           path: release/*.exe
           if-no-files-found: error
