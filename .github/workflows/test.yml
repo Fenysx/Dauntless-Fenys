@@ -1,0 +1,40 @@
+name: Fenys - Testes da API
+
+on:
+  push:
+    branches:
+      - feat/convites-tailscale
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Validar codigo e contratos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Conferir sintaxe
+        run: |
+          node --check src/main.js
+          node --check src/fenys-api.js
+          node --check src/preload.js
+          node --check src/renderer.js
+
+      - name: Rodar testes
+        run: node --test test/*.test.js

@@ -4,15 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: "ID da compilacao concluida que contem os instaladores"
+        description: "ID de compilacao concluida e aprovada para a branch main"
         required: true
         type: string
-        default: "38189271812"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/publish-release.yml"
 
 permissions:
   actions: read
@@ -23,7 +17,7 @@ jobs:
     name: Publicar instaladores na Release
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar codigo e metadados da versao
+      - name: Baixar codigo da main
         uses: actions/checkout@v4
 
       - name: Identificar versao
@@ -33,11 +27,30 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Buscar instaladores da compilacao aprovada
+      - name: Verificar origem e sucesso da compilacao
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "main"
+          test "$RUN_ID" != ""
+          RUN_INFO=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
+          STATUS=$(echo "$RUN_INFO" | jq -r '.status')
+          CONCLUSION=$(echo "$RUN_INFO" | jq -r '.conclusion')
+          RUN_BRANCH=$(echo "$RUN_INFO" | jq -r '.head_branch')
+          RUN_SHA=$(echo "$RUN_INFO" | jq -r '.head_sha')
+          test "$STATUS" = "completed"
+          test "$CONCLUSION" = "success"
+          test "$RUN_BRANCH" = "main"
+          test "$RUN_SHA" = "$GITHUB_SHA"
+
+      - name: Buscar instaladores da compilacao validada
         uses: actions/download-artifact@v4
         with:
           repository: ${{ github.repository }}
-          run-id: ${{ inputs.run_id || '38189271812' }}
+          run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
           pattern: Dauntless-Fenys-*
           merge-multiple: true
@@ -46,10 +59,11 @@ jobs:
       - name: Conferir os tres instaladores
         shell: bash
         run: |
+          set -euo pipefail
           ls -lh release-assets/
-          test "$(find release-assets -maxdepth 1 -name '*.exe' | wc -l)" -ge 1
-          test "$(find release-assets -maxdepth 1 -name '*.AppImage' | wc -l)" -ge 1
-          test "$(find release-assets -maxdepth 1 -name '*.deb' | wc -l)" -ge 1
+          test "$(find release-assets -maxdepth 1 -name '*.exe' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -name '*.AppImage' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -name '*.deb' | wc -l)" -eq 1
 
       - name: Criar Release de testes no GitHub
         uses: softprops/action-gh-release@v2
@@ -65,12 +79,12 @@ jobs:
             release-assets/*.AppImage
             release-assets/*.deb
           body: |
-            ## Dauntless Fenys - primeira versao de testes
-            Launcher comunitario para Dauntless Revived.
+            ## Dauntless Fenys — versão beta
+            Launcher comunitário para Dauntless Revived.
 
-            **Windows:** instalador .exe testado com inicializacao do jogo.
-            **Linux:** pacotes AppImage e deb compilados; o jogo via Wine/Proton ainda nao foi validado.
-            **Importante:** o jogo original nao esta incluido. Servidor remoto,
-            convites de jogadores e atualizacoes automaticas ainda estao em desenvolvimento.
+            **Windows:** instalador para testes com convite e conexão privada por Tailscale.
+            **Linux:** pacotes AppImage e deb compilados; o jogo via Wine/Proton ainda não foi validado.
+            **Importante:** o jogo original não está incluído. Tailscale e configuração do servidor pelo dono são necessários.
+            Atualizações automáticas dos mods e jogo ainda estão em desenvolvimento.
 
-            Esta e uma pre-release destinada a testes, nao uma versao final.
+            Esta é uma pré-release destinada a testes, não uma versão final.

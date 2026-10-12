@@ -1,37 +1,66 @@
-# Dauntless Launcher Lite — protótipo v0.1
+# Dauntless Fenys
 
-Launcher local, independente, em português, para Windows. **Não é um jogo completo e não distribui arquivos de Dauntless.**
+Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de serviços, conexão privada por Tailscale, cadastro individual de jogadores e convites de uso único do Metagame.
 
-## Requisitos
-- Windows 11, Node.js 24 e npm
-- Cópia local já configurada de `dauntless-revived`
-- `UndauntedMetagame/dist/server.js` e `UndauntedDeployServer/dist/server.js` compilados
-- Arquivo `.env` local em cada serviço (não publicar)
-- Launcher atual instalado e funcionando (fase inicial)
+**Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O suporte à execução do jogo é **Windows**; os pacotes Linux abrem o launcher, mas a integração de Wine/Proton ainda está pendente.
 
-## Iniciar
-No terminal, dentro da pasta deste projeto:
+## Status
+
+- Windows: launcher e botão JOGAR foram testados localmente na versão 1.0.0.
+- Convites, cadastro e Tailscale: integração em desenvolvimento; teste ponta a ponta com jogadores externos ainda é necessário.
+- Linux: instaladores AppImage/DEB compilam. O jogo não é iniciado no Linux por esta versão.
+- Atualização automática do jogo e mods: ainda não implementada.
+
+## Executar o código
+
+Node.js 22 ou superior:
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
-Em **Configurações**, selecione a pasta `dauntless-revived` e o executável do launcher atual. Clique em **JOGAR**. O app verifica as portas 61000 e 61001, inicia serviços ausentes e espera até 35 segundos antes de abrir o launcher atual.
+Gerar instaladores:
 
-## Limites conhecidos da v0.1
-- Este é um **protótipo de código-fonte não testado no PC do usuário**, não um instalador pronto.
-- O jogo ainda é iniciado **pelo launcher antigo**; iniciar diretamente o cliente exige validar argumentos, autenticação e compatibilidade.
-- As portas abertas indicam conectividade TCP, **não garantem** que o serviço ou a partida estejam saudáveis.
-- O app não configura automaticamente o GameServer nem corrige problemas de RAM/matchmaking.
-- Ao fechar o app, tenta encerrar somente os processos Node que ele iniciou; processos filhos do DeployServer podem requerer encerramento próprio.
-- Não publica atualizações automáticas, não pede credenciais e não envia telemetria.
+```bash
+npm run build:win
+npm run build:linux
+```
 
-## Próximas fases
-1. Validar a execução local, logs e fluxo de inicialização.
-2. Descobrir integração direta e autorizada com cliente compatível, removendo dependência do launcher antigo.
-3. Adicionar monitoramento de GameServer e diagnósticos detalhados.
-4. Criar instalador Windows e atualização assinada, após auditoria de segurança.
+## Configurar o servidor (dono)
 
-## Licença e créditos
-Este scaffold foi criado separadamente. Ao incorporar ou derivar código do repositório `mixutin/dauntless-revived`, respeitar `AGPL-3.0-only`, manter `LICENSE.txt`, `NOTICE.md`, histórico e créditos pertinentes. **Não** enviar `.env`, chaves, bancos de dados ou arquivos proprietários do jogo.
+1. Instale e configure o [Tailscale](https://tailscale.com/) no computador que hospeda os serviços. Compartilhe **somente esse computador** com os amigos, cada um usando a própria conta Tailscale.
+2. Consulte a [documentação de hospedagem do Dauntless Revived](https://github.com/mixutin/dauntless-revived/blob/dauntless-revived/docs/setup/admin.md) para configurar `BIND_HOST` do Metagame e `MY_IP` do DeployServer com o **IP 100.x.y.z do Tailscale**, além de `QOS_TARGET_URL` e do firewall. `DEPLOYSERVER_URL` e `BIND_HOST` do DeployServer devem continuar locais.
+3. No `.env` de `UndauntedMetagame`, use `AUTH_MODE=APIKEY`, `NODE_ENV=production` e `REGISTRATION_MODE=INVITECODE`. Reinicie o Metagame depois das mudanças.
+4. Tenha **uma conta administradora** no próprio Metagame. A API não promove contas automaticamente; a permissão `isAdmin` deve ser configurada pelo administrador no banco, conforme a documentação acima.
+5. Abra o Fenys, em **Configurações**, informe `100.x.y.z:61000`. Se já possui conta, clique em **Vincular conta existente** e selecione seu `account.key`; o aplicativo confere a chave com o servidor.
+6. Selecione também o arquivo da **chave administradora**. Em **Convites**, clique em **Gerar convite** para receber um código válido para um cadastro.
+
+**Não exponha a porta TCP 61001**, pois o DeployServer não possui autenticação. Evite expor a 61000 à internet pública; o protocolo privado usa HTTP e chaves de conta, portanto limite o acesso à rede Tailscale. Abra apenas as portas necessárias ao jogo na interface Tailscale, conforme as instruções do projeto original.
+
+## Configurar o computador de um amigo
+
+1. Instale Tailscale e aceite o compartilhamento da máquina do dono. Confirme que ele consegue acessar o IP Tailscale do servidor.
+2. Tenha uma cópia do **Dauntless 1.4.4 compatível** já instalada por meios autorizados.
+3. No Fenys, em **Configurações**, informe o IP Tailscale do dono e selecione o executável `Dauntless.exe` da pasta do jogo.
+4. Abra **Convites**, informe um nome de jogador (3–16 caracteres, letras, números ou `_`) e o código recebido. Clique em **Criar minha conta**.
+5. O Fenys salva a chave exclusiva criptografada usando a proteção do sistema operacional (Windows DPAPI via Electron safeStorage); não a compartilhe. Se a proteção do sistema não estiver disponível, o cadastro será bloqueado. Clique em **JOGAR**.
+
+Uma pessoa pode vincular uma chave existente em **Configurações** em vez de abrir outra conta. Para partidas remotas, o host deve manter Metagame, DeployServer e servidores de jogo disponíveis.
+
+## API já usada
+
+| Função | Rota do Metagame | Autorização |
+| --- | --- | --- |
+| Conferir conta | `GET /undaunted/api/GetUserInfo` | Chave da conta |
+| Conferir modo de cadastro | `GET /undaunted/api/RegistrationStatus` | Nenhuma |
+| Gerar convite | `POST /undaunted/api/CreateInvite` | Conta administradora |
+| Registrar amigo | `POST /undaunted/api/Register` | Código de convite |
+
+O Fenys restringe os endpoints HTTP configuráveis a localhost e endereços Tailscale (`100.64.0.0/10` e `*.ts.net`). Não devolve chaves de jogador à interface. As novas chaves cadastradas são criptografadas localmente via Electron safeStorage. Chaves importadas do friend-kit ou de backups podem estar em texto puro; proteja esses arquivos, não os publique nem os compartilhe.
+
+## Segurança e atribuição
+
+Não envie `.env`, tokens, chaves `UUK_`, banco SQLite ou arquivos do jogo ao GitHub. Conexões remotas ainda precisam de teste real de acesso e da configuração correta de firewall/Tailscale.
+
+Código do launcher Fenys e integrações derivadas de [Dauntless Revived](https://github.com/mixutin/dauntless-revived), baseado em [Undaunted](https://github.com/SyST3MDeV/Undaunted), conforme avisos do projeto original. Licença **AGPL-3.0-only**. Consulte o arquivo de licença e `NOTICE.md`. Projeto não afiliado à Phoenix Labs ou Epic Games.

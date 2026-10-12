@@ -1,13 +1,14 @@
 {
   "name": "dauntless-fenys",
-  "version": "1.0.0",
+  "version": "1.1.0-beta.1",
   "private": true,
   "description": "Launcher comunitario do Dauntless Fenys",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win nsis --x64 --publish never",
-    "build:linux": "electron-builder --linux AppImage deb --x64 --publish never"
+    "build:linux": "electron-builder --linux AppImage deb --x64 --publish never",
+    "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "electron": "^38.0.0",
