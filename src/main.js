@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
-const {parseServerAddress,createInvite,registerPlayer}=require('./fenys-api');
+const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fenys-api');
 let win;
 const owned=new Map();
 const PORTS={metagame:61000,deploy:61001};
@@ -146,12 +146,27 @@ app.whenReady().then(()=>{
  createWindow();
  ipcMain.handle('settings:get',()=>{
   const {adminKeyFile,...safe}=load();
-  return {...safe,adminKeySelected:Boolean(adminKeyFile),gameServer:backendAddress()};
+  const server=backendAddress();
+  const c=load();
+  const linked=c.accountFiles && c.accountFiles[server];
+  const local=parseServerAddress(server).local;
+  const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
+  return {...safe,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
  ipcMain.handle('settings:setServer',(_event,value)=>{
   const sv=parseServerAddress(value);
   const c=load();c.gameServer=sv.address;save(c);
   return {server:sv.address,remote:!sv.local};
+ });
+ ipcMain.handle('settings:pickPlayerKey',async()=>{
+  const r=await dialog.showOpenDialog(win,{title:'Selecionar chave de sua conta existente',properties:['openFile'],filters:[{name:'Chave de conta',extensions:['key','txt']}]});
+  if(r.canceled||!r.filePaths.length)return {selected:false};
+  const server=backendAddress();
+  const key=readKeyFile(r.filePaths[0]);
+  const info=await requestApi(server,'/undaunted/api/GetUserInfo',{key});
+  if(!info || typeof info.Username!=='string')throw new Error('O servidor não reconheceu essa conta.');
+  const c=load();c.accountFiles={...(c.accountFiles||{}),[server]:r.filePaths[0]};save(c);
+  return {selected:true,username:info.Username};
  });
  ipcMain.handle('settings:pickAdminKey',async()=>{
   const r=await dialog.showOpenDialog(win,{title:'Escolha a chave da conta administradora (somente nesta máquina)',properties:['openFile'],filters:[{name:'Arquivo de chave',extensions:['key','txt']}]});
@@ -191,6 +206,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
  ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
+  if(process.platform!=='win32')throw new Error('O jogo no Linux ainda precisa de integração com Wine/Proton. O launcher Linux suporta as telas, não a execução do jogo.');
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
