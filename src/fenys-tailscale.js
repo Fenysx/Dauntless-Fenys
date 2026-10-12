@@ -12,8 +12,13 @@ function findCli(platform=process.platform,env=process.env,exists=fs.existsSync)
   ['/usr/bin/tailscale','/usr/local/bin/tailscale','/snap/bin/tailscale'];
  return candidates.find(exists)||null;
 }
+function commandEnvironment(file,env=process.env){
+ // A launcher started from PowerShell 7 can inherit its incompatible module path.
+ // Windows PowerShell must load its own built-in modules for signature and UAC operations.
+ return path.win32.basename(file).toLowerCase()==='powershell.exe'?{...env,PSModulePath:path.win32.join(path.win32.dirname(file),'Modules')}:env;
+}
 function runCommand(file,args,{timeout=10000}={}){return new Promise((resolve,reject)=>{
- const child=spawn(file,args,{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});let out='',err='',done=false;
+ const child=spawn(file,args,{windowsHide:true,shell:false,env:commandEnvironment(file),stdio:['ignore','pipe','pipe']});let out='',err='',done=false;
  const finish=(error)=>{if(done)return;done=true;clearTimeout(timer);error?reject(error):resolve(out);};
  const timer=setTimeout(()=>{child.kill();finish(Error('O Tailscale não respondeu a tempo.'));},timeout);
  child.stdout.on('data',d=>{out+=String(d);if(out.length>1024*1024){child.kill();finish(Error('Resposta do Tailscale maior que o esperado.'));}});
@@ -129,4 +134,4 @@ function createTailscale({platform=process.platform,find=()=>findCli(platform),r
  function dispose(){if(connecting){connecting.kill();connecting=null;}}
  return {status,install,connect,background,dispose};
 }
-module.exports={createTailscale,findCli,stateFromStatus,authURL,downloadInstaller,verifyInstaller,INSTALLER_URL};
+module.exports={createTailscale,findCli,stateFromStatus,authURL,downloadInstaller,verifyInstaller,commandEnvironment,INSTALLER_URL};

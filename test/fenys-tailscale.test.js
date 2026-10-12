@@ -2,7 +2,14 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
 const {EventEmitter}=require('node:events');
-const {createTailscale,findCli,stateFromStatus,authURL,downloadInstaller,verifyInstaller,INSTALLER_URL}=require('../src/fenys-tailscale');
+const {createTailscale,findCli,stateFromStatus,authURL,downloadInstaller,verifyInstaller,commandEnvironment,INSTALLER_URL}=require('../src/fenys-tailscale');
+test('PowerShell Windows carrega módulos próprios mesmo quando o launcher veio do PowerShell 7',()=>{
+ const env={PSModulePath:'C:\\Program Files\\PowerShell\\7\\Modules',LOCALAPPDATA:'C:\\Users\\Player\\AppData\\Local'};
+ const output=commandEnvironment('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',env);
+ assert.equal(output.PSModulePath,'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules');
+ assert.equal(output.LOCALAPPDATA,env.LOCALAPPDATA);assert.notEqual(output,env);
+ assert.equal(commandEnvironment('C:\\Program Files\\Tailscale\\tailscale.exe',env),env);
+});
 test('detecta executável Windows instalado sem executar binários do diretório atual',()=>{
  const cli=findCli('win32',{ProgramFiles:'C:\\Program Files'},p=>p==='C:\\Program Files\\Tailscale\\tailscale.exe');
  assert.equal(cli,'C:\\Program Files\\Tailscale\\tailscale.exe');
