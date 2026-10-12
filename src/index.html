@@ -65,6 +65,9 @@
           <label for="serverAddress">Endereço do Metagame (localhost ou Tailscale)</label>
           <div class="path"><input id="serverAddress" class="fenys-input" placeholder="127.0.0.1:61000"><button id="serverSave" class="btn btn-red">Salvar</button></div>
           <p class="notice">Para jogar com amigos, use o IP 100.x.y.z ou hostname *.ts.net do Tailscale. Nunca encaminhe a porta 61001 à internet.</p>
+          <label>Minha chave de conta para este servidor</label>
+          <div class="path"><span id="accountKeyState">Não selecionada</span><button id="playerKeyPick" class="btn btn-outline">Vincular conta existente</button></div>
+          <p class="notice">Se você já tem uma conta e apenas mudou para o IP Tailscale, selecione sua chave anterior. O Fenys verificará a conta no servidor antes de vinculá-la.</p>
           <label>Chave da conta administradora (apenas no computador do dono)</label>
           <div class="path"><span id="adminKeyState">Não selecionada</span><button id="adminKeyPick" class="btn btn-outline">Selecionar chave</button></div>
           <p class="notice">A chave do administrador fica no PC; ela não é mostrada na interface nem enviada ao GitHub.</p>
