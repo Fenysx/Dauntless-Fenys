@@ -11,3 +11,10 @@
 .fenys-player{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#151119;padding:13px 15px;border:1px solid #32202b;border-radius:10px}
 .fenys-player strong{font-size:13px;overflow-wrap:anywhere}
 .fenys-player span{font-size:12px;color:#f2a5b3;white-space:nowrap}
+
+/* Feedback das chamadas assíncronas: visível na própria aba, inclusive sem console. */
+.global-feedback{margin:12px 38px 0;padding:11px 15px;background:#22202b;border:1px solid #624457;border-radius:9px;color:#f1c9d5;font-size:12px;line-height:1.5}
+.global-feedback[hidden]{display:none!important}
+.global-feedback.is-error,.form-status.is-error{background:#3e1623;border-color:#dd4565;color:#ffe0e7}
+.form-status{margin:16px 0 0;padding:12px 14px;border:1px solid #513447;border-radius:9px;background:#201720;color:#f4b8c7;font-size:12px;line-height:1.55;min-height:40px}
+@media(max-width:780px){.global-feedback{margin:10px 16px 0}}
