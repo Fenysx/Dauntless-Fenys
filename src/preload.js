@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('launcher',{
  createInvite:name=>ipcRenderer.invoke('invites:create',name),
  register:(username,inviteCode)=>ipcRenderer.invoke('account:register',username,inviteCode),
  status:()=>ipcRenderer.invoke('server:status'),
+ players:()=>ipcRenderer.invoke('players:online'),
  start:()=>ipcRenderer.invoke('server:start'),
  stop:()=>ipcRenderer.invoke('server:stop'),
  restart:()=>ipcRenderer.invoke('server:restart'),
