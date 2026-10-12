@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
+const {parseServerAddress,createInvite,registerPlayer}=require('./fenys-api');
 let win;
 const owned=new Map();
 const PORTS={metagame:61000,deploy:61001};
@@ -19,11 +20,14 @@ const GAME_HASHES={
 };
 let busy=null;
 const configFile=()=>path.join(app.getPath('userData'),'settings.json');
-function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:''};}
+function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
 function load(){try{return {...defaults(),...JSON.parse(fs.readFileSync(configFile(),'utf8'))};}catch{return defaults();}}
 function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.writeFileSync(configFile(),JSON.stringify(c,null,2));}
-function tcp(port){return new Promise(resolve=>{const s=net.connect({host:'127.0.0.1',port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
-async function status(){return {metagame:await tcp(PORTS.metagame),deploy:await tcp(PORTS.deploy),owned:[...owned.keys()]};}
+function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
+async function status(){
+ const sv=parseServerAddress(backendAddress());
+ return {metagame:await tcp(sv.port,sv.host),deploy:sv.local?await tcp(PORTS.deploy):false,owned:[...owned.keys()],remote:!sv.local,server:sv.address};
+}
 function notify(msg){if(win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
 function launchService(name,dir){
  const base=path.join(load().repoPath,dir);
@@ -36,7 +40,7 @@ function launchService(name,dir){
  child.on('exit',code=>{if(owned.get(name)===child)owned.delete(name);notify(`${name} finalizou (código ${code})`);});
 }
 async function waitReady(){for(let i=0;i<35;i++){const s=await status();if(s.metagame&&s.deploy)return s;await new Promise(r=>setTimeout(r,1000));}throw new Error('Serviços indisponíveis após 35 segundos. Verifique a aba Atividades.');}
-async function startAll(){let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
+async function startAll(){if(!parseServerAddress(backendAddress()).local)throw new Error('Serviço remoto: somente o administrador inicia o servidor na máquina hospedeira.');let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
 async function killOwned(name){const child=owned.get(name);if(!child)return;if(child.exitCode!==null||child.killed){owned.delete(name);return;}
  await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timeout);resolve();};
  const timeout=setTimeout(finish,3500);child.once('exit',finish);
@@ -71,31 +75,41 @@ async function verifyGame(dir){
 }
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
- let server=String(load().gameServer||'').trim()||'127.0.0.1:61000';
- const settings=path.join(friendKitDir(),'settings.json');
- if(!load().gameServer&&fs.existsSync(settings)){
-  try {const c=JSON.parse(fs.readFileSync(settings,'utf8'));if(typeof c.Server==='string'&&c.Server.trim())server=c.Server.trim();}
-  catch{throw new Error('O settings.json do kit DauntlessRevived está inválido.');}
- }
- if(!/^[a-zA-Z0-9._-]+(?::[0-9]{1,5})?$/.test(server))throw new Error('Endereço do servidor inválido nas configurações do DauntlessRevived.');
- if(!server.includes(':'))server+=':61000';
- const port=Number(server.split(':').at(-1));
- if(port<1||port>65535)throw new Error('Porta do servidor inválida.');
- return server;
-}
-async function accountKey(){
  const c=load();
- const candidate=c.gameKeyFile||path.join(friendKitDir(),'account.key');
- let file=candidate;
- if(!fs.existsSync(file)){
-  const r=await dialog.showOpenDialog(win,{title:'Selecione account.key de sua conta Dauntless Revived',buttonLabel:'Usar chave da minha conta',properties:['openFile'],filters:[{name:'Arquivo de chave',extensions:['key','txt']},{name:'Todos os arquivos',extensions:['*']}]});
-  if(r.canceled||!r.filePaths.length)throw new Error('Chave da conta não selecionada. Primeiro registre sua conta pelo Dauntless Revived original ou pelo friend-kit/setup.ps1.');
-  file=r.filePaths[0];c.gameKeyFile=file;save(c);
+ let raw=String(c.gameServer||'').trim();
+ if(!raw){
+  const legacy=path.join(friendKitDir(),'settings.json');
+  if(fs.existsSync(legacy)){
+   try{const v=JSON.parse(fs.readFileSync(legacy,'utf8'));if(typeof v.Server==='string')raw=v.Server;}
+   catch{throw new Error('Configuração legada DauntlessRevived/settings.json inválida.');}
+  }
  }
- const key=fs.readFileSync(file,'utf8').trim();
- if(!/^[a-zA-Z0-9_-]{8,128}$/.test(key))throw new Error('A chave da conta não parece válida. Use o arquivo account.key gerado no cadastro do Dauntless Revived.');
+ return parseServerAddress(raw).address;
+}
+function readKeyFile(file){
+ const raw=fs.readFileSync(file,'utf8').trim();
+ const parts=raw.split(/\\r?\\n/);
+ const key=parts.length===3&&parts[0]==='DRK2'?parts[2]:raw;
+ if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Arquivo não contém uma chave de conta Dauntless Revived válida.');
  return key;
 }
+
+async function accountKey(){
+ const c=load();
+ const server=backendAddress();
+ const own=c.accountFiles && c.accountFiles[server];
+ const local=parseServerAddress(server).local;
+ let file=own || (local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : '');
+ if(!file && !local)throw new Error('Cadastre sua conta com um convite na aba Convites antes de jogar neste servidor.');
+ if(!fs.existsSync(file)){
+  if(!local)throw new Error('Sua chave para este servidor não foi encontrada. Consulte o administrador.');
+  const r=await dialog.showOpenDialog(win,{title:'Selecione sua chave de conta Dauntless Revived',properties:['openFile'],filters:[{name:'Chaves de conta',extensions:['key','txt']}]});
+  if(r.canceled||!r.filePaths.length)throw new Error('Chave de conta não selecionada.');
+  file=r.filePaths[0];c.gameKeyFile=file;save(c);
+ }
+ return readKeyFile(file);
+}
+
 function configureChat(server){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
@@ -130,7 +144,46 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
 
 app.whenReady().then(()=>{
  createWindow();
- ipcMain.handle('settings:get',()=>load());
+ ipcMain.handle('settings:get',()=>{
+  const {adminKeyFile,...safe}=load();
+  return {...safe,adminKeySelected:Boolean(adminKeyFile),gameServer:backendAddress()};
+ });
+ ipcMain.handle('settings:setServer',(_event,value)=>{
+  const sv=parseServerAddress(value);
+  const c=load();c.gameServer=sv.address;save(c);
+  return {server:sv.address,remote:!sv.local};
+ });
+ ipcMain.handle('settings:pickAdminKey',async()=>{
+  const r=await dialog.showOpenDialog(win,{title:'Escolha a chave da conta administradora (somente nesta máquina)',properties:['openFile'],filters:[{name:'Arquivo de chave',extensions:['key','txt']}]});
+  if(r.canceled||!r.filePaths.length)return {selected:Boolean(load().adminKeyFile)};
+  readKeyFile(r.filePaths[0]);
+  const c=load();c.adminKeyFile=r.filePaths[0];save(c);
+  return {selected:true};
+ });
+ ipcMain.handle('invites:create',async(_event,name)=>{
+  try{
+   const c=load();
+   if(!c.adminKeyFile||!fs.existsSync(c.adminKeyFile))throw new Error('Selecione a chave administradora em Configurações.');
+   const code=await createInvite(backendAddress(),readKeyFile(c.adminKeyFile),name);
+   return {ok:true,code};
+  }catch(e){return {ok:false,error:e.message};}
+ });
+ ipcMain.handle('account:register',async(_event,username,inviteCode)=>{
+  try{
+   const server=backendAddress();
+   const c=load();
+   if(c.accountFiles&&c.accountFiles[server]&&fs.existsSync(c.accountFiles[server]))throw new Error('Já existe uma conta cadastrada para este servidor.');
+   if(parseServerAddress(server).local && fs.existsSync(path.join(friendKitDir(),'account.key')))throw new Error('Este computador já possui uma conta local. Não cadastre outra por cima.');
+   const key=await registerPlayer(server,username,inviteCode);
+   const id=crypto.createHash('sha256').update(server).digest('hex').slice(0,20);
+   const dir=path.join(app.getPath('userData'),'contas',id);
+   const file=path.join(dir,'account.key');
+   fs.mkdirSync(dir,{recursive:true,mode:0o700});
+   fs.writeFileSync(file,key,{encoding:'utf8',flag:'wx',mode:0o600});
+   c.accountFiles={...(c.accountFiles||{}),[server]:file};save(c);
+   return {ok:true,username:String(username).trim()};
+  }catch(e){return {ok:false,error:e.message};}
+ });
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
  ipcMain.handle('server:status',()=>status());
@@ -143,7 +196,8 @@ app.whenReady().then(()=>{
   await verifyGame(path.dirname(exe));
   const server=backendAddress();
   const key=await accountKey();
-  const s=await startAll();
+  const s=parseServerAddress(server).local?await startAll():await status();
+  if(!s.metagame)throw new Error('Servidor remoto offline. Confira o Tailscale e a porta 61000.');
   configureChat(server);
   await spawnGame(exe,gameArgs(server,key));
   notify(`Dauntless 1.4.4 iniciado pelo cliente Win64, conectado a ${server}.`);
