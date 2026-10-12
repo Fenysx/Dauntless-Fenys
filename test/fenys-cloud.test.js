@@ -81,6 +81,7 @@ test('matchmaking delega ao host escolhido e permite save pelo host da caçada a
  const ha=enroll(a,'100.64.1.2:61000'),hb=enroll(b,'100.64.1.3:61000');
  authority.join(p.key,{realm:authority.realm,hostId:ha.hostId,secret:decodeCode(authority.invite(ha.hostId).code).secret,session:crypto.randomUUID()});
  authority.join(friend.key,{realm:authority.realm,hostId:hb.hostId,secret:decodeCode(authority.invite(hb.hostId).code).secret,session:crypto.randomUUID()});
+ const ownSave=await authority.rpc({hostId:ha.hostId,route:'/character',method:'POST',headers:{},game:true,body:{characterId:p.cid,data:JSON.stringify({RecentPlayers:[friend.uid]})}});assert.equal(ownSave.status,200,'recent players inside character data do not transfer ownership');
  const result=await authority.deploy('/api/matchmaker/handle-matchmaking-for-player','POST',{FenysHostId:ha.hostId,GameMode:'ISLAND',ExpectedPlayers:[p.uid,friend.uid]});
  assert.equal(result.status,200);assert.equal(calls[0].address,'100.64.1.2:61000');assert.equal(calls[0].payload.body.FenysHostId,undefined);
  const saving=await authority.rpc({hostId:ha.hostId,route:'/test/save',method:'POST',headers:{},game:true,body:{userId:friend.uid,level:30}});assert.equal(saving.status,200);

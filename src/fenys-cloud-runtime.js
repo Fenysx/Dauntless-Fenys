@@ -84,11 +84,20 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
  function getIds(headers,body,route,targets=false){
   const ids=new Set(),me=account(headers['x-undaunted-user-api-key']);if(me)ids.add(me.userId);
   try{const token=headers.authorization;if(typeof token==='string'&&/^bearer /i.test(token)){const p=validateToken(token.slice(7));if(p?.userId)ids.add(p.userId);}}catch{}
-  const text=route+' '+JSON.stringify(body||{});
-  for(const key of text.match(/UUK_[a-f0-9]{48}/gi)||[]){const owner=account(key);if(owner)ids.add(owner.userId);}
+  for(const [field,value] of Object.entries(body||{}))if(/^(?:password|auth_password|exchange_code|key|uuk)$/i.test(field)&&typeof value==='string'){
+   const owner=account(value);if(owner)ids.add(owner.userId);
+  }
   if(!targets)return [...ids];
-  for(const id of text.match(/UID-[a-f0-9-]{36}/gi)||[])ids.add(id);
-  for(const id of text.match(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi)||[]){const c=db.prepare('SELECT userId FROM characters WHERE characterId=?').get(id);if(c)ids.add(c.userId);}
+  let decoded=route;try{decoded=decodeURIComponent(new URL(route,'http://localhost').pathname);}catch{}
+  const references=[...(decoded.match(/UID-[a-f0-9-]{36}/gi)||[]),...(decoded.match(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi)||[])];
+  const owners=new Set(['userid','accountid','characterid','leaderaccountid','phxaccountid','uid','accountids','userids','expectedplayers']);
+  const opaque=new Set(['data','itemdata','loadouts','instanceditems','stackeditems','addinstanceditems','saveinstanceditems']);
+  function walk(value,depth=0){if(!value||typeof value!=='object'||depth>8)return;for(const [field,child] of Object.entries(value)){
+   const name=field.toLowerCase().replace(/_/g,'');
+   if(owners.has(name)){if(typeof child==='string')references.push(child);else if(Array.isArray(child))references.push(...child.filter(v=>typeof v==='string'));}
+   if(!opaque.has(name))walk(child,depth+1);
+  }}walk(body);
+  for(const id of references){if(/^UID-[a-f0-9-]{36}$/i.test(id))ids.add(id);else{const c=db.prepare('SELECT userId FROM characters WHERE characterId=?').get(id);if(c)ids.add(c.userId);}}
   return [...ids];
  }
  function scope(hostId,ids,game){
@@ -113,7 +122,8 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
   for(const name of ['authorization','x-undaunted-user-api-key','accept'])if(typeof p.headers[name]==='string'&&p.headers[name].length<16384)headers[name]=p.headers[name];
   if(p.game===true)headers['x-undaunted-gameserver-apikey']=gameKey;
   const adminRoute=/^\/undaunted\/api\//i.test(p.route);
-  if(!adminRoute)scope(p.hostId,getIds(headers,p.body,p.route,p.game===true),p.game===true);
+  const targets=p.game===true&&!/^\/friends\//i.test(p.route)&&!(p.route.startsWith('/trials/')&&p.body?.completion_time===undefined);
+  if(!adminRoute)scope(p.hostId,getIds(headers,p.body,p.route,targets),p.game===true);
   const result=await native(localAddress,p.route,p.method,headers,p.body);
   return result;
  }
@@ -148,7 +158,8 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
    const internalCall=localRequest(req)&&req.headers['x-fenys-internal-token']===internal;
    const currentHost=internalCall?req.headers['x-fenys-host-id']:rootId;
    if(req.headers['x-fenys-internal-token']&&!internalCall){res.status(403).end();return;}
-   if(!/^\/undaunted\/api\//i.test(req.url))try{scope(currentHost,getIds(req.headers,req.body,req.url,!!req.headers['x-undaunted-gameserver-apikey']),!!req.headers['x-undaunted-gameserver-apikey']);}catch(e){res.status(409).json({error:e.message});return;}
+   const game=!!req.headers['x-undaunted-gameserver-apikey'],targets=game&&!/^\/friends\//i.test(req.url)&&!(req.url.startsWith('/trials/')&&req.body?.completion_time===undefined);
+   if(!/^\/undaunted\/api\//i.test(req.url))try{scope(currentHost,getIds(req.headers,req.body,req.url,targets),game);}catch(e){res.status(409).json({error:e.message});return;}
    delete req.headers['x-fenys-internal-token'];delete req.headers['x-fenys-host-id'];
    const before=db.prepare('SELECT total_changes() n').get().n;
    res.once('finish',()=>{if(res.statusCode<400&&db.prepare('SELECT total_changes() n').get().n>before)backup?.mark();});
