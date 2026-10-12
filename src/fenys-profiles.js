@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 
 const USERNAME = /^[A-Za-z0-9_]{3,16}$/;
 const UUK = /^UUK_[a-f0-9]{48}$/i;
-const HEX = /^[a-f0-9]{32}$/i;
+const HEX = /^[a-f0-9]{64}$/i;
 function normalized(name) { return String(name || '').trim(); }
 function checkUsername(name) {
   const value = normalized(name);
