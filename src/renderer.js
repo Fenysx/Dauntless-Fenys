@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
-const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
+const screens={connection:'CONECTAR SERVIDOR',dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 const controls=['play','start','stop','restart','start2','stop2','restart2','refresh'];
 let me=null,operating=false,playersBusy=false;
 function note(message,error=false){
@@ -82,7 +82,7 @@ async function loadSettings(){
   $('repo').textContent=c.repoPath||'Somente administrador';
   $('exe').textContent=c.launcherExe||'Não configurado';
   $('serverAddress').value=c.gameServer||'127.0.0.1:61000';
-  $('serverSave').disabled=true;
+  $('serverSave').disabled=false;
   $('accountKeyState').textContent='Conta vinculada: '+me.username;
   $('adminKeyState').textContent=me.role==='admin'?'Validada pelo servidor':'Somente administrador';
   $('adminKeyPick').disabled=true;
@@ -178,7 +178,7 @@ async function showState(){
  $('profile-display').textContent=me.username+(me.role==='admin'?' • ADMIN':' • JOGADOR');
  for(const el of document.querySelectorAll('.admin-only'))el.hidden=me.role!=='admin';
  $('admin-control-card').hidden=me.role!=='admin';
- setScreen('dashboard');await loadSettings();await refresh();
+ setScreen('dashboard');await loadSettings();await refresh();await connectionRefresh();
 }
 function recovery(code){
  $('auth-shell').hidden=false;$('app-shell').hidden=true;
@@ -218,7 +218,7 @@ $('recovery-ack').addEventListener('click',()=>{
 });
 $('profile-switch').addEventListener('click',async()=>{
  if(!window.confirm('Sair do Fenys? Feche o jogo antes de trocar de personagem.'))return;
- await window.launcher.logout();$('login-pass').value='';await showState();
+ const result=await window.launcher.logout();if(!result?.ok){note(result?.error||'Não foi possível sair.',true);return;}$('login-pass').value='';await showState();
 });
 $('profile-change-password').addEventListener('click',()=>{$('password-dialog').hidden=false;});
 $('password-cancel').addEventListener('click',()=>{$('password-dialog').hidden=true;});
@@ -232,6 +232,7 @@ $('password-apply').addEventListener('click',async()=>{
 });
 for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{
  setScreen(node.dataset.screen);
+ if(node.dataset.screen==='connection')void connectionRefresh();
  if(node.dataset.screen==='players')void playerRefresh();
  if(node.dataset.screen==='invites'&&me?.role==='admin')void loadAdminAccounts(false);
 });
@@ -247,7 +248,7 @@ $('repoPick').addEventListener('click',async()=>{
 $('exePick').addEventListener('click',async()=>{
  try{await window.launcher.pickLauncher();await loadSettings();}catch(e){note(e.message,true);}
 });
-$('serverSave').addEventListener('click',()=>note('Para trocar de servidor, saia da conta e crie ou importe um perfil para aquele servidor.',true));
+$('serverSave').addEventListener('click',()=>{setScreen('connection');void connectionRefresh();});
 $('adminKeyPick').addEventListener('click',()=>note('Os privilégios são reconhecidos automaticamente quando você importa a conta administradora.',true));
 $('playerKeyPick').addEventListener('click',()=>note('Para vincular outra conta existente, saia e use Importar conta.',true));
 $('admin-list').addEventListener('click',()=>void loadAdminAccounts(false));
@@ -264,6 +265,68 @@ $('invite-create').addEventListener('click',async()=>{
  }catch(e){formNote('invite-status',e.message,true);}
  finally{button.disabled=false;}
 });
+let connecting=false;
+async function connectionRefresh(){
+ if(!me)return;
+ const r=await window.launcher.connectionState();
+ if(!r.ok){formNote('connection-message',r.error,true);return;}
+ $('connection-state').textContent=(r.pending?'Confirmação global pendente. ':r.global?'Conta global conectada. ':'Selecione um host ou ative sua rede global. ')+r.server+(r.authority?' • PC central: '+r.authority:'');
+ $('connection-home').disabled=connecting||(!r.global&&!r.localRole);
+ $('connection-recover').disabled=connecting||!r.pending;
+ $('cloud-central-controls').hidden=me.role!=='admin'||r.localRole!=='authority';
+ if(r.localRole)$('cloud-role').value=r.localRole;
+ $('cloud-role').disabled=!!r.localRole;
+ $('cloud-host-fields').hidden=$('cloud-role').value!=='host';$('cloud-authority-fields').hidden=$('cloud-role').value!=='authority';
+ const select=$('connection-address'),previous=select.value;select.replaceChildren();
+ for(const address of r.addresses||[]){const option=document.createElement('option');option.value=address+':61000';option.textContent=address+':61000';select.append(option);}
+ if([...select.options].some(x=>x.value===previous))select.value=previous;
+ if(!select.options.length){const option=document.createElement('option');option.textContent='Conecte o Tailscale neste computador';option.value='';select.append(option);}
+}
+async function connectionOperation(method,arg){
+ if(connecting||operating)return;
+ connecting=true;
+ const buttons=['connection-join','connection-home','connection-recover','connection-install','connection-invite'];
+ for(const id of buttons)$(id).disabled=true;
+ formNote('connection-message',method==='installHost'?'Configurando banco global e reiniciando os serviços…':'Conectando ao banco global…');
+ try{
+  const r=await window.launcher[method](arg);
+  if(!r?.ok)throw Error(r?.error||'Operação não concluída.');
+  if(r.code){$('connection-generated').value=r.code;formNote('connection-message','Código criado. Válido até '+new Date(r.expiresAt).toLocaleTimeString('pt-BR')+'.');}
+  else{if(method==='connectServer')$('connection-code').value='';formNote('connection-message','Operação concluída. A conta usa o mesmo personagem e dados globais.');}
+ }catch(e){formNote('connection-message',e.message,true);}
+ finally{connecting=false;for(const id of buttons)$(id).disabled=false;await connectionRefresh();await loadSettings();await refresh();}
+}
+$('connection-join').addEventListener('click',()=>void connectionOperation('connectServer',$('connection-code').value.trim()));
+$('connection-home').addEventListener('click',()=>void connectionOperation('returnHome'));
+$('connection-recover').addEventListener('click',()=>void connectionOperation('recoverConnection'));
+$('connection-install').addEventListener('click',()=>void connectionOperation('installHost',{address:$('connection-address').value,role:$('cloud-role').value,hostCode:$('cloud-host-code').value.trim(),rcloneBinary:$('cloud-rclone').value.trim()||'rclone'}));
+$('connection-invite').addEventListener('click',()=>void connectionOperation('connectionInvite',$('connection-address').value));
+$('connection-copy').addEventListener('click',async()=>{
+ const code=$('connection-generated').value;if(!code)return;
+ try{await navigator.clipboard.writeText(code);formNote('connection-message','Código copiado. Envie ao seu amigo.');}
+ catch{$('connection-generated').select();formNote('connection-message','Selecione e copie o código com Ctrl+C.');}
+});
+$('cloud-role').addEventListener('change',()=>{
+ $('cloud-host-fields').hidden=$('cloud-role').value!=='host';$('cloud-authority-fields').hidden=$('cloud-role').value!=='authority';
+});
+$('cloud-enroll').addEventListener('click',()=>void connectionOperation('enrollHostInvite'));
+let backupBusy=false;
+async function cloudBackup(force){
+ if(backupBusy)return;backupBusy=true;$('cloud-backup-now').disabled=true;$('cloud-backup-status').disabled=true;
+ $('cloud-backup-message').textContent=force?'Enviando cópia consistente e verificando a integridade no Drive…':'Consultando o último backup verificado…';
+ try{
+  const r=await window.launcher.cloudBackup(force);if(!r.ok)throw Error(r.error);
+  $('cloud-backup-message').textContent=(r.lastSuccess?'Último backup verificado: '+new Date(r.lastSuccess).toLocaleString('pt-BR')+'. ':'Nenhum backup global confirmado ainda. ')+(r.dirty?'Há alterações aguardando envio. ':'Dados salvos no Drive. ')+(r.error||'');
+ }catch(e){$('cloud-backup-message').textContent=e.message;}
+ finally{backupBusy=false;$('cloud-backup-now').disabled=false;$('cloud-backup-status').disabled=false;}
+}
+$('cloud-backup-status').addEventListener('click',()=>void cloudBackup(false));
+$('cloud-backup-now').addEventListener('click',()=>void cloudBackup(true));
+window.launcher.onConnectionActivity(message=>{if(me)note(message);});
+window.launcher.onConnectionPresence(players=>{
+ $('connection-players').replaceChildren();
+ for(const player of players){const line=document.createElement('div');line.className='fenys-player';line.textContent=player.name;$('connection-players').append(line);}
+});
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 if(window.launcher?.authState){
  window.launcher.onActivity(message=>{if(me?.role==='admin')note(message);});
@@ -271,3 +334,4 @@ if(window.launcher?.authState){
  setInterval(()=>{if(me&&!operating)void refresh();},10000);
  setInterval(()=>{if(me&&!operating&&!$('screen-players').hidden)void playerRefresh();},30000);
 }else{authMessage('O componente Electron não carregou. Reinicie o launcher com npm start.',true);}
+

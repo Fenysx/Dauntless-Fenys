@@ -9,7 +9,18 @@ const {parseServerAddress,requestApi,createInvite,registerPlayer,getAdminAccount
 const {revokePlayer}=require('./fenys-host-admin');
 const os=require('node:os');
 const {ProfileVault,checkUsername,checkPassword}=require('./fenys-profiles');
+const {RoamingClient,roamingRequest}=require('./fenys-roaming-client');
+const {tailscaleAddresses}=require('./fenys-host-setup');
+const {CloudClient}=require('./fenys-cloud-client');
+const {call:cloudRequest}=require('./fenys-cloud-protocol');
+const {installCloud}=require('./fenys-cloud-setup');
+let cloud;
+let roaming;
+let connectionBusy=false;
+let connectionCursor=null, connectionMonitorProfile=null,monitorBusy=false;
 let win;
+if(!app.requestSingleInstanceLock())app.exit(0);
+app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.focus();}});
 let vault;
 let activeGame=null;
 const owned=new Map();
@@ -25,7 +36,7 @@ const GAME_HASHES={
 };
 let busy=null;
 const configFile=()=>path.join(app.getPath('userData'),'settings.json');
-function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
+function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{},cloudRole:null,cloudAuthority:null};}
 function load(){try{return {...defaults(),...JSON.parse(fs.readFileSync(configFile(),'utf8'))};}catch{return defaults();}}
 function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.writeFileSync(configFile(),JSON.stringify(c,null,2));}
 function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
@@ -96,7 +107,7 @@ async function verifyGame(dir){
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
  const current=vault?.current();
- if(current)return parseServerAddress(current.server).address;
+ if(current)return parseServerAddress(cloud?.state(current).global?cloud.state(current).server:roaming?.state(current).server||current.server).address;
  const c=load();
  let raw=String(c.gameServer||'').trim();
  if(!raw){
@@ -127,12 +138,55 @@ function readKeyFile(file){
  return key;
 }
 
-async function accountKey(){
+async function originalAccountKey(){
  vault.requireLogin();
  if(!canProtectAccount())throw new Error('Proteção de credenciais indisponível.');
  const key=safeStorage.decryptString(vault.encryptedKey()).trim();
  if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Chave deste perfil inválida.');
  return key;
+}
+async function accountKey(){const me=vault.requireLogin();if(cloud.state(me).global){cloud.requireReady(me);return originalAccountKey();}return roaming.key(me,await originalAccountKey());}
+function assertGameClosed(){if(activeGame&&activeGame.exitCode===null)throw new Error('Feche o jogo antes de trocar de servidor ou perfil.');}
+function connectionNote(message){if(win&&!win.isDestroyed())win.webContents.send('connection-activity',String(message));}
+async function connectionAction(fn){
+ if(connectionBusy||busy)throw new Error('Aguarde a operação atual.');
+ assertGameClosed();connectionBusy=true;
+ try{return await fn();}finally{connectionBusy=false;}
+}
+function hostApiAddress(me){const sv=parseServerAddress(me.server);return hostedOnThisPC(me.server)?'127.0.0.1:'+sv.port:sv.address;}
+async function monitorConnection(){
+ const me=vault?.current();if(!me||monitorBusy||connectionBusy)return;monitorBusy=true;
+ try{
+  if(connectionMonitorProfile!==me.id){connectionCursor=null;connectionMonitorProfile=me.id;}
+  const settings=load(),globalState=cloud.state(me);
+  if(settings.cloudRole||globalState.global){
+   const portable=await cloud.poll(me,await originalAccountKey());
+   if(portable)for(const event of portable.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no servidor.':' saiu do servidor.'));
+   let presence=portable?.players;
+   if(me.role==='admin'&&settings.cloudRole){
+    const data=await cloudRequest('127.0.0.1:61000','events',{cursor:connectionCursor},await originalAccountKey());
+    for(const event of data.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no seu servidor.':' saiu do seu servidor.'));
+    connectionCursor=data.cursor;if(!globalState.global||hostedOnThisPC(globalState.server))presence=data.players;
+   }
+   if(presence&&win&&!win.isDestroyed())win.webContents.send('connection-presence',presence);
+   return;
+  }
+
+  const portable=await roaming.poll(me);
+  const ownHost=me.role==='admin'&&hostedOnThisPC(me.server);
+  if(portable&&(!ownHost||roaming.state(me).connected)){
+   for(const event of portable.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no servidor.':' saiu do servidor.'));
+  }
+  const data=ownHost?await roamingRequest(hostApiAddress(me),'events',{cursor:connectionCursor},await originalAccountKey()):portable;
+  if(data){
+   if(ownHost){
+    for(const event of data.events||[])connectionNote(event.name+(event.kind==='joined'?' entrou no seu servidor.':' saiu do seu servidor.'));
+    connectionCursor=data.cursor;
+   }
+   const presence=roaming.state(me).connected?portable?.players:data.players;
+   if(presence&&win&&!win.isDestroyed())win.webContents.send('connection-presence',presence);
+  }
+ }catch{}finally{monitorBusy=false;}
 }
 async function legacyAccountKey(){
  const c=load();
@@ -153,12 +207,13 @@ async function legacyAccountKey(){
 async function playerOverview(){
  const me=vault.requireLogin();
  const key=await accountKey();
- const data=await requestApi(me.server,'/undaunted/api/ServerStatus',{key});
+ const server=backendAddress();
+ const data=await requestApi(server,'/undaunted/api/ServerStatus',{key});
  if(!data || !Array.isArray(data.players))throw new Error('A API não retornou a lista de jogadores.');
- if(data.limited===true)return {limited:true,count:0,players:[],server:me.server};
+ if(data.limited===true)return {limited:true,count:0,players:[],server:backendAddress()};
  const players=data.players.slice(0,100).filter(p=>p&&typeof p.name==='string')
   .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
- return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server:me.server};
+ return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server:backendAddress()};
 }
 
 function configureChat(server){
@@ -197,18 +252,23 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
 
 app.whenReady().then(()=>{
  vault=new ProfileVault(path.join(app.getPath('userData'),'fenys-auth'));
+ roaming=new RoamingClient({directory:path.join(app.getPath('userData'),'personagens-portateis'),protect:value=>{
+  if(!canProtectAccount())throw Error('Proteção de progresso indisponível neste computador.');return safeStorage.encryptString(value);
+ },unprotect:value=>safeStorage.decryptString(value)});
+ cloud=new CloudClient({directory:path.join(app.getPath('userData'),'conexoes-globais'),protect:value=>{if(!canProtectAccount())throw Error('Proteção de credenciais indisponível.');return safeStorage.encryptString(value);},unprotect:value=>safeStorage.decryptString(value)});
  createWindow();
+ setInterval(()=>void monitorConnection(),10000).unref();
  const reply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e?.message||'Operação não concluída.'};}};
  function protect(key){
   if(!canProtectAccount())throw new Error('A proteção de credenciais do sistema está indisponível.');
   return safeStorage.encryptString(key);
  }
  ipcMain.handle('auth:state',()=>({current:vault.current(),profiles:vault.list()}));
- ipcMain.handle('auth:login',(_event,username,password)=>reply(async()=>({current:vault.login(username,password)})));
- ipcMain.handle('auth:logout',()=>{vault.logout();return {ok:true};});
+ ipcMain.handle('auth:login',(_event,username,password)=>reply(async()=>{assertGameClosed();if(connectionBusy)throw Error('Sincronização em andamento.');return {current:vault.login(username,password)};}));
+ ipcMain.handle('auth:logout',()=>reply(async()=>{assertGameClosed();if(connectionBusy)throw Error('Sincronização em andamento.');vault.logout();return {};}));
  ipcMain.handle('auth:reset',(_event,username,recoveryCode,newPassword)=>reply(async()=>vault.reset(username,recoveryCode,newPassword)));
  ipcMain.handle('auth:change',(_event,oldPassword,newPassword)=>reply(async()=>vault.changePassword(oldPassword,newPassword)));
- ipcMain.handle('auth:forgetLocal',(_event,password)=>reply(async()=>{vault.forgetLocalProfile(password);return {};}));
+ ipcMain.handle('auth:forgetLocal',(_event,password)=>reply(async()=>{assertGameClosed();if(roaming.read(vault.requireLogin()))throw Error('O perfil contém o único passaporte do personagem. Preserve-o para não perder acesso ao progresso.');vault.forgetLocalProfile(password);return {};}));
  ipcMain.handle('auth:import',(_event,username,password)=>reply(async()=>{
   checkUsername(username);checkPassword(password);
   if(vault.list().some(p=>p.username.toLowerCase()===String(username).trim().toLowerCase()))
@@ -231,6 +291,66 @@ app.whenReady().then(()=>{
   const key=await registerPlayer(server,username,inviteCode);
   return vault.create({username,password,role:'user',server,encryptedKey:protect(key)});
  }));
+ ipcMain.handle('connection:state',()=>reply(async()=>{
+  const me=vault.requireLogin(),settings=load(),state=cloud.state(me);
+  return {...state,connected:state.global&&state.hostId!=='central',localRole:settings.cloudRole,authority:state.authority||settings.cloudAuthority,addresses:me.role==='admin'?tailscaleAddresses():[]};
+ }));
+ ipcMain.handle('connection:install',(_event,options)=>reply(async()=>connectionAction(async()=>{
+  const me=vault.requireAdmin();
+  if(!options||typeof options!=='object'||!['authority','host'].includes(options.role))throw Error('Selecione PC central ou host de jogo.');
+  if(load().cloudRole&&load().cloudRole!==options.role)throw Error('Este computador já pertence à rede global. Mantenha a função configurada para preservar a autoridade dos dados.');
+  if(roaming.read(me)&&!cloud.state(me).global&&roaming.state(me).connected)throw Error('Retorne o personagem portátil ao servidor original antes de ativar a nuvem global.');
+  if(!load().cloudRole){const profile=await requestApi(me.server,'/undaunted/api/GetUserInfo',{key:await originalAccountKey()});if(profile.IsAdmin!==true)throw Error('Administrador local não confirmado.');}
+  if(load().cloudRole==='host'){
+   const local=await cloudRequest('127.0.0.1:61000','events',{cursor:null},await originalAccountKey());
+   if(local.onlineCount)throw Error('Atualize o host com os jogadores deste computador fora do jogo.');
+  }else{
+   const online=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await originalAccountKey()});
+   if(online.limited===true||!Array.isArray(online.players)||online.players.length)throw Error('Ative a rede global com todos os jogadores fora do jogo.');
+  }
+  if(!owned.size)throw Error('Inicie os serviços por este launcher antes de ativar a integração global.');
+  await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Há serviços externos ativos. Encerre-os antes de configurar.');
+  let result;
+  try{result=await installCloud(load().repoPath,{address:options.address,role:options.role,hostCode:String(options.hostCode||''),rcloneBinary:String(options.rcloneBinary||'rclone')});}
+  catch(e){
+   if(e.configuredRole==='host'){
+    const config=load();config.cloudRole='host';config.cloudAuthority=e.authority;save(config);
+    launchService('metagame',DIRS.metagame);launchService('deploy',DIRS.deploy);
+    throw Error('Host mantém o modo global; migração pendente: '+e.message+'. Reconecte o PC central e repita Ativar rede global para confirmar a importação.');
+   }
+   throw e;
+  }
+  const config=load();config.cloudRole=result.role;config.cloudAuthority=result.authority;save(config);
+  if(!await tcp(PORTS.metagame))launchService('metagame',DIRS.metagame);
+  if(!await tcp(PORTS.deploy))launchService('deploy',DIRS.deploy);
+  for(let i=0;i<35;i++){if(await tcp(PORTS.metagame)&&await tcp(PORTS.deploy))break;await new Promise(r=>setTimeout(r,1000));}
+  const caps=await cloudRequest('127.0.0.1:61000','status');
+  if(caps.role!==options.role)throw Error('O serviço reiniciado não confirmou a configuração global.');
+  connectionNote(options.role==='authority'?'PC central ativado com banco único e backups criptografados no Drive.':'Host integrado ao banco global. Personagens e dados sociais antigos foram preservados na autoridade central.');return result;
+ })));
+ ipcMain.handle('connection:invite',()=>reply(async()=>{
+  vault.requireAdmin();if(!load().cloudRole)throw Error('Ative a rede global neste host primeiro.');
+  return cloudRequest('127.0.0.1:61000','invite',{},await originalAccountKey());
+ }));
+ ipcMain.handle('connection:enrollInvite',()=>reply(async()=>{
+  vault.requireAdmin();if(load().cloudRole!=='authority')throw Error('Gere a autorização de host no PC central.');
+  return cloudRequest('127.0.0.1:61000','enroll-invite',{},await originalAccountKey());
+ }));
+ ipcMain.handle('connection:backup',(_event,force)=>reply(async()=>{
+  vault.requireAdmin();if(load().cloudRole!=='authority')throw Error('Os backups são controlados pelo PC central.');
+  return cloudRequest('127.0.0.1:61000',force===true?'backup-now':'backup-status',{},await originalAccountKey(),300000);
+ }));
+ ipcMain.handle('connection:join',(_event,code)=>reply(async()=>connectionAction(async()=>{
+  if(roaming.read(vault.requireLogin())&&!cloud.state(vault.current()).global&&roaming.state(vault.current()).connected)throw Error('Retorne ao servidor original antes da primeira conexão global.');
+  const state=await cloud.connect(vault.requireLogin(),await originalAccountKey(),code);
+  connectionNote('Conectado a '+state.server+' usando o mesmo personagem, nível e dados sociais globais.');return state;
+ })));
+ ipcMain.handle('connection:home',()=>reply(async()=>connectionAction(async()=>{
+  const me=vault.requireLogin();
+  if(!load().cloudRole&&!cloud.state(me).global&&roaming.read(me))return roaming.home(me,await originalAccountKey());
+  return cloud.home(me,await originalAccountKey(),load().cloudAuthority);
+ })));
+ ipcMain.handle('connection:recover',()=>reply(async()=>connectionAction(async()=>cloud.recover(vault.requireLogin(),await originalAccountKey()))));
  ipcMain.handle('settings:get',()=>{
   const me=vault.current(),c=load();
   return {repoPath:me?.role==='admin'?c.repoPath:null,launcherExe:c.launcherExe,gameServer:backendAddress(),accountKeySelected:!!me,adminKeySelected:me?.role==='admin',role:me?.role||null};
@@ -254,6 +374,7 @@ app.whenReady().then(()=>{
  }));
  ipcMain.handle('admin:remove',(_event,accountId,typedName,offset)=>reply(async()=>{
   await assertOnlineAdmin();
+  if(load().cloudRole==='host')throw new Error('A remoção de acesso global deve ser feita no PC central para preservar o banco correto.');
   if(!hostedOnThisPC(backendAddress()))throw new Error('A remoção só pode ser executada no computador que hospeda o Metagame.');
   const list=await getAdminAccounts(backendAddress(),await accountKey(),Number.isSafeInteger(offset)?offset:0);
   let match=list.accounts.find(x=>x.id===accountId);
@@ -282,10 +403,24 @@ app.whenReady().then(()=>{
  ipcMain.handle('server:restart',()=>runLocked(async()=>{vault.requireAdmin();if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
   const me=vault.requireLogin();
+  if(connectionBusy)throw Error('Aguarde a sincronização do personagem.');
+  if(!cloud.state(me).global&&roaming.state(me).portable&&!roaming.read(me).active)throw Error('Seu progresso está protegido no launcher. Volte ao servidor original ou conecte com um código antes de jogar.');
   if(process.platform!=='win32')throw new Error('O jogo no Linux ainda precisa de integração com Wine/Proton. O launcher Linux suporta as telas, não a execução do jogo.');
-  const c=load();const exe=gameExePath(c);
+  const c=load();
+  const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
+  if(me.role==='admin'&&hostedOnThisPC(backendAddress()))await startAll();
+  if(c.cloudAuthority&&!cloud.state(me).global)await cloud.home(me,await originalAccountKey(),c.cloudAuthority);
+  if(cloud.state(me).global){
+   cloud.requireReady(me);const caps=await cloudRequest(cloud.state(me).authority,'status');
+   if(caps.realm!==cloud.state(me).realm)throw Error('A autoridade central mudou. Verifique a rede global antes de jogar.');
+  }else{
+   let caps=null;try{caps=await cloudRequest(backendAddress(),'status');}catch{}
+   if(caps?.role==='host')throw Error('Este host usa a conta global. Abra Conectar servidor e cole o código de jogador antes de jogar.');
+   if(caps?.role==='authority')await cloud.home(me,await originalAccountKey(),caps.authority);
+  }
+
   const server=backendAddress();
   const key=await accountKey();
   const localAdmin=me.role==='admin'&&hostedOnThisPC(server);
@@ -301,3 +436,4 @@ app.whenReady().then(()=>{
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
 app.on('before-quit',()=>{for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+

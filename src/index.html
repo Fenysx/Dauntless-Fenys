@@ -75,6 +75,7 @@
     <nav class="side-nav" aria-label="Navegação principal">
       <button class="nav-item active" data-screen="dashboard"><span>◈</span> Visão geral</button>
       <button class="nav-item admin-only" data-screen="services"><span>▣</span> Central do servidor</button>
+      <button class="nav-item" data-screen="connection"><span>⇄</span> Conectar servidor</button>
       <button class="nav-item" data-screen="players"><span>♟</span> Jogadores online</button>
       <button class="nav-item admin-only" data-screen="invites"><span>✉</span> Convites</button>
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
@@ -131,6 +132,46 @@
         </article>
         <p class="notice">Amigos devem criar a conta na tela inicial do Fenys. Use <strong>Sair / Trocar perfil</strong> para cadastrar outra pessoa neste PC.</p>
       </section>
+      <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
+        <div class="page-title"><span class="kicker">JOGUE COM SEUS AMIGOS</span><h1>Conectar servidor</h1><p>Entre com o código do hospedeiro. Personagem, nível, inventário, guildas, amizades e placares usam o mesmo banco global.</p></div>
+        <article class="panel">
+          <div class="panel-title"><h3>Minha conta global, em qualquer host Fenys</h3><span class="chip">BANCO GLOBAL</span></div>
+          <p id="connection-state" class="form-status" role="status" aria-live="polite">Consultando sua conexão…</p>
+          <div class="form-preview">
+            <label for="connection-code">Código enviado pelo seu amigo</label>
+            <textarea id="connection-code" rows="3" maxlength="2048" placeholder="FENYSC2.…" spellcheck="false"></textarea>
+            <div class="button-row"><button id="connection-join" class="btn btn-red">⇄ Entrar no servidor</button><button id="connection-home" class="btn btn-outline">Voltar ao PC central</button><button id="connection-recover" class="btn btn-outline">Recuperar sincronização</button></div>
+          </div>
+          <p class="notice">Feche o jogo antes de trocar de host; a confirmação de saída pode levar até 90 segundos. Seu PC central precisa ficar ligado e conectado ao Tailscale. Se ele ficar offline, o launcher aguarda a reconexão e mantém o banco global como fonte dos dados.</p>
+          <p id="connection-message" class="form-status" role="status" aria-live="polite"></p>
+        </article>
+        <article class="panel fenys-panel-gap admin-only">
+          <div class="panel-title"><h3>Configurar a rede global e convidar amigos</h3><span class="chip">TAILSCALE</span></div>
+          <p class="panel-description">No seu PC, ative o serviço central com o Google Drive já configurado. Para o PC do Ygor virar outro host, gere uma autorização de host aqui; ele seleciona Host de jogo e cola essa autorização. Depois cada host pode convidar jogadores.</p>
+          <div class="form-preview">
+            <label for="cloud-role">Função deste computador</label>
+            <select id="cloud-role"><option value="authority">Meu PC central + Google Drive</option><option value="host">Host de jogo conectado ao PC central</option></select>
+            <div id="cloud-host-fields" hidden><label for="cloud-host-code">Autorização para integrar este host</label><textarea id="cloud-host-code" rows="3" maxlength="2048" placeholder="Código de host FENYSC2.…"></textarea></div>
+            <div id="cloud-authority-fields"><label for="cloud-rclone">rclone instalado no PC central</label><input id="cloud-rclone" value="rclone" placeholder="rclone ou C:/rclone/rclone.exe"><p class="notice">Usa seu remoto criptografado dauntless-crypt, sem mostrar tokens ou senhas do Drive.</p></div>
+            <label for="connection-address">IP Tailscale deste computador</label>
+            <select id="connection-address"></select>
+            <div class="button-row"><button id="connection-install" class="btn btn-outline">Ativar rede global neste computador</button><button id="connection-invite" class="btn btn-red">Gerar código de conexão</button></div>
+            <label for="connection-generated">Código para compartilhar</label>
+            <textarea id="connection-generated" rows="3" readonly placeholder="O código do seu servidor aparecerá aqui."></textarea>
+            <button id="connection-copy" class="btn btn-outline">Copiar código</button>
+          </div>
+          <p class="notice">A ativação preserva o banco C:/dr/data/undaunted.db do PC central, faz backup das configurações e reinicia os serviços. Hosts adicionais integram os personagens e relações sociais existentes sem substituir contas centrais. Nomes/identidades em conflito são recusados para preservar os dados.</p>
+        </article>
+        <article id="cloud-central-controls" class="panel fenys-panel-gap admin-only" hidden>
+          <div class="panel-title"><h3>PC central — hosts e Google Drive</h3><span class="chip">DADOS COMPARTILHADOS</span></div>
+          <button id="cloud-enroll" class="btn btn-outline">Gerar autorização para outro host</button>
+          <p class="notice">A autorização aparece no campo Código para compartilhar. O amigo usa esse código para ativar o próprio host; os códigos de jogador servem para entrar no jogo.</p>
+          <div class="button-row"><button id="cloud-backup-status" class="btn btn-outline">Consultar backup no Drive</button><button id="cloud-backup-now" class="btn btn-outline">Enviar backup agora</button></div>
+          <p id="cloud-backup-message" class="form-status" role="status" aria-live="polite">O Drive será confirmado somente após envio e verificação de integridade.</p>
+          <p class="notice">Os dados são salvos no banco global em cada operação. Quando há alterações, o serviço agrupa o backup criptografado em intervalos de um minuto. Seu backup diário existente continua disponível.</p>
+        </article>
+        <article class="panel fenys-panel-gap"><div class="panel-title"><h3>Conectados pelo launcher</h3></div><div id="connection-players" class="fenys-player-list"></div><p class="notice">Esta lista mostra conexões ao servidor pelo Fenys. A aba Jogadores online mostra quem está dentro do jogo.</p></article>
+      </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
         <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor Fenys.</p></div>
         <article class="panel settings">
@@ -147,7 +188,7 @@
           <div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div>
           <label>Executável do jogo Dauntless 1.4.4</label>
           <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
-          <p class="notice">No modo remoto, o Fenys não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
+          <p class="notice">Use Conectar servidor para entrar por código e manter seu progresso. No modo remoto, o Fenys não inicia serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
         </article>
       </section>
       <section class="screen" id="screen-activity" aria-label="Atividades" hidden><div class="page-title"><span class="kicker">DIAGNÓSTICO</span><h1>Atividades</h1><p>Mensagens e registros da sessão atual.</p></div><article class="panel"><div class="panel-title"><h3>Registro de execução</h3><button id="clear" class="btn btn-outline">Limpar</button></div><pre id="activity" class="activity-log">Aguardando ações…</pre></article></section>
@@ -158,3 +199,4 @@
 <script src="renderer.js"></script>
 </body>
 </html>
+

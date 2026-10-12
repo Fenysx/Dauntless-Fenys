@@ -8,6 +8,16 @@ contextBridge.exposeInMainWorld('launcher',{
  recoverAccount:(username,code,newPassword)=>ipcRenderer.invoke('auth:reset',username,code,newPassword),
  changePassword:(oldPassword,newPassword)=>ipcRenderer.invoke('auth:change',oldPassword,newPassword),
  forgetLocalProfile:password=>ipcRenderer.invoke('auth:forgetLocal',password),
+ connectionState:()=>ipcRenderer.invoke('connection:state'),
+ enrollHostInvite:()=>ipcRenderer.invoke('connection:enrollInvite'),
+ cloudBackup:force=>ipcRenderer.invoke('connection:backup',force),
+ installHost:address=>ipcRenderer.invoke('connection:install',address),
+ connectionInvite:address=>ipcRenderer.invoke('connection:invite',address),
+ connectServer:code=>ipcRenderer.invoke('connection:join',code),
+ returnHome:()=>ipcRenderer.invoke('connection:home'),
+ recoverConnection:()=>ipcRenderer.invoke('connection:recover'),
+ onConnectionActivity:callback=>ipcRenderer.on('connection-activity',(_event,message)=>callback(message)),
+ onConnectionPresence:callback=>ipcRenderer.on('connection-presence',(_event,players)=>callback(players)),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
@@ -26,3 +36,4 @@ contextBridge.exposeInMainWorld('launcher',{
  play:()=>ipcRenderer.invoke('game:play'),
  onActivity:callback=>ipcRenderer.on('activity',(_event,message)=>callback(message))
 });
+
