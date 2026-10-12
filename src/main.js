@@ -1,10 +1,12 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,clipboard}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
+const {inviteStatus,createInvite,parseServerAddress,requestApi}=require('./fenys-api');
+const {makeConnectCode,parseConnectCode,checkConnection,checkExistingCharacter}=require('./fenys-connect');
 let win;
 const owned=new Map();
 const PORTS={metagame:61000,deploy:61001};
@@ -96,6 +98,15 @@ async function accountKey(){
  if(!/^[a-zA-Z0-9_-]{8,128}$/.test(key))throw new Error('A chave da conta não parece válida. Use o arquivo account.key gerado no cadastro do Dauntless Revived.');
  return key;
 }
+function savedKey(){
+ const c=load();
+ const file=c.gameKeyFile||path.join(friendKitDir(),'account.key');
+ if(!fs.existsSync(file))return null;
+ try{
+  const key=fs.readFileSync(file,'utf8').trim();
+  return /^[a-zA-Z0-9_-]{8,128}$/.test(key)?key:null;
+ }catch{return null;}
+}
 function configureChat(server){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
@@ -133,6 +144,54 @@ app.whenReady().then(()=>{
  ipcMain.handle('settings:get',()=>load());
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('app:version',()=>app.getVersion());
+ ipcMain.handle('invites:copy',(_event,code)=>{
+  if(typeof code!=='string'||!/^[A-Z0-9-]{8,32}$/.test(code))return {ok:false,error:'Código de convite inválido.'};
+  clipboard.writeText(code);
+  return {ok:true};
+ });
+ ipcMain.handle('invites:status',async()=>{
+  try{return {ok:true,...await inviteStatus('127.0.0.1:61000')};}
+  catch(e){return {ok:false,error:e.message};}
+ });
+ ipcMain.handle('invites:create',async(_event,description,hostAddress)=>{
+  try{
+   // Verifique o endereço antes de gastar um código de convite de uso único.
+   const test=parseConnectCode(makeConnectCode(hostAddress,'ABCD-1234-EFGH'));
+   await checkConnection(test.server);
+   const invitation=await createInvite('127.0.0.1:61000',await accountKey(),description);
+   return {ok:true,code:makeConnectCode(test.server,invitation.code),server:test.server};
+  }catch(e){return {ok:false,error:e.message};}
+ });
+ ipcMain.handle('connection:get',()=>({server:backendAddress(),local:parseServerAddress(backendAddress()).local}));
+ ipcMain.handle('connection:join',async(_event,joinCode)=>{
+  try{
+   const target=parseConnectCode(joinCode);
+   const targetStatus=await checkConnection(target.server);
+   const key=await accountKey();
+   let identity;
+   try{identity=await checkExistingCharacter(target.server,key);}
+   catch(e){throw new Error('A sua conta Dauntless não existe nesse Metagame. O convite de cadastro não transfere o personagem de outro servidor. Nenhuma alteração foi feita.');}
+   const c=load();c.gameServer=target.server;save(c);
+   notify('Servidor autorizado: '+targetStatus.name+' — jogador '+identity.username+'.');
+   return {ok:true,server:target.server,name:targetStatus.name,username:identity.username};
+  }catch(e){return {ok:false,error:e.message};}
+ });
+ ipcMain.handle('connection:home',()=>{
+  const c=load();c.gameServer='127.0.0.1:61000';save(c);
+  return {ok:true,server:c.gameServer};
+ });
+ ipcMain.handle('connection:presence',async()=>{
+  try{
+   const key=savedKey();
+   const address=backendAddress();
+   const data=await requestApi(address,'/undaunted/api/ServerStatus',{key});
+   const players=Array.isArray(data.players)?data.players
+     .filter(p=>p&&typeof p.name==='string')
+     .slice(0,100).map(p=>p.name.slice(0,32)):[];
+   return {ok:true,server:address,name:typeof data.name==='string'?data.name.slice(0,80):'Dauntless',players,limited:data.limited===true};
+  }catch(e){return {ok:false,error:e.message};}
+ });
  ipcMain.handle('server:status',()=>status());
  ipcMain.handle('server:start',()=>runLocked(startAll));
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
@@ -143,10 +202,17 @@ app.whenReady().then(()=>{
   await verifyGame(path.dirname(exe));
   const server=backendAddress();
   const key=await accountKey();
-  const s=await startAll();
+  const address=parseServerAddress(server);
+  let s;
+  if(address.local){s=await startAll();}
+  else {
+   await checkConnection(server,key);
+   await checkExistingCharacter(server,key);
+   s=await status();
+  }
   configureChat(server);
   await spawnGame(exe,gameArgs(server,key));
-  notify(`Dauntless 1.4.4 iniciado pelo cliente Win64, conectado a ${server}.`);
+  notify(`Dauntless 1.4.4 iniciado para o servidor ${server}. A entrada será confirmada quando a API registrar o jogador online.`);
   return s;
  }));
  app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});

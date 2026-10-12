@@ -1,6 +1,14 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
  getSettings:()=>ipcRenderer.invoke('settings:get'),
+ getVersion:()=>ipcRenderer.invoke('app:version'),
+ inviteStatus:()=>ipcRenderer.invoke('invites:status'),
+ createInvite:(description,hostAddress)=>ipcRenderer.invoke('invites:create',description,hostAddress),
+ getConnection:()=>ipcRenderer.invoke('connection:get'),
+ joinServer:code=>ipcRenderer.invoke('connection:join',code),
+ goHome:()=>ipcRenderer.invoke('connection:home'),
+ serverPresence:()=>ipcRenderer.invoke('connection:presence'),
+ copyInvite:code=>ipcRenderer.invoke('invites:copy',code),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
  status:()=>ipcRenderer.invoke('server:status'),
