@@ -6,7 +6,7 @@ const {parseServerAddress}=require('./fenys-api');
 const {call,decodeCode,identity,sign}=require('./fenys-cloud-protocol');
 const {verifyRemote}=require('./fenys-cloud-backup');
 const CLOUD_IMPORT="\nimport {ValidateMetagameJWTAndGetPayload as FenysToken} from './controllers/auth';\n";
-const CLOUD_HOOK="\n// FENYS_CLOUD_V2: the authority owns every game/social table; gateways never save local game data.\nconst fenysCloud = require('../fenys/fenys-cloud-runtime.js').start(FenysDb().$client,{online:FenysOnline,validateToken:FenysToken,revoke:(id:string)=>FenysRevocations.emit('revoke',id)});\napp.use(fenysCloud.middleware);\n";
+const CLOUD_HOOK="\n// FENYS_CLOUD_V2: gateways are handled before local authentication/moderation.\nif(process.env.FENYS_CLOUD_ROLE){\n app.use(express.json({limit:'50mb'}));\n app.use(express.urlencoded({extended:true}));\n const fenysCloud=require('../fenys/fenys-cloud-runtime.js').start(FenysDb().$client,{online:FenysOnline,validateToken:FenysToken,revoke:(id:string)=>FenysRevocations.emit('revoke',id)});\n app.use(fenysCloud.middleware);\n}\n";
 function patchMatchmaking(source){
  if(source.includes('// FENYS_MATCHMAKING_V2'))return source;
  if(!source.includes('const QueueKey = RegionQueueKey(HuntId, Region);')||!source.includes('GameMode === \'CITY\' ? [PlayerId] : undefined'))throw Error('Matchmaking incompatível com a rede global.');
@@ -26,7 +26,7 @@ function patchMatchmaking(source){
 function prepareCloudFiles(input){
  const p=prepareFiles(input),sv=parseServerAddress(input.address);
  if(!['authority','host'].includes(input.role))throw Error('Selecione serviço central ou host de jogo.');
- if(!p.appSource.includes('// FENYS_CLOUD_V2'))p.appSource=CLOUD_IMPORT+p.appSource.replace('app.use(express.urlencoded({ extended: true }));','app.use(express.urlencoded({ extended: true }));'+CLOUD_HOOK);
+ if(!p.appSource.includes('// FENYS_CLOUD_V2'))p.appSource=CLOUD_IMPORT+p.appSource.replace('export const app = express();','export const app = express();'+CLOUD_HOOK);
  p.matchmakingSource=patchMatchmaking(input.matchmakingSource);
  p.metagameEnv=setEnv(p.metagameEnv,'FENYS_CLOUD_ROLE',input.role);
  p.metagameEnv=setEnv(p.metagameEnv,'FENYS_CLOUD_PUBLIC_ADDRESS',sv.address);

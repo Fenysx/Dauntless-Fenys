@@ -96,8 +96,9 @@ test('backup cobre banco global inteiro, não marca sucesso antes do cryptcheck 
 });
 test('overlay global preserva banco/segredos, configura Drive e separa filas por host',()=>{
  const source=fs.readFileSync(path.join(__dirname,'fixtures/matchmaking.ts'),'utf8');
- const input={appSource:'export const app = express();\napp.use(express.urlencoded({ extended: true }));',serverSource:'logger.info(`Clear Skies, Slayer.`);',metagameEnv:'AUTH_MODE=APIKEY\nDB_FILENAME=C:/dr/data/undaunted.db\n',deployEnv:'MY_IP=127.0.0.1\nMETAGAME_API_KEY=existing-secret\n',matchmakingSource:source,address:'100.64.1.1:61000',role:'authority'};
+ const input={appSource:'export const app = express();\napp.use(localModeration);\napp.use(express.urlencoded({ extended: true }));',serverSource:'logger.info(`Clear Skies, Slayer.`);',metagameEnv:'AUTH_MODE=APIKEY\nDB_FILENAME=C:/dr/data/undaunted.db\n',deployEnv:'MY_IP=127.0.0.1\nMETAGAME_API_KEY=existing-secret\n',matchmakingSource:source,address:'100.64.1.1:61000',role:'authority'};
  const p=prepareCloudFiles(input);assert.match(p.metagameEnv,/DB_FILENAME=C:\/dr\/data\/undaunted.db/);assert.match(p.deployEnv,/METAGAME_API_KEY=existing-secret/);assert.match(p.metagameEnv,/dauntless-crypt:automaticos\/globais/);assert.match(p.matchmakingSource,/FenysHostId/);assert.match(p.matchmakingSource,/FenysHostKey:FenysRouting.hostForPlayer\(PlayerId\)/);assert.deepEqual(prepareCloudFiles({...input,...p}),p);
+ assert.ok(p.appSource.indexOf('app.use(fenysCloud.middleware)')<p.appSource.indexOf('app.use(localModeration)'));
 });
 test('migração integra personagens, níveis, chaves, guildas, amizades e placares antigos sem dar admin global',t=>{
  const old=database(t),central=database(t),a=player(old,'Old_A',1),b=player(old,'Old_B');
