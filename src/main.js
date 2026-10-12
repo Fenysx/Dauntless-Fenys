@@ -252,14 +252,14 @@ app.whenReady().then(()=>{
   await assertOnlineAdmin();
   return getAdminAccounts(backendAddress(),await accountKey(),offset===undefined?0:offset);
  }));
- ipcMain.handle('admin:remove',(_event,accountId,typedName)=>reply(async()=>{
+ ipcMain.handle('admin:remove',(_event,accountId,typedName,offset)=>reply(async()=>{
   await assertOnlineAdmin();
   if(!hostedOnThisPC(backendAddress()))throw new Error('A remoção só pode ser executada no computador que hospeda o Metagame.');
-  const list=await getAdminAccounts(backendAddress(),await accountKey(),0);
+  const list=await getAdminAccounts(backendAddress(),await accountKey(),Number.isSafeInteger(offset)?offset:0);
   let match=list.accounts.find(x=>x.id===accountId);
   if(!match){
    // Bounded pagination: the administrator must first load the intended account.
-   throw new Error('Conta não localizada na primeira página. Solicite uma página menor para administrar.');
+   throw new Error('Conta não encontrada na lista atual. Atualize a página de jogadores.');
   }
   if(match.admin)throw new Error('Não é possível remover uma conta administradora.');
   if(match.name!==typedName)throw new Error('Para confirmar, digite o nome do jogador exatamente como aparece na lista.');
