@@ -88,7 +88,7 @@ function backendAddress(){
 }
 function readKeyFile(file){
  const raw=fs.readFileSync(file,'utf8').trim();
- const parts=raw.split(/\\r?\\n/);
+ const parts=raw.split(/\r?\n/);
  const key=parts.length===3&&parts[0]==='DRK2'?parts[2]:raw;
  if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw new Error('Arquivo não contém uma chave de conta Dauntless Revived válida.');
  return key;
