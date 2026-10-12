@@ -23,9 +23,10 @@ test('configuração de acesso preserva banco e só expõe Metagame na VPN; depl
  assert.equal(prepareServer({...p,address:original.address}).serverSource,p.serverSource);
  assert.throws(()=>prepareServer({...original,metagameEnv:original.metagameEnv+'FENYS_CLOUD_ROLE=host\n'}),/Preserve o banco/);
 });
-async function launcher(t){
+async function launcher(t,profiles=[]){
  const handlers=new Map(),dir=fs.mkdtempSync(path.join(os.tmpdir(),'fenys-direct-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ if(profiles.length){fs.mkdirSync(path.join(dir,'fenys-auth'));fs.writeFileSync(path.join(dir,'fenys-auth/profiles.json'),JSON.stringify({version:1,profiles}));}
  const win={setMenuBarVisibility(){},loadFile(){},webContents:{send(){}},isDestroyed:()=>false};
  const app={requestSingleInstanceLock:()=>true,on(){},getPath:()=>dir,whenReady:()=>Promise.resolve(),exit(){},quit(){}};
  const net={connect:()=>{const socket=new EventEmitter();socket.setTimeout=()=>{};socket.destroy=()=>{};queueMicrotask(()=>socket.emit('error'));return socket;}};
@@ -41,6 +42,15 @@ test('painel e controles de servidor funcionam com servidor offline e sem perfil
  const settings=handlers.get('settings:get')();assert.ok(settings.repoPath);
  const stop=await handlers.get('server:stop')();assert.equal(stop.ok,true);assert.equal(stop.status.metagame,false);
  const start=await handlers.get('server:start')();assert.equal(start.ok,false);assert.match(start.error,/dist\/server.js/);assert.doesNotMatch(start.error,/login|senha|admin/i);
+});
+test('upgrade recupera a chave admin criptografada sem senha e preserva o perfil original',async t=>{
+ const ciphertext=Buffer.from('old-dpapi-ciphertext'),id='11111111-1111-4111-8111-111111111111';
+ const profile={id,username:'Fenys',role:'admin',server:'127.0.0.1:61000',hash:'unknown-password',key:ciphertext.toString('base64')};
+ const {handlers,dir}=await launcher(t,[profile]);
+ const settings=handlers.get('settings:get')();assert.equal(settings.adminKeySelected,true);assert.equal(settings.accountKeySelected,true);
+ const config=JSON.parse(fs.readFileSync(path.join(dir,'settings.json')));
+ assert.deepEqual(fs.readFileSync(config.adminKeyFile),ciphertext);
+ assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir,'fenys-auth/profiles.json'))).profiles,[profile]);
 });
 test('tentativa de conexão durante operação não libera o bloqueio da primeira operação',async t=>{
  const {handlers}=await launcher(t);
