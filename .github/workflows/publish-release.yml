@@ -1,6 +1,10 @@
 name: Fenys - Publicar versao de testes
 
 on:
+  workflow_run:
+    workflows: ["Dauntless Fenys - Instaladores"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       run_id:
@@ -14,6 +18,7 @@ permissions:
 
 jobs:
   publicar:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     name: Publicar instaladores na Release
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +35,7 @@ jobs:
       - name: Verificar origem e sucesso da compilacao
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.run_id }}
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -46,11 +51,20 @@ jobs:
           test "$RUN_BRANCH" = "main"
           test "$RUN_SHA" = "$GITHUB_SHA"
 
+      - name: Confirmar testes do mesmo commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&event=push")
+          echo "$RUNS" | jq -e '.workflow_runs | any(.head_branch == "main" and .status == "completed" and .conclusion == "success")'
+
       - name: Buscar instaladores da compilacao validada
         uses: actions/download-artifact@v4
         with:
           repository: ${{ github.repository }}
-          run-id: ${{ inputs.run_id }}
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
           github-token: ${{ github.token }}
           pattern: Dauntless-Fenys-*
           merge-multiple: true
@@ -88,3 +102,4 @@ jobs:
             Atualizações automáticas dos mods e jogo ainda estão em desenvolvimento.
 
             Esta é uma pré-release destinada a testes, não uma versão final.
+

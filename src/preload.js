@@ -1,23 +1,9 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
- authState:()=>ipcRenderer.invoke('auth:state'),
- login:(username,password)=>ipcRenderer.invoke('auth:login',username,password),
- logout:()=>ipcRenderer.invoke('auth:logout'),
- createAccount:(username,password,invite)=>ipcRenderer.invoke('auth:register',username,password,invite),
- importAccount:(username,password)=>ipcRenderer.invoke('auth:import',username,password),
- recoverAccount:(username,code,newPassword)=>ipcRenderer.invoke('auth:reset',username,code,newPassword),
- changePassword:(oldPassword,newPassword)=>ipcRenderer.invoke('auth:change',oldPassword,newPassword),
- forgetLocalProfile:password=>ipcRenderer.invoke('auth:forgetLocal',password),
- connectionState:()=>ipcRenderer.invoke('connection:state'),
- enrollHostInvite:()=>ipcRenderer.invoke('connection:enrollInvite'),
- cloudBackup:force=>ipcRenderer.invoke('connection:backup',force),
- installHost:address=>ipcRenderer.invoke('connection:install',address),
- connectionInvite:address=>ipcRenderer.invoke('connection:invite',address),
- connectServer:code=>ipcRenderer.invoke('connection:join',code),
- returnHome:()=>ipcRenderer.invoke('connection:home'),
- recoverConnection:()=>ipcRenderer.invoke('connection:recover'),
- onConnectionActivity:callback=>ipcRenderer.on('connection-activity',(_event,message)=>callback(message)),
- onConnectionPresence:callback=>ipcRenderer.on('connection-presence',(_event,players)=>callback(players)),
+ connectionAddresses:()=>ipcRenderer.invoke('connection:addresses'),
+ setupConnection:address=>ipcRenderer.invoke('connection:setup',address),
+ createConnection:(address,name)=>ipcRenderer.invoke('connection:create',address,name),
+ joinConnection:(code,username)=>ipcRenderer.invoke('connection:join',code,username),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
@@ -25,8 +11,6 @@ contextBridge.exposeInMainWorld('launcher',{
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
  createInvite:name=>ipcRenderer.invoke('invites:create',name),
- listAccounts:offset=>ipcRenderer.invoke('admin:accounts',offset),
- removeAccount:(id,username,offset)=>ipcRenderer.invoke('admin:remove',id,username,offset),
  register:(username,inviteCode)=>ipcRenderer.invoke('account:register',username,inviteCode),
  status:()=>ipcRenderer.invoke('server:status'),
  players:()=>ipcRenderer.invoke('players:online'),
@@ -36,4 +20,3 @@ contextBridge.exposeInMainWorld('launcher',{
  play:()=>ipcRenderer.invoke('game:play'),
  onActivity:callback=>ipcRenderer.on('activity',(_event,message)=>callback(message))
 });
-
