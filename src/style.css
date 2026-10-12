@@ -37,3 +37,13 @@
 .invite-privacy{margin:14px 4px}
 @media(max-width:1050px){.invites-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.invite-fields{grid-template-columns:1fr}}
 @media(max-width:650px){.invites-status-grid{grid-template-columns:1fr}.invite-form-panel{padding:18px}.invite-code-row{flex-wrap:wrap}}
+
+/* Conexão de servidores Classic */
+.connect-panel{padding:25px}
+.connect-label{display:block;font-size:12px;font-weight:750;margin:19px 0 10px;color:#eee0e9}
+#connect-code,.invite-code-row textarea{display:block;width:100%;min-width:0;resize:vertical;background:#0c0c12;color:#f6d6df;border:1px solid #4b3440;border-radius:9px;padding:13px;font:12px/1.6 Consolas,'Courier New',monospace;overflow-wrap:anywhere}
+#connect-code:focus-visible{outline:2px solid #db5272;outline-offset:2px}
+.invite-code-row textarea{min-height:86px;flex:1}
+.connection-log{border:1px solid #3c2936;border-radius:10px;background:#0e0d15;padding:15px;min-height:80px;color:#c6b5c2;font-size:12px;white-space:pre-wrap;line-height:1.7}
+#active-server{color:#d9bccb}
+@media(max-width:650px){.connect-panel{padding:18px}}
