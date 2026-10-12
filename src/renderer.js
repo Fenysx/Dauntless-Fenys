@@ -15,6 +15,33 @@ function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','
  }
 }
 async function refresh(){try{paint(await window.launcher.status());}catch(e){note('Falha na verificação: '+e.message);}}
+let playersWorking=false;
+async function playersRefresh(){
+ if(playersWorking)return;
+ playersWorking=true;
+ $('playersMessage').textContent='Consultando jogadores no Metagame…';
+ $('playersList').replaceChildren();
+ try{
+  const result=await window.launcher.players();
+  if(!result.ok)throw new Error(result.error||'Não foi possível consultar jogadores.');
+  const data=result.data;
+  if(data.limited){
+   $('players-count').textContent='—';
+   $('playersMessage').textContent='Vincule uma conta válida em Configurações para ver os jogadores.';
+   return;
+  }
+  $('players-count').textContent=String(data.count);
+  $('playersMessage').textContent=data.count===0?'Nenhum jogador detectado nos últimos 90 segundos.':data.count+' jogador(es) detectado(s).';
+  const label={menu:'Menu',city:'Ramsgate',hunt:'Caçada',dojo:'Dojo',tutorial:'Tutorial',unknown:'Local desconhecido'};
+  for(const player of data.players){
+   const el=document.createElement('div');el.className='fenys-player';
+   const name=document.createElement('strong');name.textContent=player.name;
+   const location=document.createElement('span');location.textContent=label[player.where]||label.unknown;
+   el.append(name,location);$('playersList').append(el);
+  }
+ }catch(e){$('players-count').textContent='—';$('playersMessage').textContent=e.message;}
+ finally{playersWorking=false;}
+}
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
@@ -30,7 +57,8 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>setScreen(node.dataset.screen));
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();});
+$('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
 for(const id of ['stop','stop2'])$(id).addEventListener('click',()=>action('stop'));
@@ -79,3 +107,4 @@ $('register-submit').addEventListener('click',async()=>{
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 window.launcher.onActivity(note);
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
+setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
