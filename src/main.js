@@ -153,15 +153,16 @@ async function localAdminKey(){
  }
  throw Error('Selecione a chave da conta administradora em Configurações. Você pode ligar o servidor antes disso.');
 }
-let previousPlayers=null,monitorBusy=false;
+let previousPlayers=null,monitorBusy=false,cloudCursor=null;
 async function monitorPlayers(){
  if(monitorBusy)return;monitorBusy=true;
  try{
-  await globalAccount?.poll();
+  await globalAccount?.poll().catch(()=>{});
   if(load().cloudRole){
-   const role=load().cloudRole,data=await cloudRequest('127.0.0.1:61000','events',{cursor:null},role==='authority'?await localAdminKey():undefined);
+   const role=load().cloudRole,data=await cloudRequest('127.0.0.1:61000','events',{cursor:cloudCursor},role==='authority'?await localAdminKey():undefined);
    const names=new Set((data.players||[]).map(p=>p.name));
-   if(previousPlayers){for(const name of names)if(!previousPlayers.has(name))notify(name+' conectou ao seu servidor.');for(const name of previousPlayers)if(!names.has(name))notify(name+' saiu do seu servidor.');}previousPlayers=names;return;
+   const reported=new Set();for(const event of data.events||[]){notify(event.name+(event.kind==='joined'?' conectou ao seu servidor.':' saiu do seu servidor.'));reported.add(event.name);}
+   if(previousPlayers){for(const name of names)if(!previousPlayers.has(name)&&!reported.has(name))notify(name+' conectou ao seu servidor.');for(const name of previousPlayers)if(!names.has(name)&&!reported.has(name))notify(name+' saiu do seu servidor.');}cloudCursor=data.cursor;previousPlayers=names;return;
   }
   const c=load(),file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');
   if(!fs.existsSync(file))return;
