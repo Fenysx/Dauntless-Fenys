@@ -57,3 +57,6 @@ jobs:
       - name: Compilar overlay e testar servidor real
         run: node test/integration-host.cjs
 
+      - name: Validar banco global entre dois hosts independentes
+        run: node test/integration-cloud.cjs
+

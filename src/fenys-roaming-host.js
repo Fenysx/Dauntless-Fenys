@@ -10,6 +10,7 @@ const TABLES={users:'userId',characters:'userId',inventories:'characterId',loado
  escalationtalents:'accountId',escalationunlocks:'accountId',storepurchases:'accountId',leaderboardprofiles:'accountId',huntregions:'userId'};
 const quote=x=>'"'+x+'"'; // Identifiers below come exclusively from this allowlist / SQLite schema.
 function createHost(db,{now=Date.now,revoke=()=>{},online=()=>[]}={}){
+ if(process.env.FENYS_CLOUD_ROLE)return {middleware:(_req,_res,next)=>next()};
  db.exec(`CREATE TABLE IF NOT EXISTS fenys_passports(
   userId TEXT PRIMARY KEY,publicKey TEXT NOT NULL,revision INTEGER NOT NULL,active INTEGER NOT NULL,
   session TEXT,operation TEXT,snapshot TEXT,home INTEGER NOT NULL,baseKeyHash TEXT,localAdmin INTEGER NOT NULL,

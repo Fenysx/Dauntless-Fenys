@@ -13,17 +13,22 @@ function listenPrivate(app,port){
  });
  listeners.add(ip+':'+port);
  // Upstream XMPP binds loopback only; relay its authenticated protocol on the VPN interface.
- if(process.env.CHAT!=='0'){
+ if(process.env.CHAT!=='0'||process.env.FENYS_CLOUD_ROLE==='host'){
   const chatPort=Number(process.env.CHAT_PORT||61099);
-  const relay=net.createServer(socket=>{
-   const target=net.connect({host:'127.0.0.1',port:chatPort});
+  const chatTarget=process.env.FENYS_CLOUD_ROLE==='host'?parseServerAddress(process.env.FENYS_CLOUD_CHAT_ADDRESS):{host:'127.0.0.1',port:chatPort};
+  const createRelay=()=>net.createServer(socket=>{
+   const target=net.connect({host:chatTarget.host,port:chatTarget.port});
    socket.on('error',()=>target.destroy());target.on('error',()=>socket.destroy());
    socket.on('close',()=>target.destroy());target.on('close',()=>socket.destroy());
    socket.pipe(target).pipe(socket);
   });
+  const relay=createRelay();
   relay.on('error',()=>console.error('Fenys: chat Tailscale indisponível na porta '+chatPort));
   relay.listen(chatPort,ip);
   http.once('close',()=>relay.close());
+  if(process.env.FENYS_CLOUD_ROLE==='host'){
+   const local=createRelay();local.on('error',()=>console.error('Fenys: chat global local indisponível.'));local.listen(chatPort,'127.0.0.1');http.once('close',()=>local.close());
+  }
  }
  return http;
 }

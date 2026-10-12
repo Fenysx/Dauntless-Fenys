@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('launcher',{
  changePassword:(oldPassword,newPassword)=>ipcRenderer.invoke('auth:change',oldPassword,newPassword),
  forgetLocalProfile:password=>ipcRenderer.invoke('auth:forgetLocal',password),
  connectionState:()=>ipcRenderer.invoke('connection:state'),
+ enrollHostInvite:()=>ipcRenderer.invoke('connection:enrollInvite'),
+ cloudBackup:force=>ipcRenderer.invoke('connection:backup',force),
  installHost:address=>ipcRenderer.invoke('connection:install',address),
  connectionInvite:address=>ipcRenderer.invoke('connection:invite',address),
  connectServer:code=>ipcRenderer.invoke('connection:join',code),

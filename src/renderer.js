@@ -270,9 +270,13 @@ async function connectionRefresh(){
  if(!me)return;
  const r=await window.launcher.connectionState();
  if(!r.ok){formNote('connection-message',r.error,true);return;}
- $('connection-state').textContent=(r.pending?'Sincronização pendente ('+r.pending+'). ':r.connected?'Conectado ao servidor do seu amigo. ':'Servidor original. ')+r.server+(r.portable?' • Personagem portátil ativo':'');
- $('connection-home').disabled=connecting||(!r.connected&&!r.pending&&!r.portable);
+ $('connection-state').textContent=(r.pending?'Confirmação global pendente. ':r.global?'Conta global conectada. ':'Selecione um host ou ative sua rede global. ')+r.server+(r.authority?' • PC central: '+r.authority:'');
+ $('connection-home').disabled=connecting||(!r.global&&!r.localRole);
  $('connection-recover').disabled=connecting||!r.pending;
+ $('cloud-central-controls').hidden=me.role!=='admin'||r.localRole!=='authority';
+ if(r.localRole)$('cloud-role').value=r.localRole;
+ $('cloud-role').disabled=!!r.localRole;
+ $('cloud-host-fields').hidden=$('cloud-role').value!=='host';$('cloud-authority-fields').hidden=$('cloud-role').value!=='authority';
  const select=$('connection-address'),previous=select.value;select.replaceChildren();
  for(const address of r.addresses||[]){const option=document.createElement('option');option.value=address+':61000';option.textContent=address+':61000';select.append(option);}
  if([...select.options].some(x=>x.value===previous))select.value=previous;
@@ -283,25 +287,41 @@ async function connectionOperation(method,arg){
  connecting=true;
  const buttons=['connection-join','connection-home','connection-recover','connection-install','connection-invite'];
  for(const id of buttons)$(id).disabled=true;
- formNote('connection-message',method==='installHost'?'Configurando API e reiniciando servidor…':'Conectando e sincronizando seu personagem…');
+ formNote('connection-message',method==='installHost'?'Configurando banco global e reiniciando os serviços…':'Conectando ao banco global…');
  try{
   const r=await window.launcher[method](arg);
   if(!r?.ok)throw Error(r?.error||'Operação não concluída.');
   if(r.code){$('connection-generated').value=r.code;formNote('connection-message','Código criado. Válido até '+new Date(r.expiresAt).toLocaleTimeString('pt-BR')+'.');}
-  else{if(method==='connectServer')$('connection-code').value='';formNote('connection-message','Operação concluída. Seu personagem e progresso foram mantidos.');}
+  else{if(method==='connectServer')$('connection-code').value='';formNote('connection-message','Operação concluída. A conta usa o mesmo personagem e dados globais.');}
  }catch(e){formNote('connection-message',e.message,true);}
  finally{connecting=false;for(const id of buttons)$(id).disabled=false;await connectionRefresh();await loadSettings();await refresh();}
 }
 $('connection-join').addEventListener('click',()=>void connectionOperation('connectServer',$('connection-code').value.trim()));
 $('connection-home').addEventListener('click',()=>void connectionOperation('returnHome'));
 $('connection-recover').addEventListener('click',()=>void connectionOperation('recoverConnection'));
-$('connection-install').addEventListener('click',()=>void connectionOperation('installHost',$('connection-address').value));
+$('connection-install').addEventListener('click',()=>void connectionOperation('installHost',{address:$('connection-address').value,role:$('cloud-role').value,hostCode:$('cloud-host-code').value.trim(),rcloneBinary:$('cloud-rclone').value.trim()||'rclone'}));
 $('connection-invite').addEventListener('click',()=>void connectionOperation('connectionInvite',$('connection-address').value));
 $('connection-copy').addEventListener('click',async()=>{
  const code=$('connection-generated').value;if(!code)return;
  try{await navigator.clipboard.writeText(code);formNote('connection-message','Código copiado. Envie ao seu amigo.');}
  catch{$('connection-generated').select();formNote('connection-message','Selecione e copie o código com Ctrl+C.');}
 });
+$('cloud-role').addEventListener('change',()=>{
+ $('cloud-host-fields').hidden=$('cloud-role').value!=='host';$('cloud-authority-fields').hidden=$('cloud-role').value!=='authority';
+});
+$('cloud-enroll').addEventListener('click',()=>void connectionOperation('enrollHostInvite'));
+let backupBusy=false;
+async function cloudBackup(force){
+ if(backupBusy)return;backupBusy=true;$('cloud-backup-now').disabled=true;$('cloud-backup-status').disabled=true;
+ $('cloud-backup-message').textContent=force?'Enviando cópia consistente e verificando a integridade no Drive…':'Consultando o último backup verificado…';
+ try{
+  const r=await window.launcher.cloudBackup(force);if(!r.ok)throw Error(r.error);
+  $('cloud-backup-message').textContent=(r.lastSuccess?'Último backup verificado: '+new Date(r.lastSuccess).toLocaleString('pt-BR')+'. ':'Nenhum backup global confirmado ainda. ')+(r.dirty?'Há alterações aguardando envio. ':'Dados salvos no Drive. ')+(r.error||'');
+ }catch(e){$('cloud-backup-message').textContent=e.message;}
+ finally{backupBusy=false;$('cloud-backup-now').disabled=false;$('cloud-backup-status').disabled=false;}
+}
+$('cloud-backup-status').addEventListener('click',()=>void cloudBackup(false));
+$('cloud-backup-now').addEventListener('click',()=>void cloudBackup(true));
 window.launcher.onConnectionActivity(message=>{if(me)note(message);});
 window.launcher.onConnectionPresence(players=>{
  $('connection-players').replaceChildren();
