@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('launcher',{
  getVersion:()=>ipcRenderer.invoke('app:version'),
  inviteStatus:()=>ipcRenderer.invoke('invites:status'),
  createInvite:description=>ipcRenderer.invoke('invites:create',description),
+ copyInvite:code=>ipcRenderer.invoke('invites:copy',code),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
  status:()=>ipcRenderer.invoke('server:status'),
