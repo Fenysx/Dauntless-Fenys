@@ -148,8 +148,7 @@ async function localAdminKey(){
  for(const file of [...new Set(candidates)].filter(Boolean)){
   if(!fs.existsSync(file))continue;
   let key;try{key=readKeyFile(file);}catch{continue;}
-  const info=await requestApi('127.0.0.1:61000','/undaunted/api/GetUserInfo',{key});
-  if(info.IsAdmin===true)return key;
+  try{const info=await requestApi('127.0.0.1:61000','/undaunted/api/GetUserInfo',{key});if(info.IsAdmin===true)return key;}catch{}
  }
  throw Error('Selecione a chave da conta administradora em Configurações. Você pode ligar o servidor antes disso.');
 }
