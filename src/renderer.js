@@ -22,6 +22,7 @@ async function settings(){
   $('exe').textContent=c.launcherExe||'Não configurado';
   $('serverAddress').value=c.gameServer||'127.0.0.1:61000';
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
+  $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
  }catch(e){note('Falha ao obter configurações: '+e.message);}
 }
 async function action(type){if(operating)return; if((type==='stop'||type==='restart')&&!window.confirm(type==='stop'?'Desligar os serviços iniciados por este launcher?':'Reiniciar os serviços iniciados por este launcher?'))return;
@@ -42,6 +43,13 @@ $('serverSave').addEventListener('click',async()=>{
   const result=await window.launcher.setServer($('serverAddress').value);
   note('Servidor configurado: '+result.server);
   await settings();await refresh();
+ }catch(e){note('Atenção: '+e.message);}
+});
+$('playerKeyPick').addEventListener('click',async()=>{
+ try{
+  const r=await window.launcher.pickPlayerKey();
+  if(r.selected)note('Conta existente vinculada: '+r.username);
+  await settings();
  }catch(e){note('Atenção: '+e.message);}
 });
 $('adminKeyPick').addEventListener('click',async()=>{
