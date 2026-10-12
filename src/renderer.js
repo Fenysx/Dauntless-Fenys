@@ -47,7 +47,7 @@ async function refreshInvites(){
    inviteReady=true;
    inviteMessage('Tudo pronto. Preencha a identificação, se quiser, e gere um convite.');
   }else{
-   const isOpen=mode==='OPEN',closed=mode==='CLOSED';
+   const isOpen=mode==='OPEN',closed=mode==='NONE';
    inviteStatusText('invite-registration-status',isOpen?'Aberto a todos':closed?'Cadastro desativado':'Modo: '+mode,'warning');
    $('invite-registration-description').textContent=isOpen?'O cadastro está público: jogadores podem se registrar sem convite.':closed?'O servidor não está aceitando novos cadastros.':'O modo atual não permite a geração de convites por esta tela.';
    $('invite-setup').hidden=false;
