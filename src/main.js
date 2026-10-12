@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
+const {inviteStatus,createInvite}=require('./fenys-api');
 let win;
 const owned=new Map();
 const PORTS={metagame:61000,deploy:61001};
@@ -133,6 +134,15 @@ app.whenReady().then(()=>{
  ipcMain.handle('settings:get',()=>load());
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('app:version',()=>app.getVersion());
+ ipcMain.handle('invites:status',async()=>{
+  try{return {ok:true,...await inviteStatus(backendAddress())};}
+  catch(e){return {ok:false,error:e.message};}
+ });
+ ipcMain.handle('invites:create',async(_event,description)=>{
+  try{return {ok:true,...await createInvite(backendAddress(),await accountKey(),description)};}
+  catch(e){return {ok:false,error:e.message};}
+ });
  ipcMain.handle('server:status',()=>status());
  ipcMain.handle('server:start',()=>runLocked(startAll));
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
