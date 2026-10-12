@@ -70,6 +70,19 @@
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
         <div class="page-title"><span class="kicker">JOGAR COM AMIGOS</span><h1>Conectar servidor</h1><p>O dono gera o código. O amigo cola o código e joga no servidor dele.</p></div>
+        <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Conexão Tailscale</h3><button id="tailscale-refresh" class="btn btn-outline">Atualizar status</button></div>
+          <p id="tailscale-status" class="notice" role="status" aria-live="polite">Verificando o Tailscale…</p>
+          <p id="tailscale-ip" class="notice"></p>
+          <div class="button-row">
+            <button id="tailscale-install" class="btn btn-red">Instalar Tailscale</button>
+            <button id="tailscale-connect" class="btn btn-red">Conectar Tailscale</button>
+            <button id="tailscale-background" class="btn btn-outline">Manter ligado em segundo plano</button>
+            <button id="tailscale-share" class="btn btn-outline">Compartilhar meu PC com um amigo</button>
+          </div>
+          <p class="notice">No primeiro acesso, entre na sua conta Tailscale pelo navegador. Não é uma senha do launcher. Se cada um usa uma conta Tailscale diferente, o dono compartilha o PC e o amigo aceita esse convite antes de usar o código do servidor.</p>
+          <p class="notice">A instalação e o modo em segundo plano podem pedir permissão do Windows. Para hospedar a partida, mantenha o PC ligado, sem suspensão, e o launcher com os serviços abertos.</p>
+        </article>
         <article class="panel">
           <div class="panel-title"><h3>Meu servidor — convidar o Ygor</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
           <p class="notice">Os dois PCs precisam estar conectados à mesma rede Tailscale. O dono mantém os serviços e o launcher abertos.</p>

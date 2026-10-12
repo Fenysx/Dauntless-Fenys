@@ -57,7 +57,7 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection')void connectionAddresses();});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void connectionAddresses();void tailscaleRefresh();}});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -106,11 +106,42 @@ $('register-submit').addEventListener('click',async()=>{
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 window.launcher.onActivity(note);
+let tailscaleWorking=false,tailscalePolling=false;
+const tailscaleButtons=['tailscale-install','tailscale-connect','tailscale-background','tailscale-share','tailscale-refresh'];
+async function tailscaleRefresh(){
+ if(tailscalePolling||tailscaleWorking)return;tailscalePolling=true;
+ try{
+  const r=await window.launcher.tailscaleStatus();if(!r.ok)throw Error(r.error);
+  $('tailscale-status').textContent=r.message;
+  $('tailscale-ip').textContent=r.connected?'IP deste PC: '+r.addresses.join(', ')+(r.background===true?' • Continua ligado em segundo plano.':r.background===false?' • Modo em segundo plano desativado.':''):'';
+  $('tailscale-install').disabled=r.installed;
+  $('tailscale-connect').disabled=!r.installed||r.connected||r.connecting===true;
+  $('tailscale-background').disabled=!r.connected||r.background===true;
+  $('tailscale-share').disabled=!r.connected;
+  if(r.connected)await connectionAddresses();
+ }catch(e){$('tailscale-status').textContent=e.message;}
+ finally{tailscalePolling=false;}
+}
+async function tailscaleAction(operation){
+ if(tailscaleWorking)return;tailscaleWorking=true;
+ for(const id of tailscaleButtons)$(id).disabled=true;
+ const labels={tailscaleInstall:'Baixando o instalador oficial…',tailscaleConnect:'Conectando o Tailscale…',tailscaleBackground:'Aguarde a permissão do Windows para manter o Tailscale ligado…',tailscaleShare:'Abrindo o compartilhamento do PC…'};
+ $('tailscale-status').textContent=labels[operation];
+ try{const r=await window.launcher[operation]();if(!r.ok)throw Error(r.error);note(r.message);}
+ catch(e){note('Atenção: '+e.message);}
+ finally{tailscaleWorking=false;for(const id of tailscaleButtons)$(id).disabled=false;await tailscaleRefresh();}
+}
+$('tailscale-install').addEventListener('click',()=>void tailscaleAction('tailscaleInstall'));
+$('tailscale-connect').addEventListener('click',()=>void tailscaleAction('tailscaleConnect'));
+$('tailscale-background').addEventListener('click',()=>void tailscaleAction('tailscaleBackground'));
+$('tailscale-share').addEventListener('click',()=>void tailscaleAction('tailscaleShare'));
+$('tailscale-refresh').addEventListener('click',()=>void tailscaleRefresh());
 async function connectionAddresses(){
- const list=$('connection-address');list.replaceChildren();
+ const list=$('connection-address'),selected=list.value;list.replaceChildren();
  try{
   const addresses=await window.launcher.connectionAddresses();
   for(const ip of addresses){const option=document.createElement('option');option.value=ip+':61000';option.textContent=ip+':61000';list.append(option);}
+  if(addresses.some(ip=>ip+':61000'===selected))list.value=selected;
   if(!addresses.length){const option=document.createElement('option');option.value='';option.textContent='Conecte o Tailscale neste PC';list.append(option);}
  }catch(e){note(e.message);}
 }
@@ -138,3 +169,4 @@ $('connection-copy').addEventListener('click',async()=>{
 });
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
+setInterval(()=>{if(!$('screen-connection').hidden)void tailscaleRefresh();},10000);
