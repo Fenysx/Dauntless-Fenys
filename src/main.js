@@ -155,6 +155,7 @@ function restoreSavedKeys(){
 function assertGameClosed(){if(activeGame&&activeGame.exitCode===null)throw Error('Feche o jogo antes de trocar de servidor.');}
 async function localAdminKey(){
  const c=load();
+ if(c.googleHost&&googleAuth?.state().signedIn){try{const key=await googlePlayer.credential(),info=await requestApi('127.0.0.1:61000','/undaunted/api/GetUserInfo',{key});if(info.IsAdmin===true)return key;}catch{}}
  const candidates=[c.adminKeyFile,c.gameKeyFile,c.accountFiles?.['127.0.0.1:61000'],path.join(friendKitDir(),'account.key')];
  for(const file of [...new Set(candidates)].filter(Boolean)){
   if(!fs.existsSync(file))continue;
@@ -280,7 +281,7 @@ app.whenReady().then(()=>{
   try{if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();if(!owned.size)throw Error('Inicie os serviços pelo launcher antes de configurar.');
    if(c.cloudRole==='host'){try{const e=await cloudRequest('127.0.0.1:61000','events',{cursor:null});if(e.onlineCount)throw Error('Encerre as partidas antes de migrar o host.');}catch(e){const source=await googleHostCall(c.cloudAuthority,'status').catch(()=>null);if(source?.mode!=='google')throw e;}}
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
-   const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=readKeyFile(file);
+   const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
    let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey});}finally{await startAll();}
    c.googleHost=true;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
