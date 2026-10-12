@@ -32,12 +32,13 @@ function stateFromStatus(raw){
  const messages={Running:'Tailscale conectado.',Stopped:'Tailscale desconectado. Clique em Conectar.',NeedsLogin:'Entre na sua conta Tailscale para conectar.',NeedsMachineAuth:'Aguardando aprovação deste PC na sua rede Tailscale.',Starting:'Tailscale iniciando…',NoState:'Tailscale iniciando…'};
  return {installed:true,connected:running,addresses:running?addresses:[],message:messages[raw?.BackendState]||'Confira o serviço do Tailscale.'};
 }
-function powershell(script){return ['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')];}
+function powershell(script){return ['-NoProfile','-NonInteractive','-OutputFormat','Text','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')];}
 function psString(value){return "'"+String(value).replaceAll("'","''")+"'";}
 function powerExe(){return path.win32.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');}
 async function verifyInstaller(file,run=runCommand){
- const script="$s=Get-AuthenticodeSignature -LiteralPath "+psString(file)+"; $p=if($s.SignerCertificate){$s.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName,$false)}else{''}; @{status=$s.Status.ToString();publisher=$p} | ConvertTo-Json -Compress";
- let info;try{info=JSON.parse(await run(powerExe(),powershell(script),{timeout:30000}));}catch{throw Error('Não foi possível consultar a assinatura do instalador Tailscale.');}
+ const script="[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; try { $s=Get-AuthenticodeSignature -LiteralPath "+psString(file)+"; $p=if($s.SignerCertificate){$s.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName,$false)}else{''}; @{status=$s.Status.ToString();publisher=$p} | ConvertTo-Json -Compress } catch { @{error=$_.Exception.Message} | ConvertTo-Json -Compress }";
+ let info;try{info=JSON.parse((await run(powerExe(),powershell(script),{timeout:30000})).replace(/^\uFEFF/,''));}catch(e){throw Error('Não foi possível consultar a assinatura do instalador Tailscale: '+e.message);}
+ if(info.error)throw Error('Consulta da assinatura Tailscale falhou: '+String(info.error).slice(0,180));
  if(info.status!=='Valid'||typeof info.publisher!=='string'||!/^Tailscale,? Inc\.?$/i.test(info.publisher))throw Error('Assinatura Tailscale não confirmada ('+String(info.status).slice(0,40)+'; '+String(info.publisher).slice(0,80)+').');
 }
 async function downloadInstaller(directory,{fetchImpl=fetch,verify=verifyInstaller,onProgress=()=>{},maxBytes=MAX_INSTALLER}={}){

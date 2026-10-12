@@ -33,7 +33,13 @@ jobs:
         run: npm ci
 
       - name: Conferir instalador oficial do Tailscale no Windows
-        run: node -e "require('./src/fenys-tailscale').downloadInstaller(require('node:path').join(process.env.RUNNER_TEMP,'fenys-tailscale-check')).then(()=>console.log('Checksum e assinatura oficial do Tailscale confirmados.')).catch(e=>{console.error(e.message);process.exit(1)})"
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'tailscale-signature-check.exe'
+          $url = node -e "console.log(require('./src/fenys-tailscale').INSTALLER_URL)"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          Write-Output "Assinatura oficial: $($signature.Status); $($signature.SignerCertificate.Subject)"
+          node -e "require('./src/fenys-tailscale').downloadInstaller(require('node:path').join(process.env.RUNNER_TEMP,'fenys-tailscale-check')).then(()=>console.log('Checksum e assinatura oficial do Tailscale confirmados.')).catch(e=>{console.error(e.message);process.exit(1)})"
 
       - name: Gerar instalador Windows
         run: npm run build:win
