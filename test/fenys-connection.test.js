@@ -60,3 +60,9 @@ test('tentativa de conexão durante operação não libera o bloqueio da primeir
  const second=await handlers.get('server:start')();assert.equal(second.ok,false);assert.match(second.error,/operação em andamento/);
  await first;
 });
+
+test('conexão a servidor remoto mantém Iniciar/Desligar locais disponíveis sem admin',async t=>{
+ const {handlers,dir}=await launcher(t);const file=path.join(dir,'settings.json'),settings=JSON.parse(fs.readFileSync(file));settings.gameServer='100.64.1.2:61000';fs.writeFileSync(file,JSON.stringify(settings));
+ const start=await handlers.get('server:start')();assert.equal(start.ok,false);assert.match(start.error,/dist\/server.js/);assert.doesNotMatch(start.error,/login|senha|admin|remoto/i);
+ const stop=await handlers.get('server:stop')();assert.equal(stop.ok,true);assert.equal(stop.status.remote,true);
+});

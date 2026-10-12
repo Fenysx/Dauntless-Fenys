@@ -6,12 +6,11 @@ let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
 function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
  const owned=Array.isArray(s.owned)?s.owned:[];$('service-detail').textContent=owned.length?`Processos gerenciados nesta sessão: ${owned.join(', ')}.`:'Nenhum processo gerenciado nesta sessão. Serviços externos não podem ser desligados por este painel.';
- const canStop=owned.length>0&&!s.remote;
+ const canStop=owned.length>0;
  for(const id of ['stop','stop2','restart','restart2'])$(id).disabled=!canStop||operating;
- for(const id of ['start','start2'])$(id).disabled=Boolean(s.remote)||operating;
+ for(const id of ['start','start2'])$(id).disabled=operating;
  if(s.remote){
-  $('service-detail').textContent='Modo jogador: conexão remota com '+s.server+'. Os controles de servidor ficam desativados.';
-  for(const id of ['deploy','deploy-service']){const el=$(id);el.textContent='Somente host';}
+  $('service-detail').textContent='Jogo conectado a '+s.server+'. Estes controles iniciam ou encerram somente os serviços deste PC.';
  }
 }
 async function refresh(){try{paint(await window.launcher.status());}catch(e){note('Falha na verificação: '+e.message);}}
@@ -57,7 +56,7 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void connectionAddresses();void tailscaleRefresh();}});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void connectionAddresses();void tailscaleRefresh();void globalRefresh();}});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -161,7 +160,7 @@ $('connection-join').addEventListener('click',async()=>{
  catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
 });
 $('connection-local').addEventListener('click',async()=>{
- try{await window.launcher.setServer('127.0.0.1:61000');await settings();await refresh();note('Seu servidor local está selecionado. Os controles de iniciar serviços estão disponíveis.');}
+ try{const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
  catch(e){note(e.message);}
 });
 $('connection-copy').addEventListener('click',async()=>{
@@ -170,3 +169,23 @@ $('connection-copy').addEventListener('click',async()=>{
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
 setInterval(()=>{if(!$('screen-connection').hidden)void tailscaleRefresh();},10000);
+let globalWorking=false;
+async function globalRefresh(){
+ try{const r=await window.launcher.globalState();if(!r.ok)throw Error(r.error);
+  $('global-state').textContent=r.global?'Conta global conectada a '+r.server+(r.pending?' • Confirmação pendente.':'.'):'Sua chave existente será usada para manter o mesmo personagem nos hosts integrados.';
+  if(r.localRole){$('global-role').value=r.localRole;$('global-role').disabled=true;}
+  $('global-authorization-state').textContent=r.authorizationSelected?'Autorização selecionada.':'Nenhuma autorização Supabase selecionada.';
+  $('global-authority-fields').hidden=$('global-role').value!=='authority';$('global-host-fields').hidden=$('global-role').value!=='host';
+  $('global-central-controls').hidden=r.localRole!=='authority';
+ }catch(e){$('global-state').textContent=e.message;}
+}
+async function globalOperation(fn){if(globalWorking)return;globalWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação global não concluída.');await globalRefresh();await settings();await refresh();return r;}catch(e){note('Atenção: '+e.message);}finally{globalWorking=false;}}
+$('global-role').addEventListener('change',()=>void globalRefresh());
+$('global-authorization-pick').addEventListener('click',()=>void globalOperation(()=>window.launcher.pickSupabaseAuthorization()));
+$('global-activate').addEventListener('click',()=>void globalOperation(async()=>{const r=await window.launcher.activateGlobal({address:$('connection-address').value,role:$('global-role').value,hostCode:$('global-host-code').value.trim()});if(r.ok)note('Rede global ativada. Personagem, nível, inventário, guildas, amizades e placares são compartilhados entre os hosts.');return r;}));
+$('global-host-invite').addEventListener('click',()=>void globalOperation(async()=>{const r=await window.launcher.createHostAuthorization();if(r.ok){$('global-host-result').value=r.code;note('Autorização de host gerada. Envie ao dono do outro servidor.');}return r;}));
+$('global-backup-refresh').addEventListener('click',()=>void globalOperation(()=>globalBackup(false)));
+$('global-backup-now').addEventListener('click',()=>void globalOperation(()=>globalBackup(true)));
+$('global-recover').addEventListener('click',()=>void globalOperation(()=>window.launcher.globalRecover()));
+async function globalBackup(force){const r=await window.launcher.globalBackup(force);if(r.ok)$('global-backup-state').textContent=(r.lastSuccess?'Última cópia confirmada: '+new Date(r.lastSuccess).toLocaleString('pt-BR')+'. ':'Nenhuma cópia confirmada ainda. ')+(r.dirty?'Há alterações pendentes. ':'')+(r.error||'')+(r.ready===false?' Aguarde a confirmação inicial do Supabase antes de jogar.':'');return r;}
+setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRefresh();},10000);

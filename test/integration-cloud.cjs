@@ -6,6 +6,7 @@ const assert=require('node:assert/strict');
 const {prepareCloudFiles}=require('../src/fenys-cloud-setup');
 const {identity,sign,call,decodeCode,hash}=require('../src/fenys-cloud-protocol');
 const {capture}=require('../src/fenys-cloud-migration');
+const {DirectGlobal}=require('../src/fenys-direct-global');
 async function port(){const s=net.createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));const n=s.address().port;await new Promise(r=>s.close(r));return n;}
 function seed(db,name,admin=0){const userId='UID-'+crypto.randomUUID(),characterId=crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');db.prepare('INSERT INTO users VALUES(?,?,?,?)').run(userId,name,0,admin);db.prepare('INSERT INTO userapikeys VALUES(?,?)').run(userId,hash(key));db.prepare('INSERT INTO characters VALUES(?,?,?,?,?,?,?)').run(characterId,userId,'2026-10-12','2026-10-12',name,1,'{"Level":20}');db.prepare('INSERT INTO inventories VALUES(?,?,?)').run(characterId,'[]','[]');return {userId,characterId,key};}
 async function main(){
@@ -51,9 +52,11 @@ async function main(){
    const migrated=await call(source.address,'migrate',sign(instance.config,{operation:'migrate',hostId:instance.config.hostId,realm:instance.config.realm,snapshot,time:Date.now(),requestId:crypto.randomUUID()}));assert.equal(migrated.accounts,1);
   }
   const [hostA,hostB]=instances.slice(1);
+  const clients=new Map();
   async function join(player,instance){
-   const invite=decodeCode((await call(instance.address,'invite',{},owner.key)).code);
-   return call(source.address,'join',{realm:invite.realm,hostId:invite.hostId,secret:invite.secret,session:crypto.randomUUID()},player.key);
+   const invite=(await call(instance.address,'invite',{},owner.key)).code;
+   let client=clients.get(player.userId);if(!client){client=new DirectGlobal({directory:path.join(temp,'client-'+player.userId),protect:s=>Buffer.from(s),unprotect:b=>b.toString(),settings:()=>({cloudAuthority:source.address})});client.adopt(player.key,source.address);clients.set(player.userId,client);}
+   const result=await client.connect(invite);assert.equal(client.key(),player.key);assert.equal(result.server,instance.address);return result;
   }
   const token=player=>jwt.sign({userId:player.userId,epoch:source.db.prepare('SELECT epoch FROM authepochs WHERE userId=?').get(player.userId)?.epoch||0},pair.privateKey,{algorithm:'RS256',expiresIn:'5m',issuer:'undaunted-metagame',audience:'undaunted-metagame'});
   async function request(instance,method,route,player,body,game=false){

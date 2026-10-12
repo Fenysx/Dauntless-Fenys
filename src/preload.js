@@ -1,5 +1,12 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ globalState:()=>ipcRenderer.invoke('global:state'),
+ pickSupabaseAuthorization:()=>ipcRenderer.invoke('global:authorization'),
+ activateGlobal:options=>ipcRenderer.invoke('global:activate',options),
+ createHostAuthorization:()=>ipcRenderer.invoke('global:hostInvite'),
+ globalBackup:force=>ipcRenderer.invoke('global:backup',force),
+ globalHome:()=>ipcRenderer.invoke('global:home'),
+ globalRecover:()=>ipcRenderer.invoke('global:recover'),
  tailscaleStatus:()=>ipcRenderer.invoke('tailscale:status'),
  tailscaleInstall:()=>ipcRenderer.invoke('tailscale:install'),
  tailscaleConnect:()=>ipcRenderer.invoke('tailscale:connect'),
