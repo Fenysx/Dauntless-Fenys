@@ -130,3 +130,11 @@ test('pré-validação de migração verifica banco inteiro e reverte a cópia a
  assert.equal(b.prepare("SELECT name FROM sqlite_master WHERE name='fenys_cloud_migrations'").get(),undefined);
  assert.equal(importState(b,'new-host',snapshot).accounts,1);
 });
+
+test('cadastro global sem senha é idempotente; chave original acompanha o jogador e código não cria duas contas',async t=>{
+ const {DirectGlobal}=require('../src/fenys-direct-global');const n=await network(t),directory=fs.mkdtempSync(path.join(os.tmpdir(),'fenys-direct-test-'));t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+ const client=new DirectGlobal({directory,protect:s=>Buffer.from(s),unprotect:b=>b.toString(),settings:()=>({cloudAuthority:n.root})});
+ const invite=n.authority.invite(n.gateways[0].config.hostId).code;const result=await client.register(invite,'NewPlayer');assert.equal(result.username,'NewPlayer');const original=client.key();await client.connect(invite);await client.connect(n.authority.invite(n.gateways[1].config.hostId).code);assert.equal(client.key(),original);assert.equal(client.state().hostId,n.gateways[1].config.hostId);assert.equal(n.a.prepare('SELECT isAdmin FROM users WHERE userId=?').get(result.userId).isAdmin,0);
+ const pair=identity(),ticket=decodeCode(n.authority.invite('central').code),payload={operation:'register-player',realm:ticket.realm,hostId:ticket.hostId,secret:ticket.secret,name:'LostResponse',requestId:crypto.randomUUID(),time:Date.now()};const first=await call(n.root,'register-player',sign(pair,payload));const repeat=await call(n.root,'register-player',sign(pair,{...payload,requestId:crypto.randomUUID()}));assert.deepEqual(repeat,first);await assert.rejects(call(n.root,'register-player',sign(identity(),{...payload,name:'SecondPlayer',requestId:crypto.randomUUID()})),/já cadastrou/);
+ const collision=decodeCode(n.authority.invite('central').code);await assert.rejects(call(n.root,'register-player',sign(identity(),{...payload,secret:collision.secret,name:'Fenys',requestId:crypto.randomUUID()})),/chave existente/);assert.equal(n.authority.account(n.admin.key).isAdmin,1);
+});

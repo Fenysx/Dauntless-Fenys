@@ -8,7 +8,7 @@ Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de se
 
 O launcher volta a abrir diretamente, sem login ou senha local. Iniciar, desligar e reiniciar os serviços não dependem de autenticação nem de o Metagame já estar ligado. Para criar convites, a API continua validando a chave administradora original.
 
-As chaves dos perfis da versão anterior são recuperadas automaticamente como arquivos criptografados; os perfis e arquivos originais são preservados. Esta versão não ativa a rede de dados globais nem modifica personagens, banco SQLite ou configuração do Google Drive.
+As chaves dos perfis da versão anterior são recuperadas automaticamente como arquivos criptografados; os perfis e arquivos originais são preservados. Esse comportamento de acesso direto é mantido na versão 1.5.0. A rede global descrita abaixo é ativada separadamente pelo dono.
 
 ## Tailscale no launcher (1.4.2)
 
@@ -67,7 +67,46 @@ npm run build:linux
 
 Uma pessoa pode vincular uma chave existente em **Configurações** em vez de abrir outra conta. Para partidas remotas, o host deve manter Metagame, DeployServer e servidores de jogo disponíveis.
 
-Na próxima vez, basta abrir o launcher e clicar em **Jogar Agora**. A conta e o endereço continuam salvos. Se já tem uma conta no destino, vincule essa chave antes de usar o código para preservar o personagem existente. Personagens permanecem no servidor em que foram criados; esta correção não transfere saves entre servidores.
+Na próxima vez, basta abrir o launcher e clicar em **Jogar Agora**. A conta e o endereço continuam salvos. Se já tem uma conta no destino, vincule essa chave antes de usar o código para preservar o personagem existente. No modo clássico FENYS1, personagens permanecem no servidor em que foram criados. Para compartilhar o mesmo progresso entre hosts, ative a rede global abaixo e use FENYSC2.
+
+## Personagem global + Supabase (1.5.0-beta.1)
+
+O launcher abre sem login e senha. Iniciar/desligar os serviços locais continua disponível mesmo quando o jogador está conectado ao servidor de outra pessoa. A chave nativa do Metagame identifica o jogador e fica protegida no PC; a chave administradora original continua necessária apenas para configurar a rede e emitir autorizações.
+
+Esta implementação mantém **um Metagame/SQLite autoritativo no PC central**. Outros hosts de jogo encaminham as APIs de personagem, XP, níveis, inventário, loadouts, guildas, amigos e placares a ele. Não há um personagem separado em cada host integrado. **O PC central precisa ficar ligado e acessível pelo Tailscale durante as partidas.** O Supabase armazena cópias criptografadas completas desse SQLite e metadados de revisão; não executa o Metagame nem substitui seu banco por PostgreSQL em tempo real.
+
+### Ativar no PC central
+
+1. Atualize o launcher, inicie os serviços e mantenha todos os jogadores fora do jogo. Vincule sua chave administradora existente em Configurações.
+2. Em **Conectar servidor → Meu personagem em vários servidores**, escolha **Meu PC central + Supabase** e o IP Tailscale deste PC.
+3. Clique em **Selecionar autorização Supabase** e selecione o arquivo privado preparado para este projeto. Não o envie a outros jogadores. Clique em **Ativar rede global**.
+4. Aguarde a primeira cópia confirmada. **Conferir cópia na nuvem** mostra erros reais; **Enviar dados agora** força uma cópia. O progresso existente é mantido, sem redefinir a conta admin.
+5. Use **Gerar autorização para outro servidor** para integrar o host do Ygor. Essa autorização de host e os códigos de jogador são diferentes.
+
+### Integrar outro host e jogar
+
+1. No launcher do outro host, inicie os serviços, mantenha todos fora do jogo e escolha **Meu servidor conectado ao PC central**. Cole a autorização de host e selecione seu próprio IP Tailscale.
+2. **Ativar rede global** faz pré-validação e importa os dados antigos desse host preservando UID, personagem e chaves. Nomes/identidades incompatíveis são recusados. O banco original fica preservado e as contas importadas não ganham administração global.
+3. Cada host usa **Gerar código de conexão** para emitir um convite FENYSC2 de jogador. Envie o código ao amigo. Antes da primeira conexão, quem já possui personagem vincula sua chave existente. Um jogador novo informa apenas o nome e recebe uma chave própria, sem senha.
+4. Feche o jogo antes de mudar de host, aguarde a confirmação de saída e cole o novo código. A mesma chave abre o personagem atual; dados de jogo e sociais permanecem no banco central. A troca só é confirmada após persistência no Supabase. Hosts de redes diferentes ou servidores clássicos não compartilham automaticamente esses dados.
+
+### Persistência e recuperação
+
+- Cópias AES-256-GCM com identidade Ed25519, controle de revisão e escritor exclusivo de 75 segundos. A API recusa assinaturas inválidas, cópias antigas e outro escritor. As tabelas não são públicas; nenhuma chave service_role é enviada ao launcher.
+- São conservadas as duas últimas gerações criptografadas, cada uma com limite de **16 MiB**. Alterações geram cópias periódicas (a partir de 30 segundos); a troca de host força confirmação. O limite é verificado antes do envio. Erros não são apresentados como sucesso e o banco local é conservado.
+- Perder conexão impede novas operações de jogo após expirar a autorização de escrita; hosts não criam um banco alternativo. Saves locais ainda não enviados permanecem no PC central. Isto é persistência por cópias, sem garantia de upload instantâneo de cada save.
+- Guarde a pasta `UndauntedMetagame/fenys/`, principalmente `supabase-authorization.json`, e a identidade do banco em local privado. O arquivo de ativação inicial sozinho não substitui a identidade já vinculada. A perda das chaves impede recuperar as cópias criptografadas.
+- Para recuperar uma cópia confirmada, feche jogo, Metagame e DeployServer. No diretório `UndauntedMetagame`, com a configuração/identidade originais, execute:
+
+```bash
+node --env-file=.env fenys/fenys-supabase-restore.js --restore
+```
+
+A ferramenta verifica assinatura de acesso, digest, criptografia, integridade SQLite e identidade da rede. Conserva uma cópia `.before-supabase-….bak` do banco atual antes de restaurar. Faça isso apenas quando desejar recuperar a versão da nuvem: alterações locais ainda não enviadas ficam na cópia preservada. Inicie os serviços novamente ao concluir.
+
+O projeto Supabase selecionado foi reativado e recebe apenas os objetos `fenys_global` e a Edge Function `fenys-global`; tabelas anteriores do projeto não são utilizadas pelo jogo. `supabase/schema.sql` documenta a instalação inicial. A função usa autenticação própria por assinatura (JWT Supabase desativado intencionalmente) e chama o RPC privado com credencial exclusiva do ambiente da Edge Function.
+
+Testes automatizados cobrem dois hosts com o mesmo UID/personagem, progressão e relações sociais; o teste opt-in `test/integration-supabase.cjs` verifica cópia criptografada real e rejeição de requisições inválidas usando uma autorização de teste isolada. **A partida entre dois PCs Windows pelo Tailscale ainda precisa ser testada.**
 
 ## API já usada
 

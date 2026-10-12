@@ -5,6 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {parseServerAddress}=require('./fenys-api');
 const {identity,hash,sign,verify,encodeCode,call,privateRequest,localRequest,VERSION}=require('./fenys-cloud-protocol');
 const {createBackup}=require('./fenys-cloud-backup');
+const {createSupabaseBackup}=require('./fenys-supabase');
 const {importState,previewState}=require('./fenys-cloud-migration');
 let running=null;
 function routeOK(route){
@@ -19,7 +20,7 @@ async function forward(address,route,method,headers,body,timeout=300000){
  return {status:response.status,contentType:response.headers.get('content-type')||'application/json',data:data.toString('base64')};
 }
 function send(res,result){res.status(result.status);res.setHeader('content-type',result.contentType);res.end(Buffer.from(result.data,'base64'));}
-function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddress='127.0.0.1:61001',online=()=>[],validateToken=()=>null,revoke=()=>{},native=forward,invoke=call,now=Date.now,backup=null,allowLoopbackHosts=false}={}){
+function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddress='127.0.0.1:61001',online=()=>[],validateToken=()=>null,revoke=()=>{},native=forward,invoke=call,now=Date.now,backup=null,backupFactory=null,allowLoopbackHosts=false}={}){
  address=parseServerAddress(address).address;localAddress=parseServerAddress(localAddress).address;
  db.exec(`CREATE TABLE IF NOT EXISTS fenys_cloud_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS fenys_cloud_hosts(id TEXT PRIMARY KEY,publicKey TEXT NOT NULL UNIQUE,address TEXT NOT NULL,name TEXT NOT NULL,active INTEGER NOT NULL,lastSeen INTEGER NOT NULL);
@@ -28,13 +29,34 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
  CREATE TABLE IF NOT EXISTS fenys_cloud_allocations(userId TEXT NOT NULL,hostId TEXT NOT NULL,session TEXT NOT NULL,expiresAt INTEGER NOT NULL,PRIMARY KEY(userId,hostId,session));
  CREATE TABLE IF NOT EXISTS fenys_cloud_requests(id TEXT PRIMARY KEY,hostId TEXT NOT NULL,digest TEXT NOT NULL,result TEXT,time INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS fenys_cloud_events(id INTEGER PRIMARY KEY AUTOINCREMENT,hostId TEXT NOT NULL,name TEXT NOT NULL,kind TEXT NOT NULL,time INTEGER NOT NULL);`);
+ db.exec('CREATE TABLE IF NOT EXISTS fenys_cloud_provisions(publicKey TEXT PRIMARY KEY,secretHash TEXT NOT NULL UNIQUE,name TEXT NOT NULL,userId TEXT NOT NULL,keyBox TEXT NOT NULL);');
  const setting=(key,make)=>{let row=db.prepare('SELECT value FROM fenys_cloud_settings WHERE key=?').get(key);if(!row){const value=make();db.prepare('INSERT INTO fenys_cloud_settings VALUES(?,?)').run(key,value);row={value};}return row.value;};
  const pair=JSON.parse(setting('authorityIdentity',()=>JSON.stringify(identity()))),realm=setting('realm',()=>crypto.randomUUID());
+ if(backupFactory)backup=backupFactory({pair,realm,address});
  const internal=setting('internal',()=>crypto.randomBytes(32).toString('hex')),gameKey=setting('gameKey',()=>crypto.randomBytes(32).toString('hex'));
  if(!db.prepare('SELECT id FROM gameserverapikeys WHERE keyHash=?').get(hash(gameKey)))db.prepare('INSERT INTO gameserverapikeys(keyHash) VALUES(?)').run(hash(gameKey));
  const rootId='central';
  db.prepare('INSERT INTO fenys_cloud_hosts VALUES(?,?,?,?,1,?) ON CONFLICT(id) DO UPDATE SET address=excluded.address,lastSeen=excluded.lastSeen').run(rootId,pair.publicKey,address,'Servidor central',now());
  const account=key=>typeof key==='string'&&key.length<256?db.prepare('SELECT u.* FROM users u JOIN userapikeys k ON u.userId=k.userId WHERE k.keyHash=?').get(hash(key)):null;
+ function provision(p){
+  if(p.realm!==realm||! /^[A-Za-z0-9_]{3,16}$/.test(p.name||'')||process.env.REGISTRATION_MODE==='NONE')throw Error('Nome inválido ou cadastro global fechado.');
+  const aes=Buffer.from(internal,'hex');
+  const open=box=>{const data=Buffer.from(box,'base64'),cipher=crypto.createDecipheriv('aes-256-gcm',aes,data.subarray(0,12));cipher.setAuthTag(data.subarray(12,28));return Buffer.concat([cipher.update(data.subarray(28)),cipher.final()]).toString();};
+  const existing=db.prepare('SELECT * FROM fenys_cloud_provisions WHERE publicKey=?').get(p.publicKey);
+  if(existing){if(existing.name!==p.name)throw Error('Essa instalação já cadastrou outra conta. Preserve a chave original.');return {key:open(existing.keyBox),username:existing.name,userId:existing.userId};}
+  return db.transaction(()=>{
+   const code=db.prepare("SELECT * FROM fenys_cloud_invites WHERE secretHash=? AND hostId=? AND kind='player' AND used=0 AND expiresAt>?").get(hash(String(p.secret)),p.hostId,now());
+   if(!code)throw Error('Código inválido ou expirado.');
+   if(db.prepare('SELECT publicKey FROM fenys_cloud_provisions WHERE secretHash=?').get(code.secretHash))throw Error('Esse convite já cadastrou um jogador.');
+   if(db.prepare('SELECT userId FROM users WHERE lower(name)=lower(?)').get(p.name))throw Error('Nome já cadastrado. Vincule a chave existente para preservar o personagem.');
+   const userId='UID-'+crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');
+   const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',aes,iv),encrypted=Buffer.concat([cipher.update(key),cipher.final()]);
+   const keyBox=Buffer.concat([iv,cipher.getAuthTag(),encrypted]).toString('base64');
+   db.prepare('INSERT INTO users(userId,name,notes,isAdmin) VALUES(?,?,0,0)').run(userId,p.name);db.prepare('INSERT INTO userapikeys(userId,keyHash) VALUES(?,?)').run(userId,hash(key));
+   db.prepare('INSERT INTO fenys_cloud_provisions VALUES(?,?,?,?,?)').run(p.publicKey,code.secretHash,p.name,userId,keyBox);backup?.mark();
+   return {key,username:p.name,userId};
+  }).immediate();
+ }
  function hostForPlayer(userId){return db.prepare('SELECT hostId FROM fenys_cloud_players WHERE userId=?').get(userId)?.hostId||rootId;}
  function hostForPlayers(players){return Array.isArray(players)&&players.length?hostForPlayer(players[0]):rootId;}
  function host(id){const row=db.prepare('SELECT * FROM fenys_cloud_hosts WHERE id=? AND active=1').get(id);if(!row)throw Error('Host não autorizado na rede global.');return row;}
@@ -43,6 +65,7 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
   const target=host(hostId),secret=crypto.randomBytes(24).toString('hex'),expiresAt=now()+15*60000;
   db.prepare('DELETE FROM fenys_cloud_invites WHERE expiresAt<?').run(now());
   db.prepare('INSERT INTO fenys_cloud_invites VALUES(?,?,?,?,0)').run(hash(secret),hostId,kind,expiresAt);
+  backup?.mark();
   return {code:encodeCode({authority:address,address:target.address,realm,hostId,secret,expiresAt,kind}),expiresAt};
  }
  function consume(secret,hostId,kind){const row=db.prepare('SELECT * FROM fenys_cloud_invites WHERE secretHash=? AND hostId=? AND kind=? AND used=0 AND expiresAt>?').get(hash(String(secret)),hostId,kind,now());if(!row)throw Error('Código inválido, usado ou expirado.');db.prepare('UPDATE fenys_cloud_invites SET used=1 WHERE secretHash=?').run(row.secretHash);}
@@ -156,6 +179,7 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
  async function middleware(req,res,next){
   const prefix='/fenys/cloud/v2/';
   if(!req.url.startsWith(prefix)){
+   if(backup?.ready&&!backup.ready()&&!/^\/undaunted\/api\/(?:GetUserInfo|ServerStatus|RegistrationStatus)(?:\?|$)/.test(req.url)){res.status(503).json({error:'Aguarde a confirmação do banco global no Supabase antes de jogar.'});return;}
    const internalCall=localRequest(req)&&req.headers['x-fenys-internal-token']===internal;
    const currentHost=internalCall?req.headers['x-fenys-host-id']:rootId;
    if(req.headers['x-fenys-internal-token']&&!internalCall){res.status(403).end();return;}
@@ -171,16 +195,18 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
    const route=req.url.slice(prefix.length),key=req.headers['x-undaunted-user-api-key'];
    if(route==='status'&&req.method==='GET'){res.json({version:VERSION,role:'authority',realm,authority:address,hostId:rootId,authorityPublicKey:pair.publicKey});return;}
    if(req.method!=='POST')throw Error('Operação inválida.');
+   if(backup?.ready&&!backup.ready()&&['enroll-invite','host-register','register-player','invite','join','rpc','migrate'].includes(route))throw Error('Aguarde a confirmação do banco global no Supabase.');
    if(route==='enroll-invite'){
     if(!account(key)?.isAdmin||!localRequest(req))throw Error('O administrador gera a autorização de host no PC central.');
     res.json(invite(rootId,'host'));return;
    }
    if(route==='host-register'){const p=verify(req.body,'host-register',now());res.json(register(p));return;}
+   if(route==='register-player'){if(backup?.ready&&!backup.ready())throw Error('Aguarde a confirmação do banco no Supabase.');const p=verify(req.body,'register-player',now()),result=provision(p);if(backup?.ready)await backup.flush(true);res.json(result);return;}
    if(route==='invite'){
     if(req.body?.message){res.json(await signedRequest(req.body,'invite',p=>invite(p.hostId)));return;}
     if(!account(key)?.isAdmin||!localRequest(req))throw Error('Gere o convite no computador hospedeiro.');res.json(invite(rootId));return;
    }
-   if(route==='join'){const result=join(key,req.body);revoke(result.userId);res.json(result);return;}
+   if(route==='join'){if(backup?.ready){if(!backup.ready())throw Error('Aguarde a persistência inicial no Supabase.');await backup.flush(true);}const result=join(key,req.body);revoke(result.userId);if(backup?.ready)await backup.flush(true);res.json(result);return;}
    if(route==='pulse'){
     const me=account(key),row=me&&db.prepare('SELECT * FROM fenys_cloud_players WHERE userId=?').get(me.userId);
     if(!row||row.session!==req.body?.session)throw Error('Conexão global encerrada.');
@@ -200,12 +226,12 @@ function createAuthority(db,{address,localAddress='127.0.0.1:61000',deployAddres
    }
    if(route==='backup-status'||route==='backup-now'){
     if(!account(key)?.isAdmin||!localRequest(req))throw Error('Consulte backups no PC central.');
-    if(!backup)throw Error('Backup Drive não configurado.');res.json(route==='backup-now'?await backup.flush(true):backup.state());return;
+    if(!backup)throw Error('Persistência em nuvem não configurada.');res.json(route==='backup-now'?await backup.flush(true):backup.state());return;
    }
    res.status(404).end();
   }catch(e){res.status(409).json({error:e.message||'Operação global não concluída.'});}
  }
- return {middleware,join,invite,register,rpc,deploy,hostForPlayer,hostForPlayers,events,realm,pair,account};
+ return {middleware,join,invite,register,rpc,deploy,hostForPlayer,hostForPlayers,events,realm,pair,account,backup};
 }
 function createGateway(db,config,{invoke=call,native=forward,now=Date.now}={}){
  const signed=(operation,fields={})=>sign(config,{operation,hostId:config.hostId,realm:config.realm,time:now(),requestId:crypto.randomUUID(),...fields});
@@ -249,8 +275,10 @@ function createGateway(db,config,{invoke=call,native=forward,now=Date.now}={}){
 function start(db,options={}){
  const role=process.env.FENYS_CLOUD_ROLE;if(!role)return {middleware:(req,res,next)=>next()};
  if(role==='authority'){
-  const backup=createBackup(db,{directory:path.join(process.cwd(),'fenys-cloud-backups'),remote:process.env.FENYS_CLOUD_DRIVE_REMOTE||'dauntless-crypt:automaticos/globais',binary:process.env.FENYS_RCLONE_BINARY||undefined});
-  running=createAuthority(db,{...options,address:process.env.FENYS_CLOUD_PUBLIC_ADDRESS,localAddress:'127.0.0.1:'+process.env.PORT,deployAddress:'127.0.0.1:61001',backup,allowLoopbackHosts:process.env.NODE_ENV==='test'});
+  const useSupabase=process.env.FENYS_CLOUD_BACKUP_PROVIDER==='supabase';
+  const backup=useSupabase?null:createBackup(db,{directory:path.join(process.cwd(),'fenys-cloud-backups'),remote:process.env.FENYS_CLOUD_DRIVE_REMOTE||'dauntless-crypt:automaticos/globais',binary:process.env.FENYS_RCLONE_BINARY||undefined});
+  const backupFactory=useSupabase?props=>createSupabaseBackup(db,{...props,configFile:path.join(process.cwd(),'fenys','supabase-authorization.json'),directory:path.join(process.cwd(),'fenys-cloud-backups','supabase')}):null;
+  running=createAuthority(db,{...options,address:process.env.FENYS_CLOUD_PUBLIC_ADDRESS,localAddress:'127.0.0.1:'+process.env.PORT,deployAddress:'127.0.0.1:61001',backup,backupFactory,allowLoopbackHosts:process.env.NODE_ENV==='test'});
   const adapter=http.createServer(async(req,res)=>{
    if(!localRequest(req)){res.writeHead(403);res.end();return;}
    try{let body='',size=0;for await(const d of req){size+=d.length;if(size>1024*1024)throw Error('Alocação inválida.');body+=d;}const result=await running.deploy(req.url,req.method,body?JSON.parse(body):{});res.writeHead(result.status,{'content-type':result.contentType});res.end(Buffer.from(result.data,'base64'));}catch{res.writeHead(503,{'content-type':'application/json'});res.end('{"error":"host_unavailable"}');}

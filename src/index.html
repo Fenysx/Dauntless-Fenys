@@ -99,11 +99,30 @@
         <article class="panel fenys-panel-gap">
           <div class="panel-title"><h3>Entrar no servidor do meu amigo</h3></div>
           <div class="form-preview">
-            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="1024" autocomplete="off" placeholder="FENYS1.…">
+            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="FENYSC2.… para usar o mesmo progresso">
             <label for="connection-username">Meu nome de jogador (primeiro acesso)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Ygor">
             <button id="connection-join" class="btn btn-red">Conectar ao servidor</button>
           </div>
-          <p class="notice">Sua conta neste servidor fica salva neste PC. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
+          <p class="notice">Sua chave de jogador fica salva neste PC. Nos hosts integrados, ela abre o mesmo personagem e progresso. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
+        </article>
+        <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Meu personagem em vários servidores</h3></div>
+          <p id="global-state" class="notice" role="status" aria-live="polite">Consultando a rede global…</p>
+          <p class="notice">Os hosts integrados usam o mesmo banco: personagem, nível, inventário, guildas, amizades e placares. O PC central mantém o Metagame ligado; o Supabase preserva cópias criptografadas e confirma a persistência ao trocar de host. Não há login ou senha do launcher.</p>
+          <div class="form-preview">
+            <label for="global-role">Função deste PC</label><select id="global-role"><option value="authority">Meu PC central + Supabase</option><option value="host">Meu servidor conectado ao PC central</option></select>
+            <div id="global-authority-fields"><button id="global-authorization-pick" class="btn btn-outline">Selecionar autorização Supabase do PC central</button><p id="global-authorization-state" class="notice"></p></div>
+            <div id="global-host-fields" hidden><label for="global-host-code">Autorização de host recebida do PC central</label><input id="global-host-code" maxlength="2048" placeholder="FENYSC2.…"></div>
+            <button id="global-activate" class="btn btn-red">Ativar rede global</button>
+            <button id="global-recover" class="btn btn-outline">Recuperar confirmação de conexão</button>
+          </div>
+          <p class="notice">Inicie os serviços e mantenha todos fora do jogo antes de ativar. As contas e personagens antigos do host são importados com suas chaves e IDs originais; conflitos são recusados. Na primeira conexão, vincule a chave existente para preservar seu personagem. Um jogador novo informa apenas seu nome e recebe a chave automaticamente.</p>
+        </article>
+        <article id="global-central-controls" class="panel fenys-panel-gap" hidden>
+          <div class="panel-title"><h3>PC central — integrar hosts e conferir Supabase</h3></div>
+          <div class="form-preview"><button id="global-host-invite" class="btn btn-red">Gerar autorização para outro servidor</button><input id="global-host-result" readonly placeholder="Autorização do novo host"></div>
+          <div class="button-row"><button id="global-backup-refresh" class="btn btn-outline">Conferir cópia na nuvem</button><button id="global-backup-now" class="btn btn-outline">Enviar dados agora</button></div>
+          <p id="global-backup-state" class="notice" role="status" aria-live="polite">O sucesso será mostrado somente depois da confirmação do Supabase.</p>
         </article>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>

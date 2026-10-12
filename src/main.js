@@ -4,12 +4,18 @@ const path=require('node:path');
 const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
+const os=require('node:os');
 const {spawn}=require('node:child_process');
 const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fenys-api');
 const {encodeConnection,decodeConnection}=require('./fenys-connection-code');
 const {installServer,tailscaleAddresses}=require('./fenys-server-setup');
 const {ProfileVault}=require('./fenys-profiles');
 const {createTailscale}=require('./fenys-tailscale');
+const {DirectGlobal}=require('./fenys-direct-global');
+const {call:cloudRequest,decodeCode:decodeGlobalCode}=require('./fenys-cloud-protocol');
+const {installCloud}=require('./fenys-cloud-setup');
+const {validateAuthorization}=require('./fenys-supabase');
+let globalAccount;
 let tailscale;
 let win;
 let activeGame=null;
@@ -34,8 +40,9 @@ function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.wr
 function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
 async function status(){
  const sv=parseServerAddress(backendAddress());
- return {metagame:await tcp(sv.port,sv.host),deploy:sv.local?await tcp(PORTS.deploy):false,owned:[...owned.keys()],remote:!sv.local,server:sv.address};
+ return {metagame:await tcp(PORTS.metagame),deploy:await tcp(PORTS.deploy),gameOnline:await tcp(sv.port,sv.host),owned:[...owned.keys()],remote:!hostedOnThisPC(sv.address),server:sv.address};
 }
+function hostedOnThisPC(server){const sv=parseServerAddress(server);return sv.local||Object.values(os.networkInterfaces()).flat().some(x=>x?.family==='IPv4'&&x.address===sv.host);}
 function notify(msg){if(win&&!win.isDestroyed())win.webContents.send('activity',String(msg));}
 function launchService(name,dir){
  const base=path.join(load().repoPath,dir);
@@ -48,7 +55,7 @@ function launchService(name,dir){
  child.on('exit',code=>{if(owned.get(name)===child)owned.delete(name);notify(`${name} finalizou (código ${code})`);});
 }
 async function waitReady(){for(let i=0;i<35;i++){const s=await status();if(s.metagame&&s.deploy)return s;await new Promise(r=>setTimeout(r,1000));}throw new Error('Serviços indisponíveis após 35 segundos. Verifique a aba Atividades.');}
-async function startAll(){if(!parseServerAddress(backendAddress()).local)throw new Error('Serviço remoto: somente o administrador inicia o servidor na máquina hospedeira.');let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
+async function startAll(){let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
 async function killOwned(name){const child=owned.get(name);if(!child)return;if(child.exitCode!==null||child.killed){owned.delete(name);return;}
  await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timeout);resolve();};
  const timeout=setTimeout(finish,3500);child.once('exit',finish);
@@ -84,6 +91,7 @@ async function verifyGame(dir){
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
  const c=load();
+ let state;try{state=globalAccount?.state();}catch{}if(state?.global)return parseServerAddress(state.server).address;
  let raw=String(c.gameServer||'').trim();
  if(!raw){
   const legacy=path.join(friendKitDir(),'settings.json');
@@ -149,6 +157,12 @@ let previousPlayers=null,monitorBusy=false;
 async function monitorPlayers(){
  if(monitorBusy)return;monitorBusy=true;
  try{
+  await globalAccount?.poll();
+  if(load().cloudRole){
+   const role=load().cloudRole,data=await cloudRequest('127.0.0.1:61000','events',{cursor:null},role==='authority'?await localAdminKey():undefined);
+   const names=new Set((data.players||[]).map(p=>p.name));
+   if(previousPlayers){for(const name of names)if(!previousPlayers.has(name))notify(name+' conectou ao seu servidor.');for(const name of previousPlayers)if(!names.has(name))notify(name+' saiu do seu servidor.');}previousPlayers=names;return;
+  }
   const c=load(),file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');
   if(!fs.existsSync(file))return;
   const data=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:readKeyFile(file)});
@@ -163,10 +177,11 @@ async function monitorPlayers(){
 }
 
 async function accountKey(){
+ if(globalAccount?.state().global){globalAccount.ready();return globalAccount.key();}
  const c=load();
  const server=backendAddress();
  const own=c.accountFiles && c.accountFiles[server];
- const local=parseServerAddress(server).local;
+ const local=hostedOnThisPC(server);
  let file=own || (local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : '');
  if(!file && !local)throw new Error('Cadastre sua conta com um convite na aba Convites antes de jogar neste servidor.');
  if(!fs.existsSync(file)){
@@ -184,8 +199,8 @@ async function playerOverview(){
  const linked=c.accountFiles && c.accountFiles[server];
  const local=parseServerAddress(server).local;
  const file=linked&&fs.existsSync(linked) ? linked : (local ? c.gameKeyFile||path.join(friendKitDir(),'account.key') : null);
- let key;
- if(file&&fs.existsSync(file)){
+ let key=globalAccount?.state().global?globalAccount.key():undefined;
+ if(!key&&file&&fs.existsSync(file)){
   try{key=readKeyFile(file);}catch{key=undefined;}
  }
  const data=await requestApi(server,'/undaunted/api/ServerStatus',key?{key}:{});
@@ -230,6 +245,7 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
  '-epicsandboxid=sandboxidlol','-epicdeploymentid=deploymentidlol','-NoEAC'];}
 
 app.whenReady().then(()=>{
+ globalAccount=new DirectGlobal({directory:path.join(app.getPath('userData'),'conta-global'),settings:load,protect:value=>{if(!canProtectAccount())throw Error('Proteção de credenciais indisponível.');return safeStorage.encryptString(value);},unprotect:value=>safeStorage.decryptString(value)});
  tailscale=createTailscale({installerDirectory:path.join(app.getPath('userData'),'instaladores-tailscale'),openExternal:url=>shell.openExternal(url),openInstaller:file=>shell.openPath(file),onProgress:notify});
  restoreSavedKeys();
  createWindow();
@@ -241,6 +257,35 @@ app.whenReady().then(()=>{
  ipcMain.handle('tailscale:background',()=>vpnReply(()=>tailscale.background()));
  ipcMain.handle('tailscale:share',()=>vpnReply(async()=>{await shell.openExternal('https://login.tailscale.com/admin/machines');return {message:'No painel Tailscale, encontre este PC e use Share para compartilhar com seu amigo. Ele deve aceitar o convite na conta dele.'};}));
  ipcMain.handle('connection:addresses',()=>tailscaleAddresses());
+ ipcMain.handle('global:state',()=>vpnReply(async()=>({...globalAccount.state(),localRole:load().cloudRole||null,authority:load().cloudAuthority||globalAccount.state().authority||null,authorizationSelected:!!load().supabaseAuthorizationFile})));
+ ipcMain.handle('global:authorization',()=>vpnReply(async()=>{
+  const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
+  if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
+ }));
+ ipcMain.handle('global:activate',(_event,options)=>vpnReply(async()=>{
+  if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
+  try{
+   const c=load();if(!['authority','host'].includes(options?.role))throw Error('Selecione PC central ou host de jogo.');
+   if(c.cloudRole&&c.cloudRole!==options.role)throw Error('Mantenha a função deste PC para preservar o banco global.');
+   const adminKey=c.cloudRole==='host'?null:await localAdminKey();
+   const local=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',adminKey?{key:adminKey}:{});
+   if(c.cloudRole!=='host'&&(local.limited===true||local.players?.length))throw Error('Ative com os jogadores fora do jogo.');
+   if(c.cloudRole==='host'){const events=await cloudRequest('127.0.0.1:61000','events',{cursor:null});if(events.onlineCount)throw Error('Feche as partidas antes de atualizar o host.');}
+   if(!owned.size)throw Error('Inicie os serviços pelo launcher antes da ativação.');
+   if(options.role==='authority'&&!c.supabaseAuthorizationFile)throw Error('Selecione a autorização Supabase do PC central antes de ativar.');
+   const supabaseAuthorization=options.role==='authority'?validateAuthorization(JSON.parse(fs.readFileSync(c.supabaseAuthorizationFile,'utf8'))):null;
+   await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
+   let result;
+   try{result=await installCloud(c.repoPath,{address:options.address,role:options.role,hostCode:String(options.hostCode||''),supabaseAuthorization});}
+   catch(e){if(e.configuredRole){c.cloudRole=e.configuredRole;c.cloudAuthority=e.authority;save(c);}await startAll();throw e;}
+   c.cloudRole=result.role;c.cloudAuthority=result.authority;c.gameServer='127.0.0.1:61000';save(c);await startAll();
+   notify('Rede global ativada. Os hosts compartilham o mesmo personagem, inventário, nível e dados sociais.');return result;
+  }finally{busy=null;}
+ }));
+ ipcMain.handle('global:hostInvite',()=>vpnReply(async()=>{if(load().cloudRole!=='authority')throw Error('Gere a autorização no PC central.');return cloudRequest('127.0.0.1:61000','enroll-invite',{},await localAdminKey());}));
+ ipcMain.handle('global:backup',(_event,force)=>vpnReply(async()=>{if(load().cloudRole!=='authority')throw Error('Consulte a persistência no PC central.');return cloudRequest('127.0.0.1:61000',force?'backup-now':'backup-status',{},await localAdminKey(),180000);}));
+ ipcMain.handle('global:home',()=>vpnReply(async()=>{assertGameClosed();if(!globalAccount.hasKey())globalAccount.adopt(await accountKey(),load().cloudAuthority||backendAddress());return globalAccount.home(load().cloudAuthority);}));
+ ipcMain.handle('global:recover',()=>vpnReply(async()=>{assertGameClosed();return globalAccount.recover();}));
  ipcMain.handle('connection:setup',(_event,address)=>runLocked(async()=>{
   assertGameClosed();
   if(!owned.size&&await tcp(PORTS.metagame))throw Error('O Metagame foi iniciado fora do Fenys. Encerre-o para configurar a conexão.');
@@ -258,6 +303,7 @@ app.whenReady().then(()=>{
    const sv=parseServerAddress(address);
    if(sv.port!==61000||!tailscaleAddresses().includes(sv.host))throw Error('Selecione o IP Tailscale deste PC.');
    if(!await tcp(sv.port,sv.host))throw Error('Configure o acesso Tailscale e inicie os serviços antes de gerar o código.');
+   if(load().cloudRole)return {ok:true,...await cloudRequest('127.0.0.1:61000','invite',{},load().cloudRole==='authority'?await localAdminKey():undefined)};
    const invite=await createInvite('127.0.0.1:61000',await localAdminKey(),name);
    return {ok:true,code:encodeConnection(sv.address,invite)};
   }catch(e){return {ok:false,error:e.message};}
@@ -267,6 +313,18 @@ app.whenReady().then(()=>{
   try{
    if(busy)throw Error('Aguarde a operação atual.');
    assertGameClosed();busy=true;locked=true;
+   if(String(code).trim().startsWith('FENYSC2.')){
+    const invite=decodeGlobalCode(String(code).trim());if(invite.kind!=='player')throw Error('Use este código na ativação de host, não na conexão de jogador.');
+    if(!globalAccount.hasKey()){
+     const c=load(),source=backendAddress(),candidate=c.accountFiles?.[source]||c.gameKeyFile||path.join(friendKitDir(),'account.key');
+     if(fs.existsSync(candidate)){
+      const key=readKeyFile(candidate);let info;try{info=await requestApi(invite.authority,'/undaunted/api/GetUserInfo',{key});}catch{throw Error('Sua conta existente ainda não está no banco central. Integre seu host ou vincule a chave global para preservar seu personagem.');}
+      if(!info.UserId)throw Error('Conta global não reconhecida.');globalAccount.adopt(key,invite.authority);
+     }else{await globalAccount.register(String(code).trim(),username);}
+    }
+    const state=await globalAccount.connect(String(code).trim());notify('Conectado usando sua conta global e o mesmo progresso.');return {ok:true,...state};
+   }
+   if(globalAccount.state().global)throw Error('Use um código global FENYSC2 para manter seu personagem. Este código é de um servidor independente.');
    const {server,invite}=decodeConnection(code),c=load();
    const file=c.accountFiles?.[server];
    if(file&&fs.existsSync(file)){
@@ -293,13 +351,15 @@ app.whenReady().then(()=>{
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
   return {...safe,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
- ipcMain.handle('settings:setServer',(_event,value)=>{
+ ipcMain.handle('settings:setServer',async(_event,value)=>{
   assertGameClosed();
+  if(globalAccount.state().global){if(!parseServerAddress(value).local)throw Error('Use um código global para trocar de host com segurança.');await globalAccount.home(load().cloudAuthority);return {server:backendAddress(),remote:false};}
   const sv=parseServerAddress(value);
   const c=load();c.gameServer=sv.address;save(c);
   return {server:sv.address,remote:!sv.local};
  });
  ipcMain.handle('settings:pickPlayerKey',async()=>{
+  assertGameClosed();
   const r=await dialog.showOpenDialog(win,{title:'Selecionar chave de sua conta existente',properties:['openFile'],filters:[{name:'Chave de conta',extensions:['key','txt']}]});
   if(r.canceled||!r.filePaths.length)return {selected:false};
   const server=backendAddress();
@@ -307,6 +367,7 @@ app.whenReady().then(()=>{
   const info=await requestApi(server,'/undaunted/api/GetUserInfo',{key});
   if(!info || typeof info.Username!=='string')throw new Error('O servidor não reconheceu essa conta.');
   const c=load();c.accountFiles={...(c.accountFiles||{}),[server]:r.filePaths[0]};save(c);
+  if(c.cloudRole||globalAccount.state().global)globalAccount.adopt(key,c.cloudAuthority||globalAccount.state().authority||server);
   return {selected:true,username:info.Username};
  });
  ipcMain.handle('settings:pickAdminKey',async()=>{
@@ -354,10 +415,15 @@ app.whenReady().then(()=>{
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
+  if(hostedOnThisPC(backendAddress()))await startAll();
+  const caps=await cloudRequest(backendAddress(),'status').catch(()=>null);
+  if(caps?.role==='authority'&&!globalAccount.state().global){if(!globalAccount.hasKey())globalAccount.adopt(await accountKey(),caps.authority);await globalAccount.home(caps.authority);}
+  if(caps?.role==='host'&&!globalAccount.state().global)throw Error('Cole o código global de jogador antes de jogar neste host.');
+  globalAccount.ready();
   const server=backendAddress();
   const key=await accountKey();
-  const s=parseServerAddress(server).local?await startAll():await status();
-  if(!s.metagame)throw new Error('Servidor remoto offline. Confira o Tailscale e a porta 61000.');
+  const s=hostedOnThisPC(server)?await startAll():await status();
+  if(!s.gameOnline)throw new Error('Servidor selecionado offline. Confira o Tailscale e a porta 61000.');
   configureChat(server);
   await spawnGame(exe,gameArgs(server,key));
   notify(`Dauntless 1.4.4 iniciado pelo cliente Win64, conectado a ${server}.`);

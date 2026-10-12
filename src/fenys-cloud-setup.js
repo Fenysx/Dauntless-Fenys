@@ -5,6 +5,7 @@ const {prepareFiles,setEnv,tailscaleAddresses}=require('./fenys-host-setup');
 const {parseServerAddress}=require('./fenys-api');
 const {call,decodeCode,identity,sign}=require('./fenys-cloud-protocol');
 const {verifyRemote}=require('./fenys-cloud-backup');
+const {validateAuthorization}=require('./fenys-supabase');
 const CLOUD_IMPORT="\nimport {ValidateMetagameJWTAndGetPayload as FenysToken} from './controllers/auth';\n";
 const CLOUD_HOOK="\n// FENYS_CLOUD_V2: gateways are handled before local authentication/moderation.\nif(process.env.FENYS_CLOUD_ROLE){\n app.use(express.json({limit:'50mb'}));\n app.use(express.urlencoded({extended:true}));\n const fenysCloud=require('../fenys/fenys-cloud-runtime.js').start(FenysDb().$client,{online:FenysOnline,validateToken:FenysToken,revoke:(id:string)=>FenysRevocations.emit('revoke',id)});\n app.use(fenysCloud.middleware);\n}\n";
 function patchMatchmaking(source){
@@ -38,6 +39,7 @@ function prepareCloudFiles(input){
   p.metagameEnv=setEnv(p.metagameEnv,'DEPLOYSERVER_URL','127.0.0.1:61004');
   p.metagameEnv=setEnv(p.metagameEnv,'FENYS_CLOUD_DRIVE_REMOTE','dauntless-crypt:automaticos/globais');
   p.metagameEnv=setEnv(p.metagameEnv,'FENYS_RCLONE_BINARY',input.rcloneBinary||'rclone');
+  p.metagameEnv=setEnv(p.metagameEnv,'FENYS_CLOUD_BACKUP_PROVIDER',input.supabaseAuthorization?'supabase':'drive');
  }else{
   p.metagameEnv=setEnv(p.metagameEnv,'CHAT','0');
   p.metagameEnv=setEnv(p.metagameEnv,'FENYS_CLOUD_CHAT_ADDRESS',parseServerAddress(input.authority).host+':61099');
@@ -50,18 +52,18 @@ function command(base,args){return new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>{child.kill();reject(Error('Compilação excedeu dois minutos.'));},120000);
  child.once('error',e=>{clearTimeout(timer);reject(e);});child.once('close',code=>{clearTimeout(timer);code===0?resolve(output):reject(Error('Configuração global falhou: '+output));});
 });}
-async function installCloud(repo,{address,role,hostCode,rcloneBinary='rclone'}){
+async function installCloud(repo,{address,role,hostCode,rcloneBinary='rclone',supabaseAuthorization=null}){
  const sv=parseServerAddress(address);if(!tailscaleAddresses().includes(sv.host))throw Error('Selecione o IP Tailscale deste computador.');
  const base=path.join(repo,'UndauntedMetagame'),deploy=path.join(repo,'UndauntedDeployServer');
  const files={appSource:path.join(base,'src/app.ts'),serverSource:path.join(base,'src/server.ts'),matchmakingSource:path.join(base,'src/controllers/matchmaking.ts'),metagameEnv:path.join(base,'.env'),deployEnv:path.join(deploy,'.env')};
  const original={};for(const [key,file] of Object.entries(files))original[key]=fs.readFileSync(file,'utf8');
  if(role==='authority'){
-  await verifyRemote(rcloneBinary);
+  if(supabaseAuthorization)validateAuthorization(supabaseAuthorization);else await verifyRemote(rcloneBinary);
   const check="const D=require('better-sqlite3');const db=new D(process.env.DB_FILENAME,{fileMustExist:true});if(db.prepare(\"SELECT name FROM sqlite_master WHERE name='fenys_passports'\").get()&&db.prepare('SELECT userId FROM fenys_passports WHERE active=0 OR home=0').get())throw Error('Retorne todos os personagens portateis aos servidores originais antes da ativacao global.');db.close();";
   await command(base,['--env-file=.env','-e',check]);
   // Only list remote names: never read or display the rclone OAuth/config secrets.
-  const remotes=await new Promise((resolve,reject)=>{const child=spawn(rcloneBinary,['listremotes'],{windowsHide:true,stdio:['ignore','pipe','ignore']});let text='';child.stdout.on('data',d=>{text+=String(d);});child.once('error',reject);child.once('close',code=>code===0?resolve(text):reject(Error('rclone não respondeu. Informe o caminho instalado no PC central.')));});
-  if(!String(remotes).split(/\r?\n/).includes('dauntless-crypt:'))throw Error('O remoto criptografado dauntless-crypt não está autorizado neste usuário do sistema.');
+  if(!supabaseAuthorization){const remotes=await new Promise((resolve,reject)=>{const child=spawn(rcloneBinary,['listremotes'],{windowsHide:true,stdio:['ignore','pipe','ignore']});let text='';child.stdout.on('data',d=>{text+=String(d);});child.once('error',reject);child.once('close',code=>code===0?resolve(text):reject(Error('rclone não respondeu. Informe o caminho instalado no PC central.')));});
+  if(!String(remotes).split(/\r?\n/).includes('dauntless-crypt:'))throw Error('O remoto criptografado dauntless-crypt não está autorizado neste usuário do sistema.');}
  }
  let hostConfig=null,authority=null;
  const moduleDir=path.join(base,'fenys');fs.mkdirSync(moduleDir,{recursive:true,mode:0o700});
@@ -72,11 +74,12 @@ async function installCloud(repo,{address,role,hostCode,rcloneBinary='rclone'}){
   const result=await call(authority,'host-register',sign(pair,{operation:'host-register',time:Date.now(),requestId:crypto.randomUUID(),realm:invite.realm,secret:invite.secret,address:sv.address,name:'Host '+sv.host}));
   hostConfig={...pair,...result,address:sv.address};
  }
- const prepared=prepareCloudFiles({...original,address:sv.address,role,authority,rcloneBinary});
+ const prepared=prepareCloudFiles({...original,address:sv.address,role,authority,rcloneBinary,supabaseAuthorization});
  const backup=path.join(base,'fenys-backups','global-'+Date.now());fs.mkdirSync(backup,{recursive:true,mode:0o700});
  for(const [key,file] of Object.entries(files))fs.writeFileSync(path.join(backup,key+'.bak'),original[key],{mode:0o600});
  for(const name of fs.readdirSync(__dirname).filter(x=>/^fenys-.*\.js$/.test(x)))fs.copyFileSync(path.join(__dirname,name),path.join(moduleDir,name));
  if(hostConfig)fs.writeFileSync(path.join(moduleDir,'cloud-host.json'),JSON.stringify(hostConfig),{mode:0o600});
+ if(supabaseAuthorization){const file=path.join(moduleDir,'supabase-authorization.json');if(!fs.existsSync(file))fs.writeFileSync(file,JSON.stringify(supabaseAuthorization),{mode:0o600});}
  if(hostConfig)await command(base,['--env-file=.env',path.join(moduleDir,'fenys-cloud-migration.js'),'--check']);
  const ignore=path.join(base,'.gitignore'),previous=fs.existsSync(ignore)?fs.readFileSync(ignore,'utf8'):'';
  if(!previous.includes('fenys-cloud-backups/'))fs.writeFileSync(ignore,previous+'\nfenys/\nfenys-backups/\nfenys-cloud-backups/\n');
