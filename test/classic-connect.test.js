@@ -11,7 +11,7 @@ test('gera código de conexão contendo Tailscale e convite, sem chave de jogado
 test('recusa localhost e códigos alterados',()=>{
  assert.throws(()=>makeConnectCode('127.0.0.1:61000','ABCD-1234-EFGH'),/Tailscale/);
  const code=makeConnectCode('100.100.101.102:61000','ABCD-1234-EFGH');
- assert.throws(()=>parseConnectCode(code.slice(0,-1)+'F'),/incompleto|alterado/);
+ assert.throws(()=>parseConnectCode(code.slice(0,-1)+(code.endsWith('F')?'0':'F')),/incompleto|alterado/);
 });
 test('usa Metagame real para verificar servidor e chave do personagem',async()=>{
  const before=global.fetch;const calls=[];
