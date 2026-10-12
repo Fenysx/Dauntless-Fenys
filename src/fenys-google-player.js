@@ -11,7 +11,7 @@ class GooglePlayer{
   const invite=decodeInvite(code),token=await this.auth.token(),caps=await this.hostRequest(invite.address,'status');
   if(caps.mode!=='google'||caps.hostKey!==invite.hostKey||!caps.registered)throw Error('O destino não confirmou sua integração Google.');
   await this.refresh();if(this.profile.schema&&this.profile.schema!==caps.schema)throw Error('O servidor usa uma configuração de progresso incompatível. Seu personagem foi preservado.');
-  const old=this.settings().googleServer||this.profile.activeHost;if(old&&old!==invite.address){const until=Date.parse(this.profile.leaseUntil||'');try{await this.hostRequest(old,'leave',{},token);}catch(e){if(until>Date.now())throw e;}}
+  const old=this.profile.activeHost||this.settings().googleServer;if(old&&old!==invite.address){const until=Date.parse(this.profile.leaseUntil||'');try{await this.hostRequest(old,'leave',{},token);}catch(e){if(until>Date.now())throw e;}}
   await this.hostRequest(invite.address,'join',{secret:invite.secret,name:String(name||'').trim()||undefined},token);
   const c=this.settings();c.googleServer=invite.address;c.googleSelected=true;this.saveSettings(c);await this.refresh();return {...this.state(),confirmed:true};
  });}
