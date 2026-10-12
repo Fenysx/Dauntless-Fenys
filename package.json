@@ -1,8 +1,8 @@
 {
-  "name": "dauntless-fenys",
-  "version": "1.5.0-beta.1",
+  "name": "dauntless-launcher-ultimate",
+  "version": "1.5.1-beta.1",
   "private": true,
-  "description": "Launcher comunitario do Dauntless Fenys",
+  "description": "Launcher comunitário do Dauntless",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -14,10 +14,10 @@
     "electron": "^38.0.0",
     "electron-builder": "^26.15.3"
   },
-  "productName": "Dauntless Fenys",
+  "productName": "Dauntless Launcher Ultimate",
   "build": {
     "appId": "br.com.fenys.dauntless",
-    "productName": "Dauntless Fenys",
+    "productName": "Dauntless Launcher Ultimate",
     "directories": {
       "output": "release"
     },
@@ -32,7 +32,6 @@
     ]
   },
   "author": {
-    "name": "Fenysx",
-    "email": "222717390+Fenysx@users.noreply.github.com"
+    "name": "Comunidade"
   }
 }

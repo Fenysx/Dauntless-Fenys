@@ -8,8 +8,8 @@ function listenPrivate(app,port){
  const server=parseServerAddress(ip+':'+port);
  if(server.local||!/^100\./.test(server.host))throw Error('FENYS_TAILSCALE_IP precisa ser um IPv4 do Tailscale.');
  const http=app.listen(port,server.host,error=>{
-  if(error)console.error('Fenys: não foi possível escutar no IP Tailscale. Confira a conexão VPN.');
-  else console.log('Fenys API privada pronta em '+server.address);
+  if(error)console.error('Launcher: não foi possível escutar no IP Tailscale. Confira a conexão VPN.');
+  else console.log('API privada pronta em '+server.address);
  });
  listeners.add(ip+':'+port);
  // Upstream XMPP binds loopback only; relay its authenticated protocol on the VPN interface.
@@ -23,11 +23,11 @@ function listenPrivate(app,port){
    socket.pipe(target).pipe(socket);
   });
   const relay=createRelay();
-  relay.on('error',()=>console.error('Fenys: chat Tailscale indisponível na porta '+chatPort));
+  relay.on('error',()=>console.error('Launcher: chat Tailscale indisponível na porta '+chatPort));
   relay.listen(chatPort,ip);
   http.once('close',()=>relay.close());
   if(process.env.FENYS_CLOUD_ROLE==='host'){
-   const local=createRelay();local.on('error',()=>console.error('Fenys: chat global local indisponível.'));local.listen(chatPort,'127.0.0.1');http.once('close',()=>local.close());
+   const local=createRelay();local.on('error',()=>console.error('Launcher: chat global local indisponível.'));local.listen(chatPort,'127.0.0.1');http.once('close',()=>local.close());
   }
  }
  return http;

@@ -66,7 +66,7 @@ class ProfileVault {
   }
   requireLogin(){
     const me=this.current();
-    if(!me)throw new Error('Faça login em sua conta Fenys para continuar.');
+    if(!me)throw new Error('Faça login em sua conta de usuário para continuar.');
     return me;
   }
   requireAdmin(){
@@ -137,3 +137,4 @@ class ProfileVault {
   }
 }
 module.exports={ProfileVault,checkUsername,checkPassword,UUK};
+

@@ -102,7 +102,7 @@ function createHost(db,{now=Date.now,revoke=()=>{},online=()=>[]}={}){
  }
  function checkout(p,key){
   const current=db.prepare('SELECT * FROM fenys_passports WHERE userId=?').get(p.userId);
-  if(current&&current.publicKey!==p.publicKey)throw Error('Esta conta já pertence a outra identidade Fenys.');
+  if(current&&current.publicKey!==p.publicKey)throw Error('Esta conta já pertence a outra identidade de usuário.');
   if(current&&!current.active){
    if(current.operation===p.requestId)return {snapshot:JSON.parse(current.snapshot)};
    throw Error('O progresso já está fora deste servidor. Recupere a conexão anterior.');

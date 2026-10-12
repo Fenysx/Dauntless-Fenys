@@ -1,4 +1,4 @@
-# Dauntless Fenys
+# Dauntless Launcher Ultimate
 
 Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de serviços, conexão privada por Tailscale, cadastro individual de jogadores e convites de uso único do Metagame.
 
@@ -53,7 +53,7 @@ npm run build:linux
 3. Clique em **Usar meu servidor local** e **Iniciar serviços**. Nenhum login ou senha do launcher é necessário. Consulte a [documentação de hospedagem do Dauntless Revived](https://github.com/mixutin/dauntless-revived/blob/dauntless-revived/docs/setup/admin.md) para permitir as portas do jogo no firewall da interface Tailscale.
 4. Tenha **uma conta administradora** no próprio Metagame. A API não promove contas automaticamente; a permissão `isAdmin` deve ser configurada pelo administrador no banco, conforme a documentação acima.
 5. Selecione sua chave administradora em **Configurações**, se ela não foi recuperada automaticamente. A chave é validada no Metagame local ao gerar um convite.
-6. Em **Conectar servidor**, clique em **Gerar código de conexão** e envie o código `FENYS1.…` ao Ygor. Ele contém o endereço Tailscale e um convite de cadastro de uso único, nunca a chave administradora. Mantenha o launcher aberto. A entrada e saída dos jogadores aparece em **Atividades**, conforme os heartbeats reais do jogo (até 90 segundos para expirar uma sessão).
+6. Em **Conectar servidor**, clique em **Gerar código de conexão** e envie o código `FENYS1.…` ao usuário. Ele contém o endereço Tailscale e um convite de cadastro de uso único, nunca a chave administradora. Mantenha o launcher aberto. A entrada e saída dos jogadores aparece em **Atividades**, conforme os heartbeats reais do jogo (até 90 segundos para expirar uma sessão).
 
 **Não exponha a porta TCP 61001**, pois o DeployServer não possui autenticação. Evite expor a 61000 à internet pública; o protocolo privado usa HTTP e chaves de conta, portanto limite o acesso à rede Tailscale. Abra apenas as portas necessárias ao jogo na interface Tailscale, conforme as instruções do projeto original.
 
@@ -81,7 +81,7 @@ Esta implementação mantém **um Metagame/SQLite autoritativo no PC central**. 
 2. Em **Conectar servidor → Meu personagem em vários servidores**, escolha **Meu PC central + Supabase** e o IP Tailscale deste PC.
 3. Clique em **Selecionar autorização Supabase** e selecione o arquivo privado preparado para este projeto. Não o envie a outros jogadores. Clique em **Ativar rede global**.
 4. Aguarde a primeira cópia confirmada. **Conferir cópia na nuvem** mostra erros reais; **Enviar dados agora** força uma cópia. O progresso existente é mantido, sem redefinir a conta admin.
-5. Use **Gerar autorização para outro servidor** para integrar o host do Ygor. Essa autorização de host e os códigos de jogador são diferentes.
+5. Use **Gerar autorização para outro servidor** para integrar o host do usuário. Essa autorização de host e os códigos de jogador são diferentes.
 
 ### Integrar outro host e jogar
 

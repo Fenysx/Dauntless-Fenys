@@ -151,7 +151,7 @@ $('connection-setup').addEventListener('click',async()=>{
 });
 $('connection-create').addEventListener('click',async()=>{
  const button=$('connection-create');button.disabled=true;$('connection-result').value='';
- try{const r=await window.launcher.createConnection($('connection-address').value,$('connection-name').value);if(!r.ok)throw Error(r.error);$('connection-result').value=r.code;note('Código criado. Envie ao Ygor para ele conectar ao seu servidor.');}
+ try{const r=await window.launcher.createConnection($('connection-address').value,$('connection-name').value);if(!r.ok)throw Error(r.error);$('connection-result').value=r.code;note('Código criado. Envie ao usuário para conectar ao seu servidor.');}
  catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
 });
 $('connection-join').addEventListener('click',async()=>{
