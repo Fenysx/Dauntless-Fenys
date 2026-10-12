@@ -3,7 +3,21 @@ const $=id=>document.getElementById(id);
 const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
 const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
-function note(s){const text=String(s);$('feedback').textContent=text;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
+function note(s){
+ const text=String(s);
+ $('feedback').textContent=text;
+ const banner=$('global-feedback');
+ if(banner){banner.textContent=text;banner.hidden=false;banner.classList.toggle('is-error',/^(Atenção|Falha|Erro)/i.test(text));}
+ const el=$('activity');
+ el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;
+}
+function panelNote(id,message,error=false){
+ const el=$(id);
+ if(el){el.textContent=message;el.classList.toggle('is-error',error);}
+ note((error?'Atenção: ':'')+message);
+}
+window.addEventListener('error',event=>note('Erro na interface: '+event.message));
+window.addEventListener('unhandledrejection',event=>note('Falha na interface: '+(event.reason?.message||String(event.reason))));
 function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
  const owned=Array.isArray(s.owned)?s.owned:[];$('service-detail').textContent=owned.length?`Processos gerenciados nesta sessão: ${owned.join(', ')}.`:'Nenhum processo gerenciado nesta sessão. Serviços externos não podem ser desligados por este painel.';
  const canStop=owned.length>0&&!s.remote;
@@ -86,25 +100,35 @@ $('adminKeyPick').addEventListener('click',async()=>{
 $('invite-create').addEventListener('click',async()=>{
  const button=$('invite-create');button.disabled=true;
  $('invite-result').value='';
+ panelNote('invite-status','Solicitando convite ao Metagame…');
  try{
   const result=await window.launcher.createInvite($('invite-name').value);
-  if(!result.ok)throw new Error(result.error);
+  if(!result.ok)throw new Error(result.error||'Não foi possível criar o convite.');
   $('invite-result').value=result.code;
-  note('Convite de uso único criado. Envie o código em particular ao seu amigo.');
- }catch(e){note('Atenção: '+e.message);}
+  panelNote('invite-status','Convite criado! Copie o código abaixo e envie somente ao seu amigo.');
+ }catch(e){panelNote('invite-status',e.message||'Falha desconhecida',true);}
  finally{button.disabled=false;}
 });
 $('register-submit').addEventListener('click',async()=>{
  const button=$('register-submit');button.disabled=true;
+ panelNote('register-status','Verificando seu convite e criando sua conta…');
  try{
-  const result=await window.launcher.register($('register-username').value,$('register-invite').value);
-  if(!result.ok)throw new Error(result.error);
+  const username=$('register-username').value.trim();
+  const code=$('register-invite').value.trim();
+  if(!username||!code)throw new Error('Preencha seu nome e o código de convite antes de cadastrar.');
+  const result=await window.launcher.register(username,code);
+  if(!result.ok)throw new Error(result.error||'Cadastro não concluído.');
   $('register-invite').value='';
-  note('Conta '+result.username+' criada e chave salva neste computador. Agora configure o jogo e clique JOGAR.');
- }catch(e){note('Atenção: '+e.message);}
+  panelNote('register-status','Conta '+result.username+' criada! Chave salva neste computador. Agora clique JOGAR.');
+ }catch(e){panelNote('register-status',e.message||'Falha desconhecida',true);}
  finally{button.disabled=false;}
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
-window.launcher.onActivity(note);
-settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
-setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
+if(window.launcher && typeof window.launcher.onActivity==='function'){
+ window.launcher.onActivity(note);
+ settings();refresh();
+ setInterval(()=>{if(!operating)void refresh();},10000);
+ setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
+}else{
+ note('Erro na interface: o canal com o Electron não carregou. Feche totalmente o Fenys e inicie novamente com npm start.');
+}
