@@ -20,21 +20,61 @@
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
       <button class="nav-item" data-screen="activity"><span>≡</span> Atividades</button>
     </nav>
-    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> GERENCIAMENTO LOCAL</div><p>Os controles do servidor são executados apenas neste computador.</p><div class="version">FENYS • DESENVOLVIMENTO</div></div>
+    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> GERENCIAMENTO FENYS</div><p>Os controles do servidor são executados apenas neste computador.</p><div class="version">FENYS • DESENVOLVIMENTO</div></div>
   </aside>
   <div class="main-area">
-    <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">AMBIENTE LOCAL</span></div></header>
+    <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE FENYS</span></div></header>
     <main class="content">
       <section class="screen active" id="screen-dashboard" aria-label="Visão geral">
-        <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Controle seus serviços locais e abra o Dauntless a partir de um único lugar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Abre o launcher configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">F</div></div>
+        <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Gerencie o servidor ou conecte-se à comunidade Fenys para jogar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Inicia o cliente Dauntless 1.4.4 configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">F</div></div>
         <div class="section-heading"><div><span class="kicker">VISÃO OPERACIONAL</span><h2>Seu mundo, em tempo real</h2></div><button id="refresh" class="btn btn-subtle">↻ Atualizar status</button></div>
         <div class="metric-grid"><article class="metric"><div class="metric-label">METAGAME <span class="metric-icon">◇</span></div><div id="metagame" class="metric-value">Verificando…</div><small>Porta 61000 • Local</small></article><article class="metric"><div class="metric-label">DEPLOY SERVER <span class="metric-icon">▣</span></div><div id="deploy" class="metric-value">Verificando…</div><small>Porta 61001 • Local</small></article><article class="metric"><div class="metric-label">JOGADORES ONLINE <span class="metric-icon">♟</span></div><div class="metric-value">—</div><small>Integração pendente</small></article><article class="metric"><div class="metric-label">CONVITES <span class="metric-icon">✉</span></div><div class="metric-value">—</div><small>Integração pendente</small></article></div>
         <div class="dashboard-bottom"><article class="panel"><div class="panel-title"><div><span class="kicker">ACESSO RÁPIDO</span><h3>Controle dos serviços</h3></div><span class="chip">LOCAL</span></div><p class="panel-description">Inicie ou encerre apenas os processos criados por este launcher.</p><div class="button-row"><button id="start" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop" class="btn btn-outline">■ Desligar</button><button id="restart" class="btn btn-outline">↻ Reiniciar</button></div><div id="service-detail" class="status-line">Verificando os serviços…</div></article><article class="panel"><div class="panel-title"><div><span class="kicker">COMUNIDADE</span><h3>Atividade dos jogadores</h3></div></div><div class="empty-state"><span class="empty-symbol">♟</span><strong>Monitoramento em preparação</strong><p>Os nomes e a quantidade de jogadores aparecerão aqui quando conectarmos a API real do servidor.</p></div></article></div>
       </section>
       <section class="screen" id="screen-services" aria-label="Central do servidor" hidden><div class="page-title"><span class="kicker">ADMINISTRAÇÃO LOCAL</span><h1>Central do servidor</h1><p>Gerencie os serviços locais com segurança, sem encerrar processos externos.</p></div><article class="panel"><div class="service-row"><div><strong>Metagame</strong><small>127.0.0.1:61000</small></div><span id="metagame-service" class="state">Verificando</span></div><div class="service-row"><div><strong>DeployServer</strong><small>127.0.0.1:61001</small></div><span id="deploy-service" class="state">Verificando</span></div><div class="button-row"><button id="start2" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop2" class="btn btn-outline">■ Desligar</button><button id="restart2" class="btn btn-outline">↻ Reiniciar</button></div><p class="notice">Os comandos Desligar e Reiniciar afetam apenas processos que este launcher iniciou nesta sessão. Os serviços iniciados externamente não serão encerrados.</p><p class="notice">Por enquanto, serviços iniciados nesta sessão são encerrados ao sair do launcher.</p></article></section>
       <section class="screen" id="screen-players" aria-label="Jogadores online" hidden><div class="page-title"><span class="kicker">MONITORAMENTO</span><h1>Jogadores online</h1><p>Veja quem está conectado ao servidor.</p></div><article class="panel"><div class="panel-title"><h3>Sessões ativas</h3><span class="chip">API PENDENTE</span></div><div class="empty-state large"><span class="empty-symbol">♟</span><strong>Aguardando integração com o servidor</strong><p>Não exibiremos nomes, contagens ou sessões fictícias. Precisamos conectar a fonte de dados real.</p></div></article></section>
-      <section class="screen" id="screen-invites" aria-label="Convites" hidden><div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Convites</h1><p>Controle a entrada de novos jogadores por códigos de convite.</p></div><article class="panel"><div class="panel-title"><h3>Gerenciamento de convites</h3><span class="chip">BACKEND PENDENTE</span></div><p class="panel-description">O gerador e a validação de convites precisam ser implementados no servidor, com autorização do administrador e registro de uso.</p><div class="form-preview"><label for="invite-preview">Código de convite</label><input id="invite-preview" disabled placeholder="Disponível após integração com a API"><button class="btn btn-red" disabled>Gerar convite</button></div><p class="notice">Nenhum convite é gerado por esta tela até a validação real estar pronta.</p></article></section>
-      <section class="screen" id="screen-settings" aria-label="Configurações" hidden><div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione a pasta do servidor e o executável que o botão JOGAR abrirá.</p></div><article class="panel settings"><label>Pasta do projeto Dauntless Revived</label><div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div><label>Executável do launcher do jogo</label><div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div><p class="notice">Nesta fase, JOGAR abre o launcher configurado. Iniciar o jogo diretamente e distribuir um instalador independente exigem integração e testes adicionais.</p></article></section>
+      <section class="screen" id="screen-invites" aria-label="Convites" hidden>
+        <div class="page-title"><span class="kicker">ACESSO À COMUNIDADE</span><h1>Convites e contas</h1><p>Convites de uso único criados no Metagame e cadastro individual para seus amigos.</p></div>
+        <article class="panel">
+          <div class="panel-title"><h3>Administrador — gerar convite</h3><span class="chip">API REAL</span></div>
+          <p class="panel-description">Selecione sua chave administradora em Configurações. O servidor deve usar REGISTRATION_MODE=INVITECODE. O convite vale para uma pessoa.</p>
+          <div class="form-preview">
+            <label for="invite-name">Nome do amigo (observação opcional)</label>
+            <input id="invite-name" type="text" maxlength="64" placeholder="Ex.: amigo João">
+            <button class="btn btn-red" id="invite-create">✉ Gerar convite</button>
+            <label for="invite-result">Código criado — compartilhe apenas com seu amigo</label>
+            <input id="invite-result" readonly placeholder="Seu código aparecerá aqui">
+          </div>
+        </article>
+        <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Jogador — criar minha conta</h3><span class="chip">CADASTRO</span></div>
+          <p class="panel-description">Configure primeiro o endereço Tailscale do servidor. Cada amigo usa seu próprio convite e recebe uma chave de conta salva somente no computador dele.</p>
+          <div class="form-preview">
+            <label for="register-username">Nome de jogador (3–16 caracteres)</label>
+            <input id="register-username" type="text" maxlength="16" autocomplete="off" placeholder="SeuNick">
+            <label for="register-invite">Código recebido</label>
+            <input id="register-invite" type="text" maxlength="64" autocomplete="off" placeholder="XXXX-XXXX-XXXX">
+            <button class="btn btn-red" id="register-submit">Criar minha conta</button>
+          </div>
+          <p class="notice">Não compartilhe a chave de conta. Não é necessário copiar nem enviar a chave ao administrador.</p>
+        </article>
+      </section>
+      <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
+        <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor Fenys.</p></div>
+        <article class="panel settings">
+          <label for="serverAddress">Endereço do Metagame (localhost ou Tailscale)</label>
+          <div class="path"><input id="serverAddress" class="fenys-input" placeholder="127.0.0.1:61000"><button id="serverSave" class="btn btn-red">Salvar</button></div>
+          <p class="notice">Para jogar com amigos, use o IP 100.x.y.z ou hostname *.ts.net do Tailscale. Nunca encaminhe a porta 61001 à internet.</p>
+          <label>Chave da conta administradora (apenas no computador do dono)</label>
+          <div class="path"><span id="adminKeyState">Não selecionada</span><button id="adminKeyPick" class="btn btn-outline">Selecionar chave</button></div>
+          <p class="notice">A chave do administrador fica no PC; ela não é mostrada na interface nem enviada ao GitHub.</p>
+          <label>Pasta do projeto Dauntless Revived (somente administrador)</label>
+          <div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div>
+          <label>Executável do jogo Dauntless 1.4.4</label>
+          <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
+          <p class="notice">No modo remoto, o Fenys não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
+        </article>
+      </section>
       <section class="screen" id="screen-activity" aria-label="Atividades" hidden><div class="page-title"><span class="kicker">DIAGNÓSTICO</span><h1>Atividades</h1><p>Mensagens e registros da sessão atual.</p></div><article class="panel"><div class="panel-title"><h3>Registro de execução</h3><button id="clear" class="btn btn-outline">Limpar</button></div><pre id="activity" class="activity-log">Aguardando ações…</pre></article></section>
     </main>
     <footer class="footer">DAUNTLESS FENYS ULTIMATE <span>• Projeto comunitário independente, não afiliado à Phoenix Labs ou Epic Games</span></footer>
