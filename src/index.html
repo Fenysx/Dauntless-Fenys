@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
-  <title>Dauntless Fenys Ultimate</title>
+  <title>Dauntless Launcher Ultimate</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="identity"><div class="brand-mark">F<span>✦</span></div><div><div class="brand-top">DAUNTLESS</div><strong>FENYS <em>ULTIMATE</em></strong><small>COMUNIDADE INDEPENDENTE</small></div></div>
+    <div class="identity"><div class="brand-mark">D<span>✦</span></div><div><div class="brand-top">DAUNTLESS</div><strong>LAUNCHER <em>ULTIMATE</em></strong><small>COMUNIDADE INDEPENDENTE</small></div></div>
     <div class="side-caption">PLATAFORMA</div>
     <nav class="side-nav" aria-label="Navegação principal">
       <button class="nav-item active" data-screen="dashboard"><span>◈</span> Visão geral</button>
@@ -21,14 +21,14 @@
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
       <button class="nav-item" data-screen="activity"><span>≡</span> Atividades</button>
     </nav>
-    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> GERENCIAMENTO FENYS</div><p>Os controles do servidor são executados apenas neste computador.</p><div class="version">FENYS • DESENVOLVIMENTO</div></div>
+    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> GERENCIAMENTO DO SERVIDOR</div><p>Os controles do servidor são executados apenas neste computador.</p><div class="version">LAUNCHER • DESENVOLVIMENTO</div></div>
   </aside>
   <div class="main-area">
-    <header class="topbar"><div class="breadcrumbs">FENYS <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE FENYS</span></div></header>
+    <header class="topbar"><div class="breadcrumbs">LAUNCHER <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE INDEPENDENTE</span></div></header>
     <main class="content">
       <div id="global-feedback" class="global-feedback" role="status" aria-live="polite" hidden></div>
       <section class="screen active" id="screen-dashboard" aria-label="Visão geral">
-        <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Gerencie o servidor ou conecte-se à comunidade Fenys para jogar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Inicia o cliente Dauntless 1.4.4 configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">F</div></div>
+        <div class="hero"><div class="hero-text"><span class="kicker">✦ BEM-VINDO AO SEU UNIVERSO</span><h1>SUA PRÓXIMA<br><span>CAÇADA COMEÇA AQUI.</span></h1><p>Gerencie o servidor ou conecte-se à comunidade para jogar.</p><div class="hero-controls"><button id="play" class="btn btn-primary">▶ &nbsp; JOGAR AGORA <span>↗</span></button><span class="hero-note">Inicia o cliente Dauntless 1.4.4 configurado</span></div><div id="feedback" class="hero-feedback" role="status">Aguardando verificação dos serviços…</div></div><div class="hero-ornament" aria-hidden="true">D</div></div>
         <div class="section-heading"><div><span class="kicker">VISÃO OPERACIONAL</span><h2>Seu mundo, em tempo real</h2></div><button id="refresh" class="btn btn-subtle">↻ Atualizar status</button></div>
         <div class="metric-grid"><article class="metric"><div class="metric-label">METAGAME <span class="metric-icon">◇</span></div><div id="metagame" class="metric-value">Verificando…</div><small>Porta 61000 • Local</small></article><article class="metric"><div class="metric-label">DEPLOY SERVER <span class="metric-icon">▣</span></div><div id="deploy" class="metric-value">Verificando…</div><small>Porta 61001 • Local</small></article><article class="metric"><div class="metric-label">JOGADORES ONLINE <span class="metric-icon">♟</span></div><div id="players-count" class="metric-value">—</div><small>Informações reais do Metagame</small></article><article class="metric"><div class="metric-label">CONVITES <span class="metric-icon">✉</span></div><div class="metric-value">—</div><small>Integração pendente</small></article></div>
         <div class="dashboard-bottom"><article class="panel"><div class="panel-title"><div><span class="kicker">ACESSO RÁPIDO</span><h3>Controle dos serviços</h3></div><span class="chip">LOCAL</span></div><p class="panel-description">Inicie ou encerre apenas os processos criados por este launcher.</p><div class="button-row"><button id="start" class="btn btn-red">⏻ Iniciar serviços</button><button id="stop" class="btn btn-outline">■ Desligar</button><button id="restart" class="btn btn-outline">↻ Reiniciar</button></div><div id="service-detail" class="status-line">Verificando os serviços…</div></article><article class="panel"><div class="panel-title"><div><span class="kicker">COMUNIDADE</span><h3>Atividade dos jogadores</h3></div></div><div class="empty-state"><span class="empty-symbol">♟</span><strong>Dados do Metagame</strong><p>Acesse Jogadores online para consultar a lista real de jogadores conectados.</p></div></article></div>
@@ -84,14 +84,14 @@
           <p class="notice">A instalação e o modo em segundo plano podem pedir permissão do Windows. Para hospedar a partida, mantenha o PC ligado, sem suspensão, e o launcher com os serviços abertos.</p>
         </article>
         <article class="panel">
-          <div class="panel-title"><h3>Meu servidor — convidar o Ygor</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
+          <div class="panel-title"><h3>Meu servidor — convidar usuário</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
           <p class="notice">Os dois PCs precisam estar conectados à mesma rede Tailscale. O dono mantém os serviços e o launcher abertos.</p>
           <div class="form-preview">
             <label for="connection-address">IP Tailscale deste computador</label><select id="connection-address"><option value="">Conecte o Tailscale neste PC</option></select>
             <button id="connection-setup" class="btn btn-outline">Configurar acesso Tailscale</button>
-            <label for="connection-name">Nome do amigo (opcional)</label><input id="connection-name" maxlength="64" placeholder="Ygor">
+            <label for="connection-name">Nome do amigo (opcional)</label><input id="connection-name" maxlength="64" placeholder="Usuário">
             <button id="connection-create" class="btn btn-red">Gerar código de conexão</button>
-            <label for="connection-result">Envie este código ao seu amigo</label><input id="connection-result" readonly placeholder="FENYS1.…">
+            <label for="connection-result">Envie este código ao seu amigo</label><input id="connection-result" readonly placeholder="Código de conexão">
             <button id="connection-copy" class="btn btn-outline">Copiar código</button>
           </div>
           <p class="notice">Inicie os serviços antes de gerar o código. Para criar convites, selecione sua chave administradora em Configurações. Não há login ou senha do launcher.</p>
@@ -99,8 +99,8 @@
         <article class="panel fenys-panel-gap">
           <div class="panel-title"><h3>Entrar no servidor do meu amigo</h3></div>
           <div class="form-preview">
-            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="FENYSC2.… para usar o mesmo progresso">
-            <label for="connection-username">Meu nome de jogador (primeiro acesso)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Ygor">
+            <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="Código de conexão global">
+            <label for="connection-username">Meu nome de jogador (primeiro acesso)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Usuário">
             <button id="connection-join" class="btn btn-red">Conectar ao servidor</button>
           </div>
           <p class="notice">Sua chave de jogador fica salva neste PC. Nos hosts integrados, ela abre o mesmo personagem e progresso. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
@@ -112,7 +112,7 @@
           <div class="form-preview">
             <label for="global-role">Função deste PC</label><select id="global-role"><option value="authority">Meu PC central + Supabase</option><option value="host">Meu servidor conectado ao PC central</option></select>
             <div id="global-authority-fields"><button id="global-authorization-pick" class="btn btn-outline">Selecionar autorização Supabase do PC central</button><p id="global-authorization-state" class="notice"></p></div>
-            <div id="global-host-fields" hidden><label for="global-host-code">Autorização de host recebida do PC central</label><input id="global-host-code" maxlength="2048" placeholder="FENYSC2.…"></div>
+            <div id="global-host-fields" hidden><label for="global-host-code">Autorização de host recebida do PC central</label><input id="global-host-code" maxlength="2048" placeholder="Código de autorização do servidor"></div>
             <button id="global-activate" class="btn btn-red">Ativar rede global</button>
             <button id="global-recover" class="btn btn-outline">Recuperar confirmação de conexão</button>
           </div>
@@ -126,14 +126,14 @@
         </article>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
-        <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor Fenys.</p></div>
+        <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor.</p></div>
         <article class="panel settings">
           <label for="serverAddress">Endereço do Metagame (localhost ou Tailscale)</label>
           <div class="path"><input id="serverAddress" class="fenys-input" placeholder="127.0.0.1:61000"><button id="serverSave" class="btn btn-red">Salvar</button></div>
           <p class="notice">Para jogar com amigos, use o IP 100.x.y.z ou hostname *.ts.net do Tailscale. Nunca encaminhe a porta 61001 à internet.</p>
           <label>Minha chave de conta para este servidor</label>
           <div class="path"><span id="accountKeyState">Não selecionada</span><button id="playerKeyPick" class="btn btn-outline">Vincular conta existente</button></div>
-          <p class="notice">Se você já tem uma conta e apenas mudou para o IP Tailscale, selecione sua chave anterior. O Fenys verificará a conta no servidor antes de vinculá-la.</p>
+          <p class="notice">Se você já tem uma conta e apenas mudou para o IP Tailscale, selecione sua chave anterior. O launcher verificará a conta no servidor antes de vinculá-la.</p>
           <label>Chave da conta administradora (apenas no computador do dono)</label>
           <div class="path"><span id="adminKeyState">Não selecionada</span><button id="adminKeyPick" class="btn btn-outline">Selecionar chave</button></div>
           <p class="notice">A chave do administrador fica no PC; ela não é mostrada na interface nem enviada ao GitHub.</p>
@@ -141,12 +141,12 @@
           <div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div>
           <label>Executável do jogo Dauntless 1.4.4</label>
           <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
-          <p class="notice">No modo remoto, o Fenys não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
+          <p class="notice">No modo remoto, o launcher não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
         </article>
       </section>
       <section class="screen" id="screen-activity" aria-label="Atividades" hidden><div class="page-title"><span class="kicker">DIAGNÓSTICO</span><h1>Atividades</h1><p>Mensagens e registros da sessão atual.</p></div><article class="panel"><div class="panel-title"><h3>Registro de execução</h3><button id="clear" class="btn btn-outline">Limpar</button></div><pre id="activity" class="activity-log">Aguardando ações…</pre></article></section>
     </main>
-    <footer class="footer">DAUNTLESS FENYS ULTIMATE <span>• Projeto comunitário independente, não afiliado à Phoenix Labs ou Epic Games</span></footer>
+    <footer class="footer">DAUNTLESS LAUNCHER ULTIMATE <span>• Projeto comunitário independente, não afiliado à Phoenix Labs ou Epic Games</span></footer>
   </div>
 </div>
 <script src="renderer.js"></script>

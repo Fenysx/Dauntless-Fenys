@@ -15,6 +15,11 @@ const {DirectGlobal}=require('./fenys-direct-global');
 const {call:cloudRequest,decodeCode:decodeGlobalCode}=require('./fenys-cloud-protocol');
 const {installCloud}=require('./fenys-cloud-setup');
 const {validateAuthorization}=require('./fenys-supabase');
+// Keep existing protected accounts and settings when changing the product name.
+const currentData=app.getPath('userData');
+if(!fs.existsSync(path.join(currentData,'settings.json'))){
+ for(const name of ['Dauntless Fenys','dauntless-fenys']){const legacy=path.join(app.getPath('appData'),name);if(fs.existsSync(path.join(legacy,'settings.json'))){app.setPath?.('userData',legacy);break;}}
+}
 let globalAccount;
 let tailscale;
 let win;
@@ -288,7 +293,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('global:recover',()=>vpnReply(async()=>{assertGameClosed();return globalAccount.recover();}));
  ipcMain.handle('connection:setup',(_event,address)=>runLocked(async()=>{
   assertGameClosed();
-  if(!owned.size&&await tcp(PORTS.metagame))throw Error('O Metagame foi iniciado fora do Fenys. Encerre-o para configurar a conexão.');
+  if(!owned.size&&await tcp(PORTS.metagame))throw Error('O Metagame foi iniciado fora do launcher. Encerre-o para configurar a conexão.');
   const wasRunning=owned.size>0;await stopOwned();
   if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
   try{
@@ -324,7 +329,7 @@ app.whenReady().then(()=>{
     }
     const state=await globalAccount.connect(String(code).trim());notify('Conectado usando sua conta global e o mesmo progresso.');return {ok:true,...state};
    }
-   if(globalAccount.state().global)throw Error('Use um código global FENYSC2 para manter seu personagem. Este código é de um servidor independente.');
+   if(globalAccount.state().global)throw Error('Use um código global de jogador para manter seu personagem. Este código é de um servidor independente.');
    const {server,invite}=decodeConnection(code),c=load();
    const file=c.accountFiles?.[server];
    if(file&&fs.existsSync(file)){

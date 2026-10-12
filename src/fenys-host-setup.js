@@ -18,12 +18,12 @@ function prepareFiles({appSource,serverSource,metagameEnv,deployEnv,address}){
  if(/^[ \t]*GATEWAY_SECRET=.+$/m.test(metagameEnv)||!/^AUTH_MODE=APIKEY\s*$/m.test(metagameEnv))throw Error('Use o Metagame privado com AUTH_MODE=APIKEY e sem gateway público.');
  if(!appSource.includes('// FENYS_ROAMING_V1')){
   const anchor='app.use(express.urlencoded({ extended: true }));';
-  if(!appSource.includes(anchor)||!appSource.includes('export const app = express();'))throw Error('Versão do app.ts incompatível com a API Fenys.');
+  if(!appSource.includes(anchor)||!appSource.includes('export const app = express();'))throw Error('Versão do app.ts incompatível com a API do launcher.');
   appSource=IMPORT+appSource.replace(anchor,anchor+HOOK);
  }
  if(!serverSource.includes('// FENYS_PRIVATE_LISTENER_V1')){
   const anchor='logger.info(`Clear Skies, Slayer.`);';
-  if(!serverSource.includes(anchor))throw Error('Versão do server.ts incompatível com a API Fenys.');
+  if(!serverSource.includes(anchor))throw Error('Versão do server.ts incompatível com a API do launcher.');
   serverSource=serverSource.replace(anchor,anchor+LISTEN);
  }
  for(const [key,value] of Object.entries({BIND_HOST:'127.0.0.1',FENYS_TAILSCALE_IP:sv.host,REGISTRATION_MODE:'INVITECODE',QOS_TARGET_URL:'http://'+sv.address+'/QoS'}))metagameEnv=setEnv(metagameEnv,key,value);
