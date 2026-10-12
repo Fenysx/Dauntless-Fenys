@@ -24,7 +24,7 @@ function parseServerAddress(value) {
 
 async function requestApi(address, route, options = {}) {
   const server = parseServerAddress(address);
-  if (!/^\/undaunted\/api\/[A-Za-z]+$/.test(route)) throw new Error('Rota da API inválida.');
+  if (!/^\/undaunted\/api\/[A-Za-z]+(?:\/[A-Za-z0-9_-]{1,128})?(?:\?offset=(?:0|[1-9][0-9]{0,7}))?$/.test(route)) throw new Error('Rota da API inválida.');
   const headers = { accept: 'application/json' };
   if (options.key) headers['x-undaunted-user-api-key'] = options.key;
   if (options.body !== undefined) headers['content-type'] = 'application/json';
@@ -92,4 +92,31 @@ async function registerPlayer(address, username, inviteCode) {
   return response.UUK;
 }
 
-module.exports = { parseServerAddress, requestApi, createInvite, registerPlayer };
+async function getAdminAccounts(address, adminKey, offset=0) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000000) throw new Error('Página inválida.');
+  const data = await requestApi(address, '/undaunted/api/DashboardAccounts?offset='+offset, {key:adminKey});
+  if (!data || !Array.isArray(data.accounts)) throw new Error('O servidor não retornou as contas.');
+  const accounts = data.accounts.slice(0,100).filter(x=>
+    x && typeof x.id==='string' && /^[A-Za-z0-9_-]{1,128}$/.test(x.id) && typeof x.name==='string'
+  ).map(x=>({id:x.id,name:x.name.slice(0,32),admin:x.admin===true||x.admin===1}));
+  return {accounts,nextOffset:Number.isSafeInteger(data.nextOffset)?data.nextOffset:null};
+}
+async function getAccountAccess(address, adminKey, accountId) {
+  if(typeof accountId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(accountId))throw new Error('Conta inválida.');
+  const data=await requestApi(address,'/undaunted/api/Moderation/'+accountId,{key:adminKey});
+  return {accountId,blocked:Boolean(data?.ban?.active===true||data?.ban?.active===1),reason:typeof data?.ban?.reason==='string'?data.ban.reason.slice(0,150):null};
+}
+async function setAccountAccess(address, adminKey, accountId, blocked) {
+  if(typeof accountId!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(accountId))throw new Error('Conta inválida.');
+  if(typeof blocked!=='boolean')throw new Error('Estado inválido.');
+  const data=await requestApi(address,'/undaunted/api/Moderation',{
+    method:'POST',key:adminKey,
+    body:{accountId,reason:blocked?'Acesso removido pelo administrador Fenys':'Acesso restaurado pelo administrador Fenys',active:blocked}
+  });
+  if(!data || !data.ban || !(data.ban.active===Number(blocked)||data.ban.active===blocked)){
+    throw new Error('O Metagame não confirmou a alteração. Consulte o administrador.');
+  }
+  return {accountId,blocked};
+}
+
+module.exports = { parseServerAddress, requestApi, createInvite, registerPlayer, getAdminAccounts, getAccountAccess, setAccountAccess };
