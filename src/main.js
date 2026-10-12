@@ -15,6 +15,11 @@ const {DirectGlobal}=require('./fenys-direct-global');
 const {call:cloudRequest,decodeCode:decodeGlobalCode}=require('./fenys-cloud-protocol');
 const {installCloud}=require('./fenys-cloud-setup');
 const {validateAuthorization}=require('./fenys-supabase');
+const {GoogleAuth}=require('./fenys-google-auth');
+const {GooglePlayer}=require('./fenys-google-player');
+const {hostCall:googleHostCall}=require('./fenys-google-cloud');
+const {installGoogle}=require('./fenys-google-setup');
+let googleAuth,googlePlayer;
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
 if(!fs.existsSync(path.join(currentData,'settings.json'))){
@@ -96,6 +101,7 @@ async function verifyGame(dir){
 function friendKitDir(){return path.join(app.getPath('appData'),'DauntlessRevived');}
 function backendAddress(){
  const c=load();
+ if(c.googleSelected&&c.googleServer)return parseServerAddress(c.googleServer).address;
  let state;try{state=globalAccount?.state();}catch{}if(state?.global)return parseServerAddress(state.server).address;
  let raw=String(c.gameServer||'').trim();
  if(!raw){
@@ -149,6 +155,7 @@ function restoreSavedKeys(){
 function assertGameClosed(){if(activeGame&&activeGame.exitCode===null)throw Error('Feche o jogo antes de trocar de servidor.');}
 async function localAdminKey(){
  const c=load();
+ if(c.googleHost&&googleAuth?.state().signedIn){try{const key=await googlePlayer.credential(),info=await requestApi('127.0.0.1:61000','/undaunted/api/GetUserInfo',{key});if(info.IsAdmin===true)return key;}catch{}}
  const candidates=[c.adminKeyFile,c.gameKeyFile,c.accountFiles?.['127.0.0.1:61000'],path.join(friendKitDir(),'account.key')];
  for(const file of [...new Set(candidates)].filter(Boolean)){
   if(!fs.existsSync(file))continue;
@@ -161,7 +168,7 @@ let previousPlayers=null,monitorBusy=false,cloudCursor=null;
 async function monitorPlayers(){
  if(monitorBusy)return;monitorBusy=true;
  try{
-  await globalAccount?.poll().catch(()=>{});
+  if(!load().googleSelected&&!load().googleHost)await globalAccount?.poll().catch(()=>{});
   if(load().cloudRole){
    const role=load().cloudRole,data=await cloudRequest('127.0.0.1:61000','events',{cursor:cloudCursor},role==='authority'?await localAdminKey():undefined);
    const names=new Set((data.players||[]).map(p=>p.name));
@@ -182,6 +189,7 @@ async function monitorPlayers(){
 }
 
 async function accountKey(){
+ if(load().googleSelected)return googlePlayer.key();
  if(globalAccount?.state().global){globalAccount.ready();return globalAccount.key();}
  const c=load();
  const server=backendAddress();
@@ -204,7 +212,7 @@ async function playerOverview(){
  const linked=c.accountFiles && c.accountFiles[server];
  const local=parseServerAddress(server).local;
  const file=linked&&fs.existsSync(linked) ? linked : (local ? c.gameKeyFile||path.join(friendKitDir(),'account.key') : null);
- let key=globalAccount?.state().global?globalAccount.key():undefined;
+ let key=c.googleSelected?await googlePlayer.credential():globalAccount?.state().global?globalAccount.key():undefined;
  if(!key&&file&&fs.existsSync(file)){
   try{key=readKeyFile(file);}catch{key=undefined;}
  }
@@ -250,12 +258,35 @@ function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
  '-epicsandboxid=sandboxidlol','-epicdeploymentid=deploymentidlol','-NoEAC'];}
 
 app.whenReady().then(()=>{
+ const googleProtected=typeof safeStorage.isEncryptionAvailable==='function'&&canProtectAccount();
+ googleAuth=new GoogleAuth({directory:path.join(app.getPath('userData'),'conta-google'),protect:googleProtected?v=>safeStorage.encryptString(v):null,unprotect:googleProtected?v=>safeStorage.decryptString(v):null,openExternal:url=>shell.openExternal(url)});
+ googlePlayer=new GooglePlayer({auth:googleAuth,settings:load,saveSettings:save});
  globalAccount=new DirectGlobal({directory:path.join(app.getPath('userData'),'conta-global'),settings:load,protect:value=>{if(!canProtectAccount())throw Error('Proteção de credenciais indisponível.');return safeStorage.encryptString(value);},unprotect:value=>safeStorage.decryptString(value)});
  tailscale=createTailscale({installerDirectory:path.join(app.getPath('userData'),'instaladores-tailscale'),openExternal:url=>shell.openExternal(url),openInstaller:file=>shell.openPath(file),onProgress:notify});
  restoreSavedKeys();
  createWindow();
  setInterval(()=>void monitorPlayers(),10000).unref();
  const vpnReply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e.message||'Não foi possível configurar o Tailscale.'};}};
+ const previousAccount=()=>{const c=load();if(globalAccount.hasKey())return {key:globalAccount.key(),server:globalAccount.state().authority||c.cloudAuthority||'127.0.0.1:61000'};const server=c.cloudRole==='host'?c.cloudAuthority:backendAddress(),file=c.accountFiles?.[server]||c.accountFiles?.[backendAddress()]||c.gameKeyFile||path.join(friendKitDir(),'account.key');return fs.existsSync(file)?{key:readKeyFile(file),server}:null;};
+ const linkPrevious=async()=>{await googlePlayer.refresh();if(googlePlayer.profile.linked)return googlePlayer.state();const previous=previousAccount();if(!previous)throw Error('Nenhuma conta antiga encontrada. Use um convite para criar seu personagem com Google.');const caps=await googleHostCall(previous.server,'status').catch(()=>null);if(caps?.mode!=='google')throw Error('Ative a integração Google no servidor de origem antes de vincular seu personagem atual. Não crie outra conta por cima dele.');return googlePlayer.link(previous.server,previous.key);};
+ ipcMain.handle('google:state',()=>vpnReply(async()=>{if(googleAuth.state().signedIn&&!googlePlayer.profile&&!googlePlayer.busy)await googlePlayer.refresh();return {...googlePlayer.state(),configured:await googleAuth.provider(),hostEnabled:!!load().googleHost};}));
+ ipcMain.handle('google:login',()=>vpnReply(async()=>{assertGameClosed();if(!googleAuth.state().signedIn)await googleAuth.login();await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount()){try{await linkPrevious();}catch(e){return {...googlePlayer.state(),notice:e.message};}}return googlePlayer.state();}));
+ ipcMain.handle('google:logout',()=>vpnReply(async()=>{assertGameClosed();return googlePlayer.signOut();}));
+ ipcMain.handle('google:link',()=>vpnReply(async()=>{assertGameClosed();return linkPrevious();}));
+ ipcMain.handle('google:refresh',()=>vpnReply(()=>googlePlayer.refresh()));
+ ipcMain.handle('google:hostInvite',()=>vpnReply(async()=>googleHostCall('127.0.0.1:61000','host-invite',{},null,await localAdminKey())));
+ ipcMain.handle('google:sync',(_event,force)=>vpnReply(async()=>googleHostCall('127.0.0.1:61000',force?'sync-now':'sync-status',{},null,await localAdminKey())));
+ ipcMain.handle('google:activate',(_event,options)=>vpnReply(async()=>{
+  if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
+  try{if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();if(!owned.size)throw Error('Inicie os serviços pelo launcher antes de configurar.');
+   if(c.cloudRole==='host'){try{const e=await cloudRequest('127.0.0.1:61000','events',{cursor:null});if(e.onlineCount)throw Error('Encerre as partidas antes de migrar o host.');}catch(e){const source=await googleHostCall(c.cloudAuthority,'status').catch(()=>null);if(source?.mode!=='google')throw e;}}
+   else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
+   const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
+   await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
+   let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey});}finally{await startAll();}
+   c.googleHost=true;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
+  }finally{busy=null;}
+ }));
  ipcMain.handle('tailscale:status',()=>vpnReply(()=>tailscale.status()));
  ipcMain.handle('tailscale:install',()=>vpnReply(()=>tailscale.install()));
  ipcMain.handle('tailscale:connect',()=>vpnReply(()=>tailscale.connect()));
@@ -308,6 +339,7 @@ app.whenReady().then(()=>{
    const sv=parseServerAddress(address);
    if(sv.port!==61000||!tailscaleAddresses().includes(sv.host))throw Error('Selecione o IP Tailscale deste PC.');
    if(!await tcp(sv.port,sv.host))throw Error('Configure o acesso Tailscale e inicie os serviços antes de gerar o código.');
+   if(load().googleHost){const key=await localAdminKey();return {ok:true,...await googleHostCall('127.0.0.1:61000','invite',{},null, key)};}
    if(load().cloudRole)return {ok:true,...await cloudRequest('127.0.0.1:61000','invite',{},load().cloudRole==='authority'?await localAdminKey():undefined)};
    const invite=await createInvite('127.0.0.1:61000',await localAdminKey(),name);
    return {ok:true,code:encodeConnection(sv.address,invite)};
@@ -318,6 +350,8 @@ app.whenReady().then(()=>{
   try{
    if(busy)throw Error('Aguarde a operação atual.');
    assertGameClosed();busy=true;locked=true;
+   if(String(code).trim().startsWith('DLU3.')){await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();const result=await googlePlayer.connect(String(code).trim(),username);notify('Conectado com Google. Personagem e progresso confirmados na nuvem.');return {ok:true,...result};}
+   if(load().googleSelected)throw Error('Use um código de servidor integrado com Google para manter seu personagem.');
    if(String(code).trim().startsWith('FENYSC2.')){
     const invite=decodeGlobalCode(String(code).trim());if(invite.kind!=='player')throw Error('Use este código na ativação de host, não na conexão de jogador.');
     if(!globalAccount.hasKey()){
@@ -358,6 +392,7 @@ app.whenReady().then(()=>{
  });
  ipcMain.handle('settings:setServer',async(_event,value)=>{
   assertGameClosed();
+  if(load().googleSelected){if(!parseServerAddress(value).local)throw Error('Use um código Google para trocar de servidor.');await googlePlayer.home('127.0.0.1:61000');return {server:backendAddress(),remote:false};}
   if(globalAccount.state().global){if(!parseServerAddress(value).local)throw Error('Use um código global para trocar de host com segurança.');await globalAccount.home(load().cloudAuthority);return {server:backendAddress(),remote:false};}
   const sv=parseServerAddress(value);
   const c=load();c.gameServer=sv.address;save(c);
@@ -421,10 +456,12 @@ app.whenReady().then(()=>{
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
   if(hostedOnThisPC(backendAddress()))await startAll();
-  const caps=await cloudRequest(backendAddress(),'status').catch(()=>null);
+  const googleCaps=await googleHostCall(backendAddress(),'status').catch(()=>null);
+  if(googleCaps?.mode==='google'&&!load().googleSelected){if(!googleAuth.state().signedIn)throw Error('Clique em Continuar com Google antes de jogar.');if(previousAccount())await linkPrevious();await googlePlayer.home(hostedOnThisPC(backendAddress())?'127.0.0.1:61000':backendAddress());}
+  const caps=load().googleSelected?null:await cloudRequest(backendAddress(),'status').catch(()=>null);
   if(caps?.role==='authority'&&!globalAccount.state().global){if(!globalAccount.hasKey())globalAccount.adopt(await accountKey(),caps.authority);await globalAccount.home(caps.authority);}
   if(caps?.role==='host'&&!globalAccount.state().global)throw Error('Cole o código global de jogador antes de jogar neste host.');
-  globalAccount.ready();
+  if(!load().googleSelected)globalAccount.ready();
   const server=backendAddress();
   const key=await accountKey();
   const s=hostedOnThisPC(server)?await startAll():await status();
@@ -438,4 +475,4 @@ app.whenReady().then(()=>{
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
-app.on('before-quit',()=>{tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+app.on('before-quit',()=>{googleAuth?.dispose();tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});

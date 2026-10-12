@@ -96,8 +96,9 @@ jobs:
             ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
 
-            **Windows:** instalador para testes com convite e conexão privada por Tailscale.
+            **Windows:** instalador com Continuar com Google, vínculo do personagem existente, recuperação pela nuvem e conexão por código Tailscale.
             **Linux:** pacotes AppImage e deb compilados; o jogo via Wine/Proton ainda não foi validado.
+            **Configuração pendente:** o dono precisa habilitar o provedor Google no Supabase com seu Client ID/Client Secret e autorizar o retorno local do launcher. O login real não foi validado sem essa configuração.
             **Importante:** o jogo original não está incluído. Tailscale e configuração do servidor pelo dono são necessários.
             Atualizações automáticas dos mods e jogo ainda estão em desenvolvimento.
 

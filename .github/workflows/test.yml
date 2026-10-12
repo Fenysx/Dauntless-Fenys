@@ -63,3 +63,6 @@ jobs:
       - name: Validar banco global entre dois hosts independentes
         run: node test/integration-cloud.cjs
 
+
+      - name: Validar progresso Google entre Metagames independentes
+        run: node test/integration-google.cjs

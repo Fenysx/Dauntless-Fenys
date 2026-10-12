@@ -1,3 +1,4 @@
+import {handlePlayers} from './players.ts';
 // Only signed machines can access the encrypted game database. No user login required.
 const MAX=24*1024*1024;
 const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
@@ -6,6 +7,7 @@ const hex=(bytes:ArrayBuffer)=>Array.from(new Uint8Array(bytes),b=>b.toString(16
 const uuid=(s:unknown)=>typeof s==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(s);
 const operations=new Set(['enroll','state','lease','save','download','release']);
 Deno.serve(async req=>{
+ if(new URL(req.url).pathname.endsWith('/players'))return handlePlayers(req);
  if(req.method==='GET')return reply({service:'fenys-global',version:1});
  if(req.method!=='POST')return reply({error:'method_denied'},405);
  try{

@@ -1,5 +1,13 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ googleState:()=>ipcRenderer.invoke('google:state'),
+ googleLogin:()=>ipcRenderer.invoke('google:login'),
+ googleLogout:()=>ipcRenderer.invoke('google:logout'),
+ googleLink:()=>ipcRenderer.invoke('google:link'),
+ googleRefresh:()=>ipcRenderer.invoke('google:refresh'),
+ googleActivate:options=>ipcRenderer.invoke('google:activate',options),
+ googleHostInvite:()=>ipcRenderer.invoke('google:hostInvite'),
+ googleSync:force=>ipcRenderer.invoke('google:sync',force),
  globalState:()=>ipcRenderer.invoke('global:state'),
  pickSupabaseAuthorization:()=>ipcRenderer.invoke('global:authorization'),
  activateGlobal:options=>ipcRenderer.invoke('global:activate',options),

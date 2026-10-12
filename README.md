@@ -4,6 +4,57 @@ Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de se
 
 **Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O suporte à execução do jogo é **Windows**; os pacotes Linux abrem o launcher, mas a integração de Wine/Proton ainda está pendente.
 
+## Google + personagem na nuvem (1.6.0-beta.1)
+
+O fluxo principal é **Continuar com Google → colar código do servidor → jogar**. O login abre no navegador e usa Supabase Auth com PKCE. Não há senha própria do launcher, nem arquivo de chave de jogador para guardar. Iniciar, desligar e reiniciar os serviços locais continua disponível sem entrar com Google.
+
+### Situação da configuração
+
+A API v3 e o banco privado já estão publicados no projeto selecionado. **O provedor Google ainda está desativado**: o dono precisa configurar um cliente OAuth próprio do Google antes de usar o login real. O launcher verifica isso e mostra a pendência; não simula um login bem-sucedido.
+
+1. No [Google Auth Platform](https://console.cloud.google.com/auth/clients), crie um cliente OAuth do tipo **Aplicativo da Web**, com nome **Dauntless Launcher Ultimate**. Configure os escopos básicos `openid`, `email` e `profile`. Em modo de testes, adicione os e-mails dos jogadores autorizados na audiência.
+2. Cadastre como URI de redirecionamento autorizado do Google:
+
+```
+https://hbbtbbqsauivnierqxvh.supabase.co/auth/v1/callback
+```
+
+3. No [provedor Google do Supabase](https://supabase.com/dashboard/project/hbbtbbqsauivnierqxvh/auth/providers), habilite Google e preencha Client ID e Client Secret. O segredo permanece no Supabase; não deve ser inserido no launcher nem publicado no GitHub.
+4. Na [configuração de URLs do Supabase](https://supabase.com/dashboard/project/hbbtbbqsauivnierqxvh/auth/url-configuration), adicione este retorno à lista permitida:
+
+```
+http://127.0.0.1:43967/**
+```
+
+O listener abre somente no loopback, valida um caminho aleatório de uso único e troca o código com o verificador PKCE. O launcher não recebe nem armazena a senha do Google. A sessão Supabase é protegida com safeStorage quando disponível; sem proteção do sistema, a sessão fica apenas em memória.
+
+### Ativar cada servidor
+
+1. Atualize o launcher e mantenha todos fora do jogo. Inicie os serviços e selecione a chave administradora original deste servidor em Configurações, se necessário. Essa autorização do dono é separada do acesso Google dos jogadores.
+2. Em **Conectar servidor → Servidor com personagens Google**, selecione seu IP Tailscale. O primeiro host seleciona a autorização Supabase privada já fornecida. Hosts adicionais colam uma autorização de host gerada por **Autorizar outro servidor** em um host já integrado. Clique em **Ativar servidor Google**.
+3. A configuração faz backup dos arquivos, conserva o banco nativo e reverte configurações se a compilação falhar. Hosts da integração anterior deixam de encaminhar o Metagame ao PC central. Para migrar jogadores da rede anterior, primeiro ative Google no servidor que contém o progresso mais recente.
+4. Clique em **Continuar com Google**. Se a chave antiga e o servidor de origem já estão disponíveis, o vínculo é automático. Caso contrário, use **Vincular meu personagem atual ao Google** no servidor de origem. O vínculo valida a chave original no servidor e copia o mesmo UID, personagem e progresso; não deduz propriedade pelo nome ou e-mail.
+5. **Antes de formatar ou apagar chaves antigas, confirme esse primeiro vínculo e o último save enviado.** A integração não consegue recuperar uma conta antiga que nunca foi vinculada se todas as provas de acesso já tiverem sido perdidas.
+6. O dono usa **Gerar código de conexão** para emitir o convite de jogador. Cole o código no outro launcher, entre com Google e conecte. O nome de jogador é necessário apenas para uma conta nova.
+
+### Recuperação e troca de host
+
+No modo Google, cada host executa seu próprio Metagame. O Supabase mantém o progresso canônico por usuário Google: o mesmo UID, personagens, nível/XP, inventário, equipamentos, bounties e escalation. A perda dos arquivos do launcher no PC do jogador é resolvida entrando com o mesmo Google e escolhendo um host integrado. **Não é necessário manter o PC central da integração anterior ligado.** O host escolhido precisa estar ligado, com Tailscale e acesso ao Supabase.
+
+Feche a partida antes de trocar. O launcher solicita ao host anterior a confirmação do save e libera a sessão antes de conectar ao destino. Se o host anterior estiver offline, aguarde expirar a sessão exclusiva (75 segundos); o destino recupera o último progresso confirmado na nuvem. O cliente não envia um save editável e não é tratado como autoridade do progresso.
+
+O servidor assina os snapshots com Ed25519. A API valida a identidade Google no Supabase Auth e verifica a autorização do host. Uma revisão antiga, outro jogador ou outro host durante a sessão não pode substituir o save. Saves confirmados pelo servidor passam pela persistência na nuvem antes da resposta; resposta perdida mantém uma outbox local idempotente. Em falhas, o progresso local é preservado e novas operações são bloqueadas até confirmar a sincronização. Não há garantia de recuperar um save que nunca foi confirmado na nuvem se o disco do host também for perdido.
+
+Cada personagem tem snapshot JSON de até 16 MiB em tabelas privadas. Tokens, chaves nativas e saves não são expostos ao renderer nem a tabelas públicas. A chave nativa existe somente como detalhe interno de compatibilidade e é recuperada pela conta Google; não é uma tarefa do jogador guardar esse arquivo.
+
+**Guildas, amizades e placares coletivos permanecem por servidor neste novo modo**, conforme o comportamento nativo. Os bancos antigos e suas relações são conservados; os dados sociais não são copiados pelo snapshot pessoal.
+
+Os testes locais validam PKCE, proteção dos tokens, identidade Google, perda dos dados locais, troca de host e recuperação após resposta perdida. O RPC real do Supabase foi validado em uma transação isolada e revertida, preservando personagem, nível, XP e inventário. O CI também executa dois Metagames reais com um broker Google isolado. **Login com uma conta Google real e partida entre dois PCs Windows/Tailscale ainda precisam ser validados após configurar o provedor.**
+
+Fontes oficiais: [Google no Supabase](https://supabase.com/docs/guides/auth/social-login/auth-google), [PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow), [URLs de retorno](https://supabase.com/docs/guides/auth/redirect-urls).
+
+Os arquivos `supabase/google-players.sql` e `supabase/functions/fenys-global/players.ts` documentam o backend. `supabase/dashboard-api.ts` é o bundle único implantado, incluindo o endpoint antigo de backups para compatibilidade.
+
 ## Correção 1.4.1
 
 O launcher volta a abrir diretamente, sem login ou senha local. Iniciar, desligar e reiniciar os serviços não dependem de autenticação nem de o Metagame já estar ligado. Para criar convites, a API continua validando a chave administradora original.
