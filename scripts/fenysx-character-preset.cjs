@@ -106,6 +106,14 @@ function characterRow(db,options){
  }
  return {user:u,character:c};
 }
+function verifyRealProgression(metagame){
+ const envPath=path.join(metagame,'.env');
+ if(!fs.existsSync(envPath))throw Error('Arquivo .env do Metagame não encontrado. Não é possível confirmar o modo de progressão real.');
+ const lines=fs.readFileSync(envPath,'utf8').split(/\r?\n/).filter(l=>/^\s*PROGRESSION_MODE\s*=/.test(l));
+ const mode=(lines.at(-1)?.split('=').slice(1).join('=')||'real').trim().replace(/^["']|["']$/g,'').toLowerCase();
+ if(mode==='stub')throw Error('PROGRESSION_MODE=stub no .env. Com servidor desligado, altere somente essa chave para PROGRESSION_MODE=real antes de aplicar.');
+ return mode;
+}
 function localClient(metagame){
  const packageJson=path.resolve(metagame,'package.json');
  if(!fs.existsSync(packageJson))throw Error('Pasta Metagame não encontrada: '+packageJson);
@@ -147,6 +155,7 @@ async function run(argv){
   if(!o.apply)return plan;
   if(!o['server-stopped']||o.confirm!==TARGET_NAME)
    throw Error('Servidor e jogo devem estar DESLIGADOS. Informe --apply --server-stopped --confirm Fenysx somente após verificar UID e Character ID.');
+  verifyRealProgression(metagame);
   if(!o['accept-client-overflow-risk'])
    throw Error('Rams e platina pedidos ultrapassam int32. A versão 1.4.4 pode exibir valores incorretos; acrescente --accept-client-overflow-risk após conferir o backup e aceitar este risco.');
   if(db.prepare("SELECT name FROM sqlite_master WHERE type='table' and name='fenys_passports'").get()){
@@ -191,4 +200,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={RAMS,PLATINUM,TARGET_NAME,LEVEL_CAP,parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,run};
+module.exports={RAMS,PLATINUM,TARGET_NAME,LEVEL_CAP,parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,run};
