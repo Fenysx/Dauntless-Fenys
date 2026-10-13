@@ -26,19 +26,30 @@ Se o personagem já estiver vinculado ao Google, a ferramenta **recusa a ediçã
 1. Pare o jogo, as caçadas, o Metagame e o DeployServer. Faça backup independente do servidor; não apague ou renomeie nenhum arquivo original.
 2. Atualize a pasta do projeto com o código mais recente da `main`. Tenha Node.js 24 e dependências do Metagame já instaladas.
 3. No `.env` do Metagame, localize **somente a linha `DB_FILENAME=`**, sem divulgar outras variáveis (elas podem conter segredos).
-4. Use PowerShell, na raiz do projeto, substituindo os caminhos de exemplo pelos caminhos reais:
+4. **Na instalação local informada anteriormente**, os caminhos eram:
+   - Metagame: `C:\Users\Vinicius Alquimim\dauntless-revived\UndauntedMetagame`
+   - Banco de personagens: `C:\dr\data\undaunted.db`
+   Se `DB_FILENAME` não mudou, comece pela consulta **somente leitura** abaixo, na pasta do código atualizado:
+
+```powershell
+node scripts/fenysx-character-preset.cjs --metagame "C:\Users\Vinicius Alquimim\dauntless-revived\UndauntedMetagame" --db "C:\dr\data\undaunted.db" --list
+```
+
+   As pastas do launcher e do servidor são separadas. Não tente editar arquivos no diretório do instalador do launcher.
+
+5. Use PowerShell, na raiz do projeto, substituindo os caminhos de exemplo se a instalação tiver mudado:
 
 ```powershell
 node scripts/fenysx-character-preset.cjs --metagame "C:\Dauntless-Fenys\runtime\server\UndauntedMetagame" --db "C:\Dauntless-Fenys\runtime\data\undaunted.db" --list
 ```
 
-5. Copie **somente** o `userId` e o `characterId` que correspondem à sua conta/ao personagem atual. Primeiro faça pré-visualização (o padrão é não alterar):
+6. Copie **somente** o `userId` e o `characterId` que correspondem à sua conta/ao personagem atual. Primeiro faça pré-visualização (o padrão é não alterar):
 
 ```powershell
 node scripts/fenysx-character-preset.cjs --metagame "C:\Dauntless-Fenys\runtime\server\UndauntedMetagame" --db "C:\Dauntless-Fenys\runtime\data\undaunted.db" --user-id "UID-COLE-SEU-UUID-REAL" --character-id "COLE-O-CHARACTER-UUID-REAL"
 ```
 
-6. **Somente depois de conferir as identidades, ter os serviços desligados e aceitar o risco dos valores acima de int32**, aplique:
+7. **Somente depois de conferir as identidades, ter os serviços desligados e aceitar o risco dos valores acima de int32**, aplique:
 
 ```powershell
 node scripts/fenysx-character-preset.cjs --metagame "C:\Dauntless-Fenys\runtime\server\UndauntedMetagame" --db "C:\Dauntless-Fenys\runtime\data\undaunted.db" --user-id "UID-COLE-SEU-UUID-REAL" --character-id "COLE-O-CHARACTER-UUID-REAL" --apply --server-stopped --confirm Fenysx --accept-client-overflow-risk
@@ -46,8 +57,8 @@ node scripts/fenysx-character-preset.cjs --metagame "C:\Dauntless-Fenys\runtime\
 
 Uma cópia SQLite consistente `*.fenysx-before-<data>.sqlite` é produzida **antes** de qualquer edição; todas as alterações no banco são executadas em uma transação. Se o processo informar erro, não prossiga no launcher até examinar a saída.
 
-7. Confira no `.env` do Metagame a linha `PROGRESSION_MODE=real`. Se estiver `stub`, atualize **somente essa chave**, com os serviços desligados, guardando cópia do `.env`. Sem a chave, a versão atual utiliza progressão real por padrão.
-8. Inicie o Metagame; **confirme o teste local** no jogo antes de habilitar o Google. Com os serviços integrados, no Launcher vá em **Conta Google e convites → Continuar com Google → Vincular meu personagem atual ao Google → Conferir personagem na nuvem**. A checagem deverá exibir Fenysx e revisão maior que zero. Teste save de caçada e retorno após reinício; somente então teste outro servidor.
+8. Confira no `.env` do Metagame a linha `PROGRESSION_MODE=real`. Se estiver `stub`, atualize **somente essa chave**, com os serviços desligados, guardando cópia do `.env`. Sem a chave, a versão atual utiliza progressão real por padrão.
+9. Inicie o Metagame; **confirme o teste local** no jogo antes de habilitar o Google. Com os serviços integrados, no Launcher vá em **Conta Google e convites → Continuar com Google → Vincular meu personagem atual ao Google → Conferir personagem na nuvem**. A checagem deverá exibir Fenysx e revisão maior que zero. Teste save de caçada e retorno após reinício; somente então teste outro servidor.
 
 ## O que a ferramenta se recusa a fazer
 
