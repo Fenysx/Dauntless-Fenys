@@ -18,7 +18,7 @@ function parseArgs(argv){
  for(let i=0;i<argv.length;i++){
   if(!argv[i].startsWith('--'))throw Error('Argumento inesperado: '+argv[i]);
   const key=argv[i].slice(2);
-  if(['list','apply','server-stopped'].includes(key)){opts[key]=true;continue;}
+  if(['list','apply','server-stopped','accept-client-overflow-risk'].includes(key)){opts[key]=true;continue;}
   if(!['db','metagame','user-id','character-id','confirm'].includes(key)||!argv[i+1]||argv[i+1].startsWith('--'))
    throw Error('Argumento faltando ou desconhecido: --'+key);
   opts[key]=argv[++i];
@@ -147,6 +147,8 @@ async function run(argv){
   if(!o.apply)return plan;
   if(!o['server-stopped']||o.confirm!==TARGET_NAME)
    throw Error('Servidor e jogo devem estar DESLIGADOS. Informe --apply --server-stopped --confirm Fenysx somente após verificar UID e Character ID.');
+  if(!o['accept-client-overflow-risk'])
+   throw Error('Rams e platina pedidos ultrapassam int32. A versão 1.4.4 pode exibir valores incorretos; acrescente --accept-client-overflow-risk após conferir o backup e aceitar este risco.');
   if(db.prepare("SELECT name FROM sqlite_master WHERE type='table' and name='fenys_passports'").get()){
    const row=db.prepare('SELECT active FROM fenys_passports WHERE userId=?').get(original.user.userId);
    if(row?.active)throw Error('Transferência ativa detectada. Feche a sessão e faça o backup antes.');
