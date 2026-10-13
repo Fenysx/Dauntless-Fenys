@@ -1,0 +1,61 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const {parseEnv, inspectInstallation, renderReport} = require('../scripts/doctor.cjs');
+
+function createHost(t, {metagameEnv = '', deployEnv = '', deployed = true} = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dauntless-doctor-'));
+  t.after(() => fs.rmSync(root, {recursive:true, force:true}));
+  fs.mkdirSync(path.join(root, 'server'), {recursive:true});
+  fs.writeFileSync(path.join(root, 'package.json'), '{}');
+  fs.writeFileSync(path.join(root, 'server', 'upstream.lock.json'), '{}');
+  for (const [component, contents] of [['UndauntedMetagame',metagameEnv], ['UndauntedDeployServer',deployEnv]]) {
+    const dest=path.join(root, 'runtime', 'server', component);
+    fs.mkdirSync(path.join(dest, 'dist'), {recursive:true});
+    if (deployed) fs.writeFileSync(path.join(dest, 'dist','server.js'),'');
+    if (contents !== null) fs.writeFileSync(path.join(dest, '.env'), contents);
+  }
+  return root;
+}
+const signing = crypto.generateKeyPairSync('rsa',{modulusLength:2048, privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});
+const METAGAME = [
+  'PORT=61000','BIND_HOST=127.0.0.1','REGISTRATION_MODE=INVITECODE',
+  'MATCHMAKING_MODE=DEPLOYSERVER','TARGET_CHANGELIST=239827',
+  'AUTH_SIGNING_PRIVKEY_B64=' + Buffer.from(signing.privateKey).toString('base64'),
+  'AUTH_SIGNING_PUBKEY_B64=' + Buffer.from(signing.publicKey).toString('base64'),
+  'DB_FILENAME=/var/tmp/dlu.db'
+].join('\n');
+const DEPLOY = ['PORT=61001','BIND_HOST=127.0.0.1',
+  'METAGAME_API_KEY=abcdef123456','GAMESERVER_BINARY_PATH=/private/bin/Dauntless.exe'].join('\n');
+
+test('interpretador trata aspas e CRLF sem exibir o conteúdo secreto', () => {
+  assert.deepEqual({...parseEnv('export PORT="61000"\r\nBIND_HOST=127.0.0.1 # comment\r\nSECRET=very-private-token\r\n')},
+    {PORT:'61000',BIND_HOST:'127.0.0.1',SECRET:'very-private-token'});
+});
+test('configuração válida é considerada pronta, sem imprimir valores sensíveis', t => {
+  const root = createHost(t, {metagameEnv:METAGAME,deployEnv:DEPLOY});
+  const report = inspectInstallation({root,nodeVersion:'24.4.0',platform:'win32'});
+  assert.equal(report.errors,0);
+  assert.equal(report.status,'ready_to_start');
+  assert.equal(report.warnings,1); // Executável deliberadamente ausente no fixture.
+  assert.doesNotMatch(JSON.stringify(report)+renderReport(report),/BEGIN PRIVATE KEY|abcdef123456|very-private-token/);
+});
+test('identifica arquivos ausentes, porta errada, cadastro aberto e credenciais incompletas', t => {
+  const root = createHost(t,{metagameEnv:'PORT=61099\nREGISTRATION_MODE=OPEN', deployEnv:null,deployed:false});
+  const report = inspectInstallation({root,nodeVersion:'22.16.0',platform:'linux'});
+  const codes = report.findings.map(f => f.code);
+  for (const code of ['NODE_VERSION','METAGAME_BUILD','DEPLOY_BUILD','METAGAME_PORT','OPEN_REGISTRATION','SIGNING_KEYS','DATABASE_PATH','DEPLOY_ENV','LINUX_GAME'])
+    assert.ok(codes.includes(code),code);
+  assert.equal(report.status,'needs_configuration');
+});
+test('sinaliza endereço inseguro e chave de exemplo sem devolver a chave', t => {
+  const root=createHost(t,{metagameEnv:METAGAME.replace('127.0.0.1','0.0.0.0'),deployEnv:DEPLOY.replace('abcdef123456','COLOQUE_A_CHAVE_REAL')});
+  const report=inspectInstallation({root,nodeVersion:'24.0.0',platform:'win32'});
+  assert.ok(report.findings.some(f=>f.code==='METAGAME_BIND'));
+  assert.ok(report.findings.some(f=>f.code==='GAMESERVER_KEY'));
+  assert.doesNotMatch(renderReport(report),/COLOQUE_A_CHAVE_REAL/);
+});
