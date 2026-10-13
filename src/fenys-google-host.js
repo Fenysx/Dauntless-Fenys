@@ -25,7 +25,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
   if(lease.revision!==current.revision)throw Error('Existe outra revisão na nuvem. Os dados locais foram preservados.');
   db.prepare('UPDATE launcher_google_sessions SET leaseUntil=?,error=NULL WHERE userId=?').run(Date.parse(lease.leaseUntil),row.userId);
  }
- function flush(){return enqueue(async()=>{if(!registered)await register();let failure;for(const row of rows())try{await save(row);}catch(e){db.prepare('UPDATE launcher_google_sessions SET leaseUntil=0,error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);failure??=e;}if(failure)throw failure;return {confirmed:true};});}
+ function flush(){return enqueue(async()=>{if(!registered)await register();let failure;const active=rows();for(const row of active)try{await save(row);}catch(e){db.prepare('UPDATE launcher_google_sessions SET leaseUntil=0,error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);failure??=e;}if(failure)throw failure;return {confirmed:true,activePlayers:active.length};});}
  function mark(){db.prepare('UPDATE launcher_google_sessions SET dirty=1,changes=changes+1 WHERE active=1').run();}
  function identities(req){const ids=new Set(),me=account(req.headers['x-undaunted-user-api-key']);if(me)ids.add(me.userId);const bearer=req.headers.authorization;try{if(typeof bearer==='string'&&/^Bearer /i.test(bearer)){const token=validateToken(bearer.slice(7));if(token?.userId)ids.add(token.userId);}}catch{}
   for(const [k,v] of Object.entries(req.body||{}))if(/^(password|auth_password|exchange_code|key|uuk)$/i.test(k)&&typeof v==='string'){const user=account(v);if(user)ids.add(user.userId);}
