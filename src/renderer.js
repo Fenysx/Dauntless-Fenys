@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
-const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
+const screens={dashboard:'VISÃO GERAL',services:'MEU SERVIDOR',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'JOGAR / SERVIDORES',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
 function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
@@ -78,9 +78,9 @@ async function settings(){
 async function action(type){if(operating)return; if((type==='stop'||type==='restart')&&!window.confirm(type==='stop'?'Desligar os serviços iniciados por este launcher?':'Reiniciar os serviços iniciados por este launcher?'))return;
  operating=true;for(const id of controlIds)$(id).disabled=true;
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
- try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
+ try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();if(!$('screen-services').hidden)void hostingRefresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void communityRefresh();void globalRefresh();}if(node.dataset.screen==='invites')void communityRefresh();});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='services'){void hostingRefresh();void communityRefresh();}if(node.dataset.screen==='connection'){void communityRefresh();void globalRefresh();}if(node.dataset.screen==='invites')void communityRefresh();});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -265,13 +265,15 @@ $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
 $('server-local-select').addEventListener('click',()=>$('connection-local').click());
 function openHostSettings(){
- setScreen('settings');
- $('admin-server-settings').open=true;
- $('google-host-tools').open=true;
- $('google-host-tools').scrollIntoView({behavior:'smooth',block:'start'});
- void settings();
+ setScreen('services');
+ $('hosting-wizard').scrollIntoView({behavior:'smooth',block:'start'});
+ void hostingRefresh();void communityRefresh();
 }
 $('community-host-setup-open').addEventListener('click',openHostSettings);
+ $('hosting-advanced-open').addEventListener('click',()=>{
+  setScreen('settings');$('admin-server-settings').open=true;$('google-host-tools').open=true;
+  $('admin-server-settings').scrollIntoView({behavior:'smooth',block:'start'});void settings();
+ });
 $('google-go-server').addEventListener('click',()=>{openHostSettings();note('Integre o servidor de origem antes de vincular seu personagem. Faça backup dos saves e mantenha todos fora do jogo.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{const button=$('google-refresh');button.disabled=true;button.textContent='Consultando Supabase…';$('google-state').textContent='Consultando personagem vinculado à conta Google…';try{const r=await window.launcher.googleRefresh();if(r?.ok){if(!r.signedIn)note('Entre com Google para consultar seu personagem.');else if(r.linked)note('Personagem encontrado na nuvem: '+(r.name||'sem nome informado')+'. Progresso revisão '+(r.revision||0)+'.');else note('Nenhum personagem vinculado a esta conta Google. Integre primeiro o servidor de origem para preservar seu personagem existente.');}return r;}finally{button.disabled=false;button.textContent='Conferir personagem na nuvem';}}));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
@@ -354,6 +356,12 @@ async function communityRefresh(){
   for(const server of mine){const option=document.createElement('option');option.value=server.id;option.textContent=server.name;own.append(option);}
   if(mine.some(s=>s.id===old))own.value=old;
   if(!mine.length){const option=document.createElement('option');option.value='';option.textContent='Publique seu servidor HTTPS primeiro';own.append(option);}
+  const hosted=$('hosting-owned-server'),previous=hosted.value;
+  hosted.replaceChildren();
+  for(const server of mine){const option=document.createElement('option');option.value=server.id;option.textContent=server.name;hosted.append(option);}
+  if(mine.some(s=>s.id===previous))hosted.value=previous;
+  if(!mine.length){const option=document.createElement('option');option.value='';option.textContent='Nenhum servidor publicado';hosted.append(option);}
+  $('hosting-send-invite').disabled=hostingBusy||!hostingSnapshot?.googleActive||!mine.length;
   const incoming=$('community-inbox-list');incoming.replaceChildren();
   for(const invitation of pending){
    const card=document.createElement('div');card.className='community-server';
