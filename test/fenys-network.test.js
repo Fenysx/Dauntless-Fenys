@@ -42,7 +42,7 @@ test('HTTPS real e ponte local protegem API, corpo, QoS, destino TLS e chat WebS
 test('troca de rede conserva configuração, módulos e cadastro se a compilação ou a nuvem falhar',async t=>{
  const path=require('node:path'),os=require('node:os'),{EventEmitter}=require('node:events');
  const {identity}=require('../src/fenys-google-cloud');
- for(const failure of ['build','cloud',null]){
+ for(const failure of ['build','overlay','cloud',null]){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'launcher-network-setup-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const base=path.join(dir,'UndauntedMetagame'),moduleDir=path.join(base,'fenys');fs.mkdirSync(moduleDir,{recursive:true});fs.mkdirSync(path.join(base,'src'));fs.mkdirSync(path.join(dir,'UndauntedDeployServer'));
   const source=path.resolve('server/upstream');
@@ -55,7 +55,7 @@ test('troca de rede conserva configuração, módulos e cadastro se a compilaç�
    const failed=build&&builds===1&&failure==='build';
    if(build&&!failed){
     const compiled=path.join(base,'dist','app.js');fs.mkdirSync(path.dirname(compiled),{recursive:true});
-    fs.writeFileSync(compiled,fs.readFileSync(path.join(base,'src','app.ts'),'utf8'));
+    fs.writeFileSync(compiled,failed?'':failure==='overlay'&&builds===1?'// compiled without middleware':fs.readFileSync(path.join(base,'src','app.ts'),'utf8'));
    }
    child.emit('close',failed?1:0);
   });return child;};
@@ -63,10 +63,21 @@ test('troca de rede conserva configuração, módulos e cadastro se a compilaç�
   const context={module:{exports:{}},__dirname:path.resolve('src'),process,Buffer,setTimeout,clearTimeout,require:n=>n==='node:child_process'?{spawn}:n==='node:os'?{networkInterfaces:()=>({lan:[{address:'192.168.2.20'}]})}:n==='./fenys-google-cloud'?{...require('../src/fenys-google-cloud'),cloud,availability:async()=>true}:n.startsWith('./')?require('../src/'+n.slice(2)):require(n)};
   vm.runInNewContext(fs.readFileSync('src/fenys-google-setup.js','utf8'),context);
   const activate=()=>context.module.exports.installGoogle(dir,{networkMode:'lan',address:'192.168.2.20:61000',adminKey:'UUK_'+'a'.repeat(48)});
-  if(failure){await assert.rejects(activate());assert.deepEqual(JSON.parse(fs.readFileSync(file)),config);assert.deepEqual(fs.readFileSync(path.join(base,'.env')),before);assert.equal(fs.readFileSync(oldModule,'utf8'),'// previous installed host');assert.equal(fs.existsSync(path.join(moduleDir,'fenys-network.js')),false);assert.deepEqual(registrations,failure==='build'?[]:['192.168.2.20:61000',config.address]);}
+  if(failure){await assert.rejects(activate());assert.deepEqual(JSON.parse(fs.readFileSync(file)),config);assert.deepEqual(fs.readFileSync(path.join(base,'.env')),before);assert.equal(fs.readFileSync(oldModule,'utf8'),'// previous installed host');assert.equal(fs.existsSync(path.join(moduleDir,'fenys-network.js')),false);assert.deepEqual(registrations,['build','overlay'].includes(failure)?[]:['192.168.2.20:61000',config.address]);}
   else{const result=await activate();assert.equal(result.networkMode,'lan');assert.equal(JSON.parse(fs.readFileSync(file)).address,'192.168.2.20:61000');assert.deepEqual(registrations,['192.168.2.20:61000']);assert.ok(fs.existsSync(path.join(moduleDir,'fenys-network.js')));}
  }
 });
+test('não permite ativar Google quando app.ts contém marcador incompleto',()=>{
+ const base='server/upstream/';
+ const input={appSource:fs.readFileSync(base+'UndauntedMetagame/src/app.ts','utf8'),
+  serverSource:fs.readFileSync(base+'UndauntedMetagame/src/server.ts','utf8'),
+  metagameEnv:fs.readFileSync(base+'UndauntedMetagame/.env.example','utf8'),
+  deployEnv:fs.readFileSync(base+'UndauntedDeployServer/.env.example','utf8'),
+  networkMode:'lan',address:'192.168.2.20:61000'};
+ input.appSource='// LAUNCHER_GOOGLE_V3\n'+input.appSource;
+ assert.throws(()=>prepareGoogleFiles(input),/não permite instalar as rotas Google/);
+});
+
 test('validação da Edge aceita LAN e HTTPS e recusa destinos ambíguos',()=>{
  const src=require('node:module').stripTypeScriptTypes(fs.readFileSync('supabase/functions/fenys-global/players.ts','utf8')).replace('export async function','async function');const ctx={URL};vm.createContext(ctx);vm.runInContext(src+'\nthis.valid=validHostAddress;',ctx);
  for(const address of ['100.64.1.2:61000','10.1.2.3:61000','192.168.1.20:61000','https://public.test:8443'])assert.equal(ctx.valid(address),true,address);
