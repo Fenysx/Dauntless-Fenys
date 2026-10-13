@@ -6,7 +6,10 @@ const net=require('node:net');
 const crypto=require('node:crypto');
 const os=require('node:os');
 const {spawn}=require('node:child_process');
-const {parseServerAddress,requestApi,createInvite,registerPlayer}=require('./fenys-api');
+const {parseEndpoint:parseServerAddress}=require('./fenys-network');
+const {startRelay}=require('./fenys-public-relay');
+let publicRelay=null;
+const {requestApi,createInvite,registerPlayer}=require('./fenys-api');
 const {encodeConnection,decodeConnection}=require('./fenys-connection-code');
 const {installServer,tailscaleAddresses}=require('./fenys-server-setup');
 const {ProfileVault}=require('./fenys-profiles');
@@ -223,7 +226,7 @@ async function playerOverview(){
    .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
  return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server};
 }
-function configureChat(server,localAppData){
+function configureChat(server,localAppData,chatPort=61099){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
  const iniDir=path.join(localAppData,'Archon','Saved','Config','WindowsClient');
@@ -239,7 +242,7 @@ function configureChat(server,localAppData){
   if(skip&&/^\[/.test(line.trim()))skip=false;
   if(!skip)keep.push(line);
  }
- const xmpp=['[OnlineSubsystemMcp.XMPP]',`ServerAddr="ws://${host}"`,'ServerPort=61099','bUseSSL=false'];
+ const xmpp=['[OnlineSubsystemMcp.XMPP]',`ServerAddr="ws://${host}"`,`ServerPort=${chatPort}`,'bUseSSL=false'];
  fs.writeFileSync(file,[...xmpp,'',...keep].join('\r\n'),'utf8');
 }
 async function spawnGame(exe,args,runtime){
@@ -249,7 +252,7 @@ async function spawnGame(exe,args,runtime){
   const child=spawn(launch.command,launch.args,launch.options);
   child.once('error',err=>{if(activeGame===child)activeGame=null;reject(err);});
   child.once('spawn',()=>{activeGame=child;child.unref();resolve();});
-  child.once('exit',()=>{if(activeGame===child)activeGame=null;});
+  child.once('exit',()=>{if(activeGame===child){activeGame=null;const relay=publicRelay;publicRelay=null;void relay?.close();}});
  });
 }
 function gameArgs(server,key){return [server,`-AUTH_PASSWORD=${key}`,
@@ -285,8 +288,8 @@ app.whenReady().then(()=>{
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
    const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
-   let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey});}finally{await startAll();}
-   c.googleHost=true;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
+   let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
+   c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
   }finally{busy=null;}
  }));
  ipcMain.handle('tailscale:status',()=>vpnReply(()=>tailscale.status()));
@@ -295,6 +298,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('tailscale:background',()=>vpnReply(()=>tailscale.background()));
  ipcMain.handle('tailscale:share',()=>vpnReply(async()=>{await shell.openExternal('https://login.tailscale.com/admin/machines');return {message:'No painel Tailscale, encontre este PC e use Share para compartilhar com seu amigo. Ele deve aceitar o convite na conta dele.'};}));
  ipcMain.handle('connection:addresses',()=>tailscaleAddresses());
+ for(const [channel,field,title] of [['network:cert','publicCertFile','Selecionar certificado HTTPS (PEM / fullchain)'],['network:key','publicKeyFile','Selecionar chave privada HTTPS (PEM)']])ipcMain.handle(channel,async()=>{assertGameClosed();const r=await dialog.showOpenDialog(win,{title,properties:['openFile']});if(r.canceled)return false;const c=load();c[field]=r.filePaths[0];save(c);return true;});
  ipcMain.handle('global:state',()=>vpnReply(async()=>({...globalAccount.state(),localRole:load().cloudRole||null,authority:load().cloudAuthority||globalAccount.state().authority||null,authorizationSelected:!!load().supabaseAuthorizationFile})));
  ipcMain.handle('global:authorization',()=>vpnReply(async()=>{
   const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
@@ -325,7 +329,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('global:home',()=>vpnReply(async()=>{assertGameClosed();if(!globalAccount.hasKey())globalAccount.adopt(await accountKey(),load().cloudAuthority||backendAddress());return globalAccount.home(load().cloudAuthority);}));
  ipcMain.handle('global:recover',()=>vpnReply(async()=>{assertGameClosed();return globalAccount.recover();}));
  ipcMain.handle('connection:setup',(_event,address)=>runLocked(async()=>{
-  assertGameClosed();
+  assertGameClosed();if(load().googleHost)throw Error('Altere a rede pelo painel Servidor com personagens Google e ative novamente.');
   if(!owned.size&&await tcp(PORTS.metagame))throw Error('O Metagame foi iniciado fora do launcher. Encerre-o para configurar a conexão.');
   const wasRunning=owned.size>0;await stopOwned();
   if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
@@ -338,6 +342,7 @@ app.whenReady().then(()=>{
  }));
  ipcMain.handle('connection:create',async(_event,address,name)=>{
   try{
+   if(load().googleHost){if(!await tcp(PORTS.metagame))throw Error('Inicie o servidor local.');return {ok:true,...await googleHostCall('127.0.0.1:61000','invite',{},null,await localAdminKey())};}
    const sv=parseServerAddress(address);
    if(sv.port!==61000||!tailscaleAddresses().includes(sv.host))throw Error('Selecione o IP Tailscale deste PC.');
    if(!await tcp(sv.port,sv.host))throw Error('Configure o acesso Tailscale e inicie os serviços antes de gerar o código.');
@@ -384,13 +389,13 @@ app.whenReady().then(()=>{
   }catch(e){return {ok:false,error:e.message};}finally{if(locked)busy=null;}
  });
  ipcMain.handle('settings:get',()=>{
-  const {adminKeyFile,...safe}=load();
+  const {adminKeyFile,publicKeyFile,publicCertFile,...safe}=load();
   const server=backendAddress();
   const c=load();
   const linked=c.accountFiles && c.accountFiles[server];
   const local=parseServerAddress(server).local;
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
-  return {...safe,platform:process.platform,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
+  return {...safe,platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
  ipcMain.handle('settings:setServer',async(_event,value)=>{
   assertGameClosed();
@@ -455,6 +460,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
  ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
+  assertGameClosed();
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
@@ -469,9 +475,11 @@ app.whenReady().then(()=>{
   const server=backendAddress();
   const key=await accountKey();
   const s=hostedOnThisPC(server)?await startAll():await status();
-  if(!s.gameOnline)throw new Error('Servidor selecionado offline. Confira o Tailscale e a porta 61000.');
-  configureChat(server,runtime.localAppData);
-  await spawnGame(exe,gameArgs(server,key),runtime);
+  if(!s.gameOnline)throw new Error('Servidor selecionado offline. Confira a rede, o endereço e a porta do servidor.');
+  if(publicRelay){await publicRelay.close();publicRelay=null;}
+  let gameServer=server,chatPort=61099;
+  if(parseServerAddress(server).secure){publicRelay=await startRelay(server);gameServer=publicRelay.address;chatPort=publicRelay.port;}
+  try{configureChat(gameServer,runtime.localAppData,chatPort);await spawnGame(exe,gameArgs(gameServer,key),runtime);}catch(e){await publicRelay?.close();publicRelay=null;throw e;}
   notify(`Dauntless 1.4.4 iniciado pelo cliente Win64, conectado a ${server}.`);
   return s;
  }));
@@ -479,5 +487,5 @@ app.whenReady().then(()=>{
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
-app.on('before-quit',()=>{googleAuth?.dispose();tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+app.on('before-quit',()=>{void publicRelay?.close();googleAuth?.dispose();tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
 

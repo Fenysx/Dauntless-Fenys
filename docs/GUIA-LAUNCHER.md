@@ -1,5 +1,7 @@
 # Dauntless Launcher Ultimate
 
+> Atualização 1.7.0-beta.1: Tailscale agora é opcional para servidores Google. Veja [o guia de redes](REDES.md) para LAN e HTTPS público. As seções abaixo registram o fluxo e o histórico da versão 1.6.
+
 Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de serviços, conexão privada por Tailscale, cadastro individual de jogadores e convites de uso único do Metagame.
 
 **Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O cliente inicia nativamente no **Windows** e possui integração experimental com **Wine no Linux**. A execução de partidas no Wine ainda precisa ser validada com o cliente 1.4.4.

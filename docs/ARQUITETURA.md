@@ -21,7 +21,7 @@ flowchart TD
     D -->|"iniciar e supervisionar"| G["Processo de cidade ou caçada"]
     L -->|"iniciar"| C["Cliente do jogador"]
     C -->|"conta e matchmaking"| M
-    C -->|"partida UDP via Tailscale"| G
+    C -->|"partida UDP pela rede escolhida"| G
     G -->|"carregar e salvar personagem"| M
 ```
 
@@ -53,6 +53,10 @@ No modo Google, cada host mantém seu próprio SQLite. A nuvem guarda o snapshot
 A API usa revisão do snapshot, assinatura Ed25519 e sessão exclusiva. Confirmações de save passam pela persistência remota; uma resposta perdida pode ser reenviada a partir da outbox local sem duplicar a operação. Em falha de sincronização, preserve o disco do host: a nuvem só recupera o que foi confirmado.
 
 Antes da troca, feche o jogo. O launcher pede o save e a liberação da sessão anterior. Se o host caiu, o destino aguarda a expiração da sessão (75 segundos) e recupera o último snapshot confirmado. Não há transferência de uma caçada em andamento para outro processo.
+
+## Transporte público
+
+O host abre um listener HTTPS com certificado válido. Os serviços nativos mantêm loopback e a administração permanece local. O launcher abre uma ponte somente em `127.0.0.1`, usada pelo cliente HTTP antigo; as chamadas seguem via HTTPS, e o chat via WSS. A consulta QoS é ajustada para essa ponte. O tráfego UDP da partida segue diretamente ao IPv4 anunciado pelo host. [Detalhes de configuração](REDES.md).
 
 ## Modos antigos
 

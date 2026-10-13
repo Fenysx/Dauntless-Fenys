@@ -2,7 +2,7 @@
 
 ## 1. Escolha o que você vai executar
 
-**Jogador remoto:** precisa do launcher, cliente Dauntless 1.4.4 com as DLLs compatíveis, Tailscale e convite. Não precisa compilar Metagame nem criar um Supabase.
+**Jogador remoto:** precisa do launcher, cliente Dauntless 1.4.4 com as DLLs compatíveis, convite e acesso pela rede escolhida (Tailscale, LAN ou HTTPS público). Não precisa compilar Metagame nem criar um Supabase.
 
 **Dono do servidor:** prepara Metagame, DeployServer, jogo e configurações no computador que vai hospedar. Este tutorial usa Windows para os processos de partida. É possível desenvolver/testar as APIs em Linux; isso não significa que a hospedagem nativa das partidas no Linux esteja implementada no nosso launcher.
 
@@ -10,7 +10,7 @@
 
 ## 2. Pré-requisitos e cópia do projeto
 
-Instale Git, Node.js 24 com npm, Tailscale e, no Windows do jogo, o runtime Microsoft Visual C++ x64 necessário à DLL. A compilação das dependências nativas pode exigir ferramentas C++ se não houver binário pronto para seu ambiente. Use um diretório de trabalho fora do OneDrive e execute os comandos em um terminal comum.
+Instale Git, Node.js 24 com npm e, no Windows do jogo, o runtime Microsoft Visual C++ x64 necessário à DLL. A compilação das dependências nativas pode exigir ferramentas C++ se não houver binário pronto para seu ambiente. Use um diretório de trabalho fora do OneDrive e execute os comandos em um terminal comum.
 
 ```bash
 git clone https://github.com/Fenysx/Dauntless-Fenys.git
@@ -127,7 +127,9 @@ Na raiz do projeto, execute `npm start`. Em **Configurações**:
 4. Se iniciou os serviços manualmente, encerre-os antes de pedir ao launcher que os gerencie.
 5. Use **Usar meu servidor local** e **Iniciar serviços**; confira a aba Atividades.
 
-Instale e entre no Tailscale no host e nos PCs dos jogadores. Compartilhe o computador do host com cada amigo, ou autorize-os na mesma rede conforme sua administração Tailscale. O código do jogo não concede acesso à VPN.
+Escolha a conexão em **Servidor com personagens Google** conforme [REDES.md](REDES.md). Os parágrafos abaixo descrevem a opção privada Tailscale.
+
+Para essa opção, instale e entre no Tailscale no host e nos PCs dos jogadores. Compartilhe o computador do host com cada amigo, ou autorize-os na mesma rede conforme sua administração Tailscale. O código do jogo não concede acesso à VPN.
 
 Em **Conectar servidor**, selecione o IP Tailscale deste computador. Para o modo Google, prepare a nuvem conforme [NUVEM.md](NUVEM.md), escolha **Servidor com personagens Google** e ative com a autorização inicial ou com o código de outro host autorizado. O launcher aplica nossos módulos e recompila a cópia de trabalho. A interface pode exigir encerrar os serviços antes da alteração; siga o estado apresentado.
 
@@ -135,7 +137,7 @@ Permita aos jogadores autorizados acesso às portas de [OPERACAO.md](OPERACAO.md
 
 ## 8. Conectar jogadores e conferir o progresso
 
-O dono gera um código de conexão. No outro PC: conecte o Tailscale, abra o launcher, entre com Google, cole o código e jogue. Para um personagem antigo, faça primeiro o vínculo no servidor que possui seu save, usando a prova de acesso original.
+O dono gera um código de conexão. No outro PC: conecte a rede escolhida (Tailscale somente se esse for o modo), abra o launcher, entre com Google, cole o código e jogue. Para um personagem antigo, faça primeiro o vínculo no servidor que possui seu save, usando a prova de acesso original.
 
 Validação prática: crie/recupere o personagem, anote nível e inventário, faça uma atividade, feche o jogo e confirme a sincronização. Entre em outro host autorizado com o mesmo Google e confira UID/progresso. Não formate o PC nem apague chaves antigas antes dessa conferência.
 

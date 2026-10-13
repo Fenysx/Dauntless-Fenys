@@ -1,5 +1,7 @@
 # Operação e diagnóstico
 
+Para escolher LAN ou HTTPS público sem Tailscale, consulte [REDES.md](REDES.md). A tabela abaixo descreve o modo privado; no público, exponha somente a porta HTTPS escolhida e as portas UDP das partidas.
+
 ## Portas no modo privado
 
 | Porta/protocolo | Uso | Alcance esperado |

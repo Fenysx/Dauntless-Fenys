@@ -11,3 +11,5 @@ run([process.env.npm_execpath,'ci'],path.join(target,'UndauntedMetagame'));
 run([process.env.npm_execpath,'ci'],path.join(target,'UndauntedDeployServer'));
 run([process.env.npm_execpath,'run','build'],path.join(target,'UndauntedDeployServer'));
 for(const name of ['connection','host','cloud','google'])run(['test/integration-'+name+'.cjs'],root);
+
+for(const mode of ['lan','public']){process.env.DLU_TEST_NETWORK=mode;run(['test/integration-google.cjs'],root);}

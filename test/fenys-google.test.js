@@ -71,9 +71,10 @@ test('falha de rede ao renovar Google conserva a sessão para tentar novamente',
 test('jogador admitido retorna pela VPN sem novo convite, outra conta continua bloqueada',async t=>{
  const n=await network(t),a=n.nodes[0],p=player(a.db,'ReturningPlayer');
  const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});
- await client.link(a.address,p.key);const code=(await hostCall(a.address,'invite',{},null,a.admin.key)).code;await client.connect(code);
- await hostCall(a.address,'leave',{},'google-one');
+ await client.link(a.address,p.key);
  const remote=async token=>{let status=200,body;const req={method:'POST',url:'/launcher/google/join',body:{},headers:{authorization:'Bearer '+token},socket:{remoteAddress:'100.64.4.9'}};const res={status(n){status=n;return this;},json(value){body=value;}};await a.host.middleware(req,res,()=>assert.fail('not a game request'));return {status,body};};
+ assert.equal((await remote('google-one')).status,200);
+ await hostCall(a.address,'leave',{},'google-one');
  assert.equal((await remote('google-one')).status,200);
  assert.equal((await remote('google-two')).status,409);
  assert.equal(a.db.prepare('SELECT active FROM launcher_google_sessions WHERE userId=?').get(p.userId).active,1);

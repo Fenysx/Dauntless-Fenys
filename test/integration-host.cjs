@@ -16,7 +16,7 @@ async function main(){
  const patched=prepareFiles({...originals,address:'100.64.1.2:61000'});
  for(const [k,v] of Object.entries(files))fs.writeFileSync(v,patched[k]);
  fs.mkdirSync(path.join(base,'fenys'),{recursive:true});
- for(const name of ['fenys-roaming-host.js','fenys-roaming-protocol.js','fenys-api.js','fenys-private-listener.js'])fs.copyFileSync(path.join(__dirname,'../src',name),path.join(base,'fenys',name));
+ for(const name of ['fenys-roaming-host.js','fenys-roaming-protocol.js','fenys-api.js','fenys-network.js','fenys-private-listener.js'])fs.copyFileSync(path.join(__dirname,'../src',name),path.join(base,'fenys',name));
  execFileSync(process.execPath,[path.join(base,'node_modules/typescript/bin/tsc')],{cwd:base,stdio:'inherit'});
  const socket=net.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const pair=crypto.generateKeyPairSync('rsa',{modulusLength:2048,privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});
@@ -55,3 +55,4 @@ async function main(){
  }finally{child.kill('SIGTERM');await new Promise(r=>{if(child.exitCode!==null)r();else{child.once('exit',r);setTimeout(()=>{child.kill('SIGKILL');r();},3000).unref();}});}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
+

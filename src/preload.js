@@ -1,5 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ networkCert:()=>ipcRenderer.invoke('network:cert'),
+ networkKey:()=>ipcRenderer.invoke('network:key'),
  googleState:()=>ipcRenderer.invoke('google:state'),
  googleLogin:()=>ipcRenderer.invoke('google:login'),
  googleCancel:()=>ipcRenderer.invoke('google:cancel'),

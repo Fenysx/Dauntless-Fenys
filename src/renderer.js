@@ -44,6 +44,7 @@ async function playersRefresh(){
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
+  if(c.googleHost){$('google-network-mode').value=c.googleNetworkMode||'tailscale';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';$('google-network-address-fields').hidden=$('google-network-mode').value==='tailscale';$('google-public-fields').hidden=$('google-network-mode').value!=='public';}
   $('repo').textContent=c.repoPath;
   $('exe').textContent=c.launcherExe||'Não configurado';
   $('wine-settings').hidden=c.platform!=='linux';
@@ -204,7 +205,9 @@ $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
 $('google-refresh').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleRefresh()));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
-$('google-host-activate').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleActivate({address:$('connection-address').value,hostCode:$('google-host-code').value.trim()})));
+$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';});
+for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');}catch(e){note(e.message);}});
+$('google-host-activate').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-mode').value==='tailscale'?$('connection-address').value:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()})));
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);

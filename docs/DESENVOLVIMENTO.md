@@ -7,6 +7,7 @@
 | Tela e comportamento dos botões | `src/index.html`, `src/style.css`, `src/renderer.js` |
 | IPC e integração com o sistema | `src/preload.js`, `src/main.js` |
 | Execução Windows/Wine | `src/fenys-game-runtime.js` |
+| Endereços, gateway e ponte pública | `src/fenys-network.js`, `src/fenys-public-gateway.js`, `src/fenys-public-relay.js` |
 | Tailscale | `src/fenys-tailscale.js` |
 | Login e sessão Google | `src/fenys-google-auth.js`, `src/fenys-google-player.js` |
 | Protocolo e persistência pessoal | `src/fenys-google-cloud.js`, `src/fenys-google-host.js` |
@@ -31,7 +32,7 @@ Na raiz:
 npm test
 ```
 
-A linha 1.6.0-beta.2 possui 71 testes unitários. O workflow principal os executa em Windows e Ubuntu. Eles cobrem protocolos, convites, cancelamento/login, sessões, snapshots, proteção de arquivos, configuração e runtime do jogo.
+A versão 1.7.0-beta.1 possui 78 testes unitários, incluindo transporte HTTPS/WSS, política de rotas públicas e restauração após falha na troca de rede. O workflow principal os executa em Windows e Ubuntu. Eles cobrem protocolos, convites, cancelamento/login, sessões, snapshots, proteção de arquivos, configuração e runtime do jogo.
 
 Para testar a integração em um **checkout limpo**:
 
@@ -49,6 +50,8 @@ O comando copia a base incluída para `test-upstream`, instala as dependências 
 | `integration-google.cjs` | Dois Metagames, identidade/broker isolados, UID e progresso entre hosts |
 
 `test-upstream` é descartável, mas o comando recusa uma pasta já existente para não confundi-la com uma instalação. Use outra cópia do repositório para repetir toda a preparação; ou, conhecendo os dados existentes, rode os scripts individuais sobre um fixture descartável. Os testes podem aplicar overlays ao fixture. Nunca aponte `METAGAME_TEST_DIR` para produção.
+
+O runner também repete a integração Google nos modos LAN e público, neste último com HTTPS real e certificados de teste explicitamente confiados. Os endereços anunciados são resolvidos localmente apenas nos testes; isso não valida roteadores ou uma conexão entre duas máquinas.
 
 Esses testes não executam uma caçada, uma GPU, o OAuth Google real nem uma conexão real entre dois PCs. Faça também a validação prática descrita no tutorial antes de declarar a implantação pronta para jogadores.
 

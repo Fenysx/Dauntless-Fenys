@@ -3,10 +3,11 @@ const net=require('node:net');
 const {parseServerAddress}=require('./fenys-api');
 const listeners=new Set();
 function listenPrivate(app,port){
- const ip=process.env.FENYS_TAILSCALE_IP;
+ if(process.env.FENYS_PUBLIC_MODE==='1')return require('./fenys-public-gateway').listenPublic(app);
+ const ip=process.env.FENYS_LAN_IP||process.env.FENYS_TAILSCALE_IP;
  if(!ip||listeners.has(ip+':'+port))return;
- const server=parseServerAddress(ip+':'+port);
- if(server.local||!/^100\./.test(server.host))throw Error('FENYS_TAILSCALE_IP precisa ser um IPv4 do Tailscale.');
+ const server=require('./fenys-network').parseEndpoint(ip+':'+port);
+ if(server.local||(!/^100\./.test(server.host)&&!server.lan))throw Error('FENYS_TAILSCALE_IP precisa ser um IPv4 do Tailscale.');
  const http=app.listen(port,server.host,error=>{
   if(error)console.error('Launcher: não foi possível escutar no IP Tailscale. Confira a conexão VPN.');
   else console.log('API privada pronta em '+server.address);
@@ -33,3 +34,4 @@ function listenPrivate(app,port){
  return http;
 }
 module.exports={listenPrivate};
+

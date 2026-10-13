@@ -48,7 +48,7 @@ async function installHost(repoPath,address,onLog){
  const backup=path.join(base,'fenys-backups',String(Date.now()));fs.mkdirSync(backup,{recursive:true,mode:0o700});
  for(const [key,file] of Object.entries(paths))fs.writeFileSync(path.join(backup,key+'.bak'),original[key],{mode:0o600});
  const moduleDir=path.join(base,'fenys');fs.mkdirSync(moduleDir,{recursive:true});
- for(const name of ['fenys-roaming-host.js','fenys-roaming-protocol.js','fenys-api.js','fenys-private-listener.js'])
+ for(const name of ['fenys-roaming-host.js','fenys-roaming-protocol.js','fenys-api.js','fenys-network.js','fenys-private-listener.js'])
   fs.copyFileSync(path.join(__dirname,name),path.join(moduleDir,name));
  // Keep credentials and portable snapshots out of the upstream repository.
  const ignore=path.join(base,'.gitignore');const prior=fs.existsSync(ignore)?fs.readFileSync(ignore,'utf8'):'';
@@ -64,3 +64,4 @@ async function installHost(repoPath,address,onLog){
  return {address:sv.address,backup};
 }
 module.exports={tailscaleAddresses,setEnv,prepareFiles,installHost};
+

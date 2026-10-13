@@ -92,7 +92,7 @@
         </article>
         <article class="panel">
           <div class="panel-title"><h3>Meu servidor — convidar usuário</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
-          <p class="notice">Os dois PCs precisam estar conectados à mesma rede Tailscale. O dono mantém os serviços e o launcher abertos.</p>
+          <p class="notice">Escolha o modo de rede ao ativar o servidor Google: Tailscale, rede local ou acesso público HTTPS. O dono mantém os serviços e o launcher abertos.</p>
           <div class="form-preview">
             <label for="connection-address">IP Tailscale deste computador</label><select id="connection-address"><option value="">Conecte o Tailscale neste PC</option></select>
             <button id="connection-setup" class="btn btn-outline">Configurar acesso Tailscale</button>
@@ -115,7 +115,11 @@
         <article class="panel fenys-panel-gap">
           <div class="panel-title"><h3>Servidor com personagens Google</h3></div>
           <p class="notice">Cada host executa seu próprio servidor e carrega o progresso do Supabase. O primeiro servidor recebe a autorização do dono; os demais usam uma autorização de host. Os serviços locais podem ser iniciados sem login Google.</p>
-          <div class="form-preview"><button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
+          <div class="form-preview">
+            <label for="google-network-mode">Conexão do servidor</label><select id="google-network-mode"><option value="tailscale">Privado — Tailscale</option><option value="lan">Rede local — LAN</option><option value="public">Público — HTTPS</option></select>
+            <div id="google-network-address-fields" hidden><label for="google-network-address">Endereço para os jogadores</label><input id="google-network-address" maxlength="260" placeholder="192.168.1.20:61000 ou https://jogo.exemplo.com"></div>
+            <div id="google-public-fields" hidden><label for="google-game-address">IPv4 público das partidas</label><input id="google-game-address" placeholder="IPv4 público do host"><button id="google-public-cert" class="btn btn-outline">Selecionar certificado HTTPS</button><button id="google-public-key" class="btn btn-outline">Selecionar chave privada HTTPS</button><p class="notice">Use certificado válido para o domínio/IP. Encaminhe a porta HTTPS e UDP 8770–8777 ao host. Uma conexão sob CGNAT precisa de IP público ou VPS. Consulte o guia de redes.</p></div>
+            <button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
           <p class="notice">Mantenha todos fora do jogo. Quem já tem personagem deve vinculá-lo no servidor de origem antes da primeira troca; a integração não cria outro por cima do personagem antigo.</p>
           <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
         </article>

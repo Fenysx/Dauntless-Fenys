@@ -5,6 +5,16 @@ const uuid=(s:unknown)=>typeof s==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{
 const hex=(b:ArrayBuffer)=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
 const sha=async(s:string)=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)));
 const decode=(s:string)=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+// Hosts authorize a canonical endpoint; this validator never fetches that endpoint.
+function validHostAddress(value:unknown){
+ if(typeof value!=='string'||value.length>280)return false;
+ const m=/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):61000$/.exec(value);
+ if(m){const [a,b,c,d]=m.slice(1).map(Number);return [a,b,c,d].every(n=>n<=255)&&m.slice(1).every(x=>String(Number(x))===x)&&(a===10||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===100&&b>=64&&b<=127));}
+ if(!/^https:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?$/.test(value))return false;
+ try{const u=new URL(value),h=u.hostname;if(Number(u.port||443)<1||u.origin!==value||h==='localhost'||h.endsWith('.localhost')||h.endsWith('.local'))return false;
+ if(/^[0-9.]+$/.test(h)){const [a,b]=h.split('.').map(Number);return a>0&&a<224&&a!==127&&a!==10&&!(a===172&&b>=16&&b<=31)&&!(a===192&&b===168)&&!(a===169&&b===254)&&!(a===100&&b>=64&&b<=127);}
+ return h.includes('.')&&h.split('.').every(x=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(x));}catch{return false;}
+}
 const operations=new Set(['profile','host-register','host-invite','link','join','save','renew','release']);
 async function handlePlayers(req: Request){
  if(req.method==='GET')return reply({service:'launcher-players',version:3});
@@ -29,7 +39,7 @@ async function handlePlayers(req: Request){
   }
   let invitationSecret:string|undefined;
   if(operation==='host-register'){
-   if(!uuid(p.realm)||typeof p.address!=='string'||!/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}:61000$/.test(p.address))return reply({error:'Use o endereço Tailscale do servidor.'},400);
+   if(!uuid(p.realm)||!validHostAddress(p.address))return reply({error:'Use um endereço LAN/Tailscale ou um endpoint HTTPS público válido.'},400);
    Object.assign(args,{realm:p.realm,address:p.address});if(p.secret){if(!/^[a-f0-9]{48}$/.test(p.secret))return reply({error:'host_authorization_required'},401);args.secretHash=await sha(p.secret);}
   }
   if(operation==='host-invite'){const b=crypto.getRandomValues(new Uint8Array(24));invitationSecret=hex(b.buffer);args.secretHash=await sha(invitationSecret);}
@@ -47,6 +57,7 @@ async function handlePlayers(req: Request){
   const result=await r.json();return reply(invitationSecret?{...result,secret:invitationSecret}:result);
  }catch{return reply({error:'request_denied'},400);}
 }
+
 
 return handlePlayers;
 })();
@@ -95,3 +106,4 @@ Deno.serve(async req=>{
   return reply(await result.json());
  }catch{return reply({error:'request_denied'},400);}
 });
+

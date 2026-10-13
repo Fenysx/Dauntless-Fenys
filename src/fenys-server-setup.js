@@ -37,7 +37,7 @@ async function installServer(repo,address){
  for(const [key,value] of Object.entries(original))fs.writeFileSync(path.join(backup,key+'.bak'),value,{mode:0o600});
  const modules=path.join(base,'fenys');fs.mkdirSync(modules,{recursive:true});
  const oldModules={};
- for(const name of ['fenys-api.js','fenys-private-listener.js']){
+ for(const name of ['fenys-api.js','fenys-network.js','fenys-private-listener.js']){
   const target=path.join(modules,name);oldModules[name]=fs.existsSync(target)?fs.readFileSync(target):null;
   fs.copyFileSync(path.join(__dirname,name),target);
  }
@@ -50,3 +50,4 @@ async function installServer(repo,address){
  return {address:parseServerAddress(address).address};
 }
 module.exports={prepareServer,installServer,tailscaleAddresses};
+

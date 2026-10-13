@@ -9,4 +9,4 @@ Leia nesta ordem se estiver começando:
 5. [Desenvolvimento e verificação](DESENVOLVIMENTO.md): onde alterar, testes, instaladores e atualização da base.
 6. [Diagnóstico e operação](OPERACAO.md): portas, backups, falhas e recuperação.
 
-O tutorial descreve nosso modo privado Tailscale com personagens Google. A documentação original em `server/upstream/docs` também inclui gateway público, bot, frota e outras opções que **não são pré-requisitos** desse modo. Ela registra etapas históricas: para hashes de DLL, use os valores aceitos por `src/main.js`, não um hash antigo de uma página da base.
+Consulte também [Redes: Tailscale, LAN e público HTTPS](REDES.md). Tailscale é opcional no modo Google. A documentação original em `server/upstream/docs` também inclui gateway público, bot, frota e outras opções que **não são pré-requisitos** desse modo. Ela registra etapas históricas: para hashes de DLL, use os valores aceitos por `src/main.js`, não um hash antigo de uma página da base.

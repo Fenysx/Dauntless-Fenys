@@ -14,7 +14,7 @@ async function main(){
  const prepared=prepareServer({...original,address:'100.64.1.2:61000'});
  fs.writeFileSync(files.serverSource,prepared.serverSource);fs.writeFileSync(files.metagameEnv,prepared.metagameEnv);
  fs.mkdirSync(path.join(base,'fenys'),{recursive:true});
- for(const name of ['fenys-api.js','fenys-private-listener.js'])fs.copyFileSync(path.join(__dirname,'../src',name),path.join(base,'fenys',name));
+ for(const name of ['fenys-api.js','fenys-network.js','fenys-private-listener.js'])fs.copyFileSync(path.join(__dirname,'../src',name),path.join(base,'fenys',name));
  execFileSync(process.execPath,[path.join(base,'node_modules/typescript/bin/tsc')],{cwd:base,stdio:'inherit'});
  const socket=net.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const pair=crypto.generateKeyPairSync('rsa',{modulusLength:2048,privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});
@@ -51,3 +51,4 @@ async function main(){
  }
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
+

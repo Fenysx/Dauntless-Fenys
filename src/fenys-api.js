@@ -23,14 +23,15 @@ function parseServerAddress(value) {
 }
 
 async function requestApi(address, route, options = {}) {
-  const server = parseServerAddress(address);
+  const {parseEndpoint,origin}=require('./fenys-network');
+  const server = parseEndpoint(address);
   if (!/^\/undaunted\/api\/[A-Za-z]+(?:\?offset=(?:0|[1-9][0-9]{0,7}))?$/.test(route)) throw new Error('Rota da API inválida.');
   const headers = { accept: 'application/json' };
   if (options.key) headers['x-undaunted-user-api-key'] = options.key;
   if (options.body !== undefined) headers['content-type'] = 'application/json';
   let response;
   try {
-    response = await fetch(`http://${server.address}${route}`, {
+    response = await fetch(`${origin(server.address)}${route}`, {
       method: options.method || 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -38,7 +39,7 @@ async function requestApi(address, route, options = {}) {
       signal: AbortSignal.timeout(10000)
     });
   } catch {
-    throw new Error('Servidor inacessível. Confira se o Tailscale está conectado e se o Metagame responde na porta 61000.');
+    throw new Error('Servidor inacessível. Confira o endereço, a rede e a disponibilidade do servidor.');
   }
   const text = await response.text();
   if (text.length > 65536) throw new Error('Resposta da API maior que o esperado.');
@@ -105,3 +106,4 @@ async function getAdminAccounts(address,adminKey,offset=0){
   nextOffset:Number.isSafeInteger(response.nextOffset)?response.nextOffset:null};
 }
 module.exports = {parseServerAddress,requestApi,createInvite,registerPlayer,getAdminAccounts};
+

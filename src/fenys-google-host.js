@@ -3,6 +3,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {createHost}=require('./fenys-roaming-host');
 const {cloud,signed,encodeInvite}=require('./fenys-google-cloud');
+const {lanRequest}=require('./fenys-network');
 const {privateRequest,localRequest,hash}=require('./fenys-cloud-protocol');
 function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},validateToken=()=>null,now=Date.now,autoStart=true}={}){
  const progress=createHost(db,{online,revoke,force:true});
@@ -39,7 +40,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
    const before=db.prepare('SELECT total_changes() n').get().n;inFlight++;let ended=false;const original=res.end;res.end=function(...args){if(ended)return this;ended=true;const changed=db.prepare('SELECT total_changes() n').get().n>before;if(changed)mark();const finish=()=>{inFlight--;original.apply(this,args);};if(changed&&this.statusCode<400&&rows().length){void flush().then(finish).catch(()=>{inFlight--;this.end=original;if(!this.headersSent){this.statusCode=503;this.setHeader('content-type','application/json');this.removeHeader?.('content-length');original.call(this,JSON.stringify({error:'O progresso local foi preservado, mas o Supabase ainda não confirmou o save. Aguarde a reconexão.'}));}else this.destroy?.();});}else finish();return this;};next();return;
   }
   try{
-   if(!privateRequest(req))throw Error('Use conexão direta pelo Tailscale.');const route=req.url.slice(prefix.length);
+   if(!privateRequest(req)&&!(process.env.FENYS_LAN_IP&&lanRequest(req))&&!req.dluPublic)throw Error('Use a conexão configurada pelo dono do servidor.');const route=req.url.slice(prefix.length);
    if(route==='status'&&req.method==='GET'){res.json({version:3,mode:'google',hostKey:config.publicKey,address:config.address,registered,schema:progress.schema});return;}
    if(req.method!=='POST')throw Error('Operação inválida.');
    const bearer=req.headers.authorization;const token=typeof bearer==='string'&&bearer.startsWith('Bearer ')?bearer.slice(7):null;
@@ -53,7 +54,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
    }
    if(!token)throw Error('Entre com Google antes de acessar o personagem.');
    const me=await invoke('profile',{},token);
-   if(route==='link'){await transfer(async()=>{const user=account(req.body?.key);if(!user)throw Error('A conta existente não foi reconhecida neste servidor.');if(online().some(x=>x.UserId===user.userId))throw Error('Feche o jogo antes de vincular seu personagem.');const old=db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(user.userId);if(old?.active)throw Error('Encerre a sessão antes de vincular.');const snapshot=progress.capture(user.userId,config.publicKey,1);const r=await call('link',{userId:user.userId,nativeKey:req.body.key,snapshot,commitId:crypto.randomUUID()},token);db.prepare('INSERT OR IGNORE INTO launcher_google_sessions VALUES(?,?,?,?,?,0,0,0,NULL,NULL)').run(user.userId,me.authId||'linked',crypto.randomUUID(),r.revision,0);revoke(user.userId);res.json(r);});return;}
+   if(route==='link'){await transfer(async()=>{const user=account(req.body?.key);if(!user)throw Error('A conta existente não foi reconhecida neste servidor.');if(online().some(x=>x.UserId===user.userId))throw Error('Feche o jogo antes de vincular seu personagem.');const old=db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(user.userId);if(old?.active)throw Error('Encerre a sessão antes de vincular.');const snapshot=progress.capture(user.userId,config.publicKey,1);const r=await call('link',{userId:user.userId,nativeKey:req.body.key,snapshot,commitId:crypto.randomUUID()},token);const linked=await invoke('profile',{},token);if(!linked.linked||linked.userId!==user.userId||!linked.authId)throw Error('A nuvem não confirmou o vínculo do personagem.');db.prepare('INSERT INTO launcher_google_sessions VALUES(?,?,?,?,?,0,0,0,NULL,NULL) ON CONFLICT(userId) DO UPDATE SET authId=excluded.authId').run(user.userId,linked.authId,crypto.randomUUID(),r.revision,0);revoke(user.userId);res.json(r);});return;}
    if(!me.linked&&route!=='join')throw Error('Vincule o personagem existente ou conecte com um convite para criar um novo.');
    if(route==='leave'){await transfer(async()=>{const s=db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(me.userId);if(!s?.active){res.json({released:true});return;}if(online().some(x=>x.UserId===me.userId))throw Error('Feche o jogo e aguarde a confirmação de saída (até 90 segundos).');await flush();await call('release',{userId:me.userId,session:s.session});db.prepare('UPDATE launcher_google_sessions SET active=0,leaseUntil=0 WHERE userId=?').run(me.userId);revoke(me.userId);res.json({released:true});});return;}
    if(route==='join'){await transfer(async()=>{
