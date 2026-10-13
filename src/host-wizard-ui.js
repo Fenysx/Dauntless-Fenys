@@ -35,10 +35,10 @@
     $('host-start').disabled=r.servicesReady;
     $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora selecionada':'Selecionar conta administradora';
     message('host-overview',r.servicesReady?
-      'Servidor local online'+(r.googleActive?' • Integração Google ativa':' • Google ainda não integrado'):
+      'Metagame e DeployServer online (Ramsgate não verificada)'+(r.googleActive?' • Google ativo':' • Google pendente'):
       'Servidor local desligado');
     message('host-local-state',r.servicesReady?
-      (r.managedServices?'Serviços funcionando e controlados pelo launcher.':'Serviços abertos por outro programa. Para ativar a integração, encerre-os com segurança e reinicie pelo launcher.'):
+      (r.managedServices?'Serviços básicos ativos pelo launcher. Teste Ramsgate e uma caçada para confirmar o servidor de jogo.':'Serviços abertos por outro programa. Para ativar a integração, encerre-os com segurança e reinicie pelo launcher.'):
       'Clique em Iniciar servidor para jogar neste PC.');
     message('community-host-readiness',r.googleActive?'Integração Google confirmada pelo Metagame.':
       r.googleConfigured?'Há uma configuração Google salva, mas as rotas do servidor não responderam corretamente. Não vincule personagens até corrigir.':
