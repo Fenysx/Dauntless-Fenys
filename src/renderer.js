@@ -258,10 +258,20 @@ async function globalBackup(force){const r=await window.launcher.globalBackup(fo
 setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRefresh();},10000);
 
 let googleWorking=false;
-async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;}catch(e){$('google-state').textContent=e.message;}}
-async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();void communityRefresh();return r;}catch(e){note(e.message);}finally{googleWorking=false;void window.hostWizard?.refresh();}}
+async function googleRefresh(){try{
+ const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);
+ const message=r.configured===false?'O provedor Google está desativado no Supabase. O administrador precisa configurá-lo.':
+  r.profileWarning?r.profileWarning:
+  r.signedIn?'Conta Google: '+(r.email||'conectada')+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Nenhum personagem vinculado. Se você já jogou, integre o servidor de origem e recupere o personagem antigo antes de criar outro.'):
+  r.configured===null?'Não foi possível consultar o Google agora. Verifique sua internet e tente novamente.':'Entre com Google para recuperar seu personagem na nuvem.';
+ $('google-state').textContent=message+(r.signedIn&&r.configured===null?' A disponibilidade do provedor não pôde ser verificada agora.':'')+(r.hostWarning?' '+r.hostWarning:'');
+ $('google-login').hidden=r.signedIn;
+ $('google-logout').hidden=!r.signedIn;
+ $('google-link').hidden=!r.signedIn||r.linked||!!r.profileWarning;
+ }catch(e){$('google-state').textContent=e.message;}}
+async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();void communityRefresh();return r;}catch(e){note(e.message);await googleRefresh();}finally{googleWorking=false;void window.hostWizard?.refresh();}}
 $('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('google-login').disabled=true;$('google-cancel').hidden=false;try{await googleOperation(()=>window.launcher.googleLogin());}finally{$('google-login').disabled=false;$('google-cancel').hidden=true;}});
-$('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
+$('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}finally{void googleRefresh();}});
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
 $('server-local-select').addEventListener('click',()=>$('connection-local').click());
@@ -285,7 +295,13 @@ $('google-host-activate').addEventListener('click',()=>void googleOperation(asyn
  return result;
 }));
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
-$('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
+$('google-sync').addEventListener('click',()=>void googleOperation(async()=>{
+ const r=await window.launcher.googleSync(true);
+ if(r.ok&&r.confirmed===true)$('google-sync-state').textContent=r.activePlayers>0?
+  'O Supabase confirmou a sincronização de '+r.activePlayers+' personagem(ns) ativo(s).':
+  'Sincronização concluída, mas não há personagens ativos neste host. Isto NÃO confirma que seu personagem antigo foi vinculado ao Google.';
+ return r;
+}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
 
 // Community directory, invitation notifications and access management.
