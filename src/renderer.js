@@ -270,6 +270,128 @@ function openHostSettings(){
  void hostingRefresh();void communityRefresh();
 }
 $('community-host-setup-open').addEventListener('click',openHostSettings);
+
+ // Hosting is a guided view over the existing protected APIs, not a second backend.
+ // Google invitations (validated by Supabase) replace insecure launcher-only passwords.
+ let hostingBusy=false,hostingRefreshing=false,hostingSnapshot=null,hostingFirstLoad=true;
+ function hostMessage(id,value){$(id).textContent=value;}
+ function displayHostMode(){
+  const mode=$('hosting-mode').value,vps=mode==='vps',internet=mode==='internet';
+  for(const id of ['hosting-step-services','hosting-step-google','hosting-step-publish','hosting-step-invite'])$(id).hidden=vps;
+  $('hosting-vps-note').hidden=!vps;
+  $('hosting-lan-fields').hidden=internet||vps;
+  $('hosting-public-fields').hidden=!internet;
+  hostMessage('hosting-mode-help',vps?'Uma VPS roda os serviços em outra máquina. Este launcher não gerencia uma VPS remota automaticamente.':
+   internet?'Seu computador será o host. Amigos de outras redes precisam de HTTPS público e portas de partida acessíveis.':
+   'Seu PC será o servidor local. Para convidados de outra casa, escolha "Neste PC — amigos pela internet".');
+ }
+ async function hostingRefresh(){
+  if(hostingRefreshing)return;hostingRefreshing=true;
+  try{
+   const [r,c,ips,g]=await Promise.all([window.launcher.hostingReadiness(),window.launcher.getSettings(),window.launcher.localAddresses(),window.launcher.googleState()]);
+   if(!r?.ok)throw Error(r?.error||'A verificação do servidor falhou.');
+   hostingSnapshot=r;
+   if(hostingFirstLoad){
+    hostingFirstLoad=false;
+    if(r.googleConfigured&&r.networkMode==='public')$('hosting-mode').value='internet';
+   }
+   displayHostMode();
+   const mode=$('hosting-mode').value,online=r.metagame&&r.deploy,active=r.googleConfigured&&r.googleActive;
+   const ip=$('hosting-lan-ip'),previous=ip.value;ip.replaceChildren();
+   for(const address of ips.addresses||[]){const option=document.createElement('option');option.value=address+':61000';option.textContent=option.value;ip.append(option);}
+   if([...ip.options].some(o=>o.value===previous))ip.value=previous;
+   else if([...ip.options].some(o=>o.value===r.hostAddress))ip.value=r.hostAddress;
+   else if((ips.addresses||[]).length!==1){const option=document.createElement('option');option.value='';option.textContent='Selecione o IPv4 deste PC';ip.prepend(option);ip.value='';}
+   if(!ip.options.length){const option=document.createElement('option');option.value='';option.textContent='Nenhum IPv4 da rede encontrado';ip.append(option);}
+   if(r.networkMode==='public'&&r.hostAddress.startsWith('https://')&&!$('hosting-https').value.trim())$('hosting-https').value=r.hostAddress;
+   if(c.googleGameAddress&&!$('hosting-public-ip').value.trim())$('hosting-public-ip').value=c.googleGameAddress;
+   hostMessage('hosting-service-state',online?'✓ Metagame e DeployServer iniciados. Ramsgate e caçadas devem ser testados separadamente.':
+    'Serviço parado ou incompleto. Inicie o servidor antes de integrá-lo.');
+   hostMessage('hosting-google-state',active?'✓ Host Google integrado e registrado. Confira os saves antes de trocar de host.':
+    r.googleMessage||'Integração Google não confirmada neste host.');
+   $('hosting-admin-key').textContent=r.adminKeySelected?'✓ Chave administrativa selecionada':'1. Selecionar chave do administrador';
+   $('hosting-authorization').textContent=r.authorizationSelected?'✓ Autorização Supabase selecionada':'2. Selecionar autorização Supabase';
+   $('hosting-activate').textContent=active?'Reconfigurar integração Google':'Ativar integração Google neste servidor';
+   $('hosting-activate').disabled=hostingBusy||!online||mode==='vps';
+   const canPublish=mode==='internet'&&active&&r.networkMode==='public'&&g?.ok&&g.signedIn;
+   $('hosting-publish').disabled=hostingBusy||!canPublish;
+   hostMessage('hosting-publish-state',mode!=='internet'?'O modo LAN não aparece na comunidade pela internet. Configure o acesso público quando quiser receber jogadores de outra rede.':
+    !active?'Primeiro ative a integração Google.':
+    r.networkMode!=='public'?'Este host ainda está em LAN. Configure HTTPS e reative a integração.':
+    !g?.signedIn?'Entre com Google na aba Conta para publicar.':
+    'O host pode solicitar publicação. A conectividade externa ainda precisa ser testada em outra rede.');
+   const hasOwn=!!$('hosting-owned-server').value;
+   $('hosting-send-invite').disabled=hostingBusy||!active||!hasOwn;
+   if(!hasOwn)hostMessage('hosting-invite-state','Publique seu servidor com a conta Google antes de convidar amigos.');
+   hostMessage('hosting-overview',mode==='vps'?'VPS: prepare o host remoto sem modificar este servidor local.':
+    !online?'Primeiro passo: iniciar o seu servidor local.':
+    active?'Servidor local iniciado e conectado ao Google.':'Servidor local iniciado. Falta integrar o Google para publicar e preservar personagens.');
+  }catch(e){hostMessage('hosting-overview','Não foi possível verificar tudo: '+e.message);}
+  finally{hostingRefreshing=false;}
+ }
+ async function hostAction(id,fn){
+  if(hostingBusy)return;hostingBusy=true;$(id).disabled=true;
+  try{await fn();}catch(e){hostMessage('hosting-activate-state','Atenção: '+e.message);note('Hospedagem: '+e.message);}
+  finally{hostingBusy=false;$(id).disabled=false;await hostingRefresh();}
+ }
+ $('hosting-mode').addEventListener('change',()=>{displayHostMode();void hostingRefresh();});
+ $('hosting-start').addEventListener('click',()=>void hostAction('hosting-start',async()=>{
+  const r=await window.launcher.start();if(!r?.ok)throw Error(r?.error||'Não foi possível iniciar os serviços.');
+  if(r.status)paint(r.status);hostMessage('hosting-activate-state','Serviços iniciados. Continue com a integração Google.');
+ }));
+ $('hosting-check').addEventListener('click',()=>void hostAction('hosting-check',async()=>{
+  const r=await window.launcher.hostDoctor();if(!r?.ok)throw Error(r?.error||'Verificação indisponível.');
+  $('hostDoctorReport').textContent=r.report;$('hostDoctorReport').hidden=false;
+  hostMessage('hosting-activate-state',r.errors?'Diagnóstico: '+r.errors+' erro(s) e '+r.warnings+' aviso(s). Abra as ferramentas técnicas para ver os detalhes.':
+   'Diagnóstico concluído sem erro de configuração; '+r.warnings+' aviso(s). Ainda é necessário testar o jogo.');
+ }));
+ $('hosting-admin-key').addEventListener('click',()=>void hostAction('hosting-admin-key',async()=>{await window.launcher.pickAdminKey();await settings();}));
+ $('hosting-authorization').addEventListener('click',()=>void hostAction('hosting-authorization',async()=>{
+  const r=await window.launcher.pickSupabaseAuthorization();if(r?.ok===false)throw Error(r.error||'Autorização não selecionada.');await settings();
+ }));
+ for(const [id,api] of [['hosting-cert','networkCert'],['hosting-private-key','networkKey']])$(id).addEventListener('click',()=>void hostAction(id,async()=>{
+  const selected=await window.launcher[api]();if(selected)hostMessage('hosting-activate-state','Arquivo HTTPS selecionado neste computador.');
+ }));
+ $('hosting-activate').addEventListener('click',()=>void hostAction('hosting-activate',async()=>{
+  const mode=$('hosting-mode').value,r=hostingSnapshot;
+  if(mode==='vps')throw Error('Este painel configura somente o servidor deste PC.');
+  if(!r?.metagame||!r?.deploy)throw Error('Inicie os serviços primeiro.');
+  if(!r.adminKeySelected)throw Error('Selecione a chave administrativa do seu servidor.');
+  const hostCode=$('google-host-code').value.trim();
+  if(!r.googleConfigured&&!r.authorizationSelected&&!hostCode)throw Error('Selecione a autorização Supabase do dono do host.');
+  const address=mode==='internet'?$('hosting-https').value.trim():$('hosting-lan-ip').value;
+  if(!address)throw Error('Informe um endereço válido deste servidor.');
+  const gameAddress=mode==='internet'?$('hosting-public-ip').value.trim():'';
+  if(mode==='internet'){
+   const c=await window.launcher.getSettings();
+   if(!/^https:\/\//i.test(address)||!gameAddress||!c.publicCertSelected||!c.publicKeySelected)
+    throw Error('Configure o endereço HTTPS, o IPv4 público e o certificado com sua chave.');
+  }
+  if(!window.confirm('Todos devem estar fora do jogo. Faça backup de seus personagens antes de integrar ou reconfigurar o host.\n\nDeseja continuar?'))return;
+  hostMessage('hosting-activate-state','Integrando o servidor e recompilando o Metagame…');
+  const result=await window.launcher.googleActivate({networkMode:mode==='internet'?'public':'lan',address,gameAddress,hostCode});
+  if(!result?.ok)throw Error(result?.error||'A integração Google falhou.');
+  hostMessage('hosting-activate-state','Integração aplicada. Confira os saves e o status antes de conectar outro jogador.');
+  await settings();
+ }));
+ $('hosting-publish').addEventListener('click',()=>void hostAction('hosting-publish',async()=>{
+  if(!hostingSnapshot?.googleActive||hostingSnapshot.networkMode!=='public')throw Error('Ative o host Google em modo HTTPS público.');
+  const name=$('hosting-server-name').value.trim();if(!name)throw Error('Informe o nome do seu servidor.');
+  hostMessage('hosting-publish-state','Publicando no catálogo…');
+  const result=await window.launcher.communityPublish({name,description:'',policy:$('hosting-server-policy').value});
+  if(!result?.ok)throw Error(result?.error||'A publicação não foi confirmada.');
+  hostMessage('hosting-publish-state','Servidor '+result.name+' cadastrado. Teste a conectividade com um amigo em outra rede.');
+  await communityRefresh();
+ }));
+ $('hosting-owned-server').addEventListener('change',()=>{$('hosting-send-invite').disabled=!hostingSnapshot?.googleActive||!$('hosting-owned-server').value;});
+ $('hosting-send-invite').addEventListener('click',()=>void hostAction('hosting-send-invite',async()=>{
+  const id=$('hosting-owned-server').value,target=$('hosting-friend').value.trim();
+  if(!id)throw Error('Publique seu servidor primeiro.');if(!target)throw Error('Informe o e-mail Google ou nome de usuário.');
+  const result=await window.launcher.communityInvite(id,target,'member',30);
+  if(!result?.ok)throw Error(result?.error||'O convite não foi entregue.');
+  $('hosting-friend').value='';hostMessage('hosting-invite-state','Convite enviado para '+result.recipient+'. Ele receberá uma notificação ao entrar com Google.');
+ }));
+
  $('hosting-advanced-open').addEventListener('click',()=>{
   setScreen('settings');$('admin-server-settings').open=true;$('google-host-tools').open=true;
   $('admin-server-settings').scrollIntoView({behavior:'smooth',block:'start'});void settings();
