@@ -2,7 +2,9 @@
 
 Projeto comunitário para jogar **Dauntless 1.4.4** em servidores compatíveis com Dauntless Revived. Este repositório reúne nosso launcher, **uma cópia completa e fixada da base do servidor**, nossas integrações e o backend de personagens na nuvem.
 
-**Comece pelo [tutorial de instalação](docs/INSTALACAO.md).** Para entender as peças antes de instalar, leia a [arquitetura e os fluxos](docs/ARQUITETURA.md).
+**Comece pelo [tutorial de instalação](docs/INSTALACAO.md).**
+
+**Para hospedar no seu próprio PC e liberar para amigos, use o [guia de hospedagem simples](docs/HOSPEDAR-SIMPLES.md).** A tela **Meu servidor** separa rede local, PC acessível pela internet e VPS futura; convites Google substituem códigos longos nos hosts publicados. Nenhum botão torna um servidor privado acessível sem HTTPS e portas UDP corretas. Para entender as peças antes de instalar, leia a [arquitetura e os fluxos](docs/ARQUITETURA.md).
 
 ## Onde está cada coisa
 
