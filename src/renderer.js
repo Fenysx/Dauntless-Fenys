@@ -288,7 +288,8 @@ async function communityRefresh(){
    const body=document.createElement('div'),name=document.createElement('strong'),subtitle=document.createElement('p');
    name.textContent=server.name;
    const policy={open:'Entrada livre',invite:'Somente convidados',vip:'Restrito / VIP'}[server.policy]||'Comunidade';
-   subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • Status a verificar';
+   const selected=auth.server===server.address;
+   subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • '+(selected?'Selecionado neste launcher':'Disponibilidade verificada ao conectar');
    body.append(name,subtitle);card.append(body);
    const button=communityButton(server.hasAccess?'Selecionar servidor':'Acesso restrito',async()=>{
     await communityOperation(async()=>{
