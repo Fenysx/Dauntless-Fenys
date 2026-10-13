@@ -66,3 +66,45 @@ as $$
 $$;
 revoke all on function public.dlu_community_host_lookup(text) from public,anon,authenticated;
 grant execute on function public.dlu_community_host_lookup(text) to service_role;
+
+-- Accept/decline in a single transaction: no invitation may appear accepted without access.
+create or replace function public.dlu_community_decide(
+  invite_uuid uuid, google_auth_id uuid, google_email text, answer text)
+returns table(accepted boolean, server_id uuid)
+language plpgsql security definer set search_path = ''
+as $$
+declare invitation public.dlu_community_invitations%rowtype;
+begin
+  if answer not in ('accept','decline') then raise exception 'invalid_decision'; end if;
+  select * into invitation from public.dlu_community_invitations i
+   where i.id=invite_uuid for update;
+  if not found or invitation.status <> 'pending' or invitation.expires_at <= now()
+    or not (invitation.recipient_auth_id=google_auth_id
+      or invitation.recipient_email=lower(google_email))
+  then raise exception 'invite_unavailable'; end if;
+  update public.dlu_community_invitations set status=case when answer='accept'
+    then 'accepted' else 'declined' end where id=invite_uuid;
+  if answer='accept' then
+    insert into public.dlu_community_memberships(
+      server_id,auth_id,tier,granted_by,expires_at,revoked_at)
+    values(invitation.server_id,google_auth_id,invitation.tier,google_auth_id,
+      case when invitation.tier='vip' then now()+make_interval(days=>coalesce(invitation.duration_days,30))
+           else null end,null)
+    on conflict (server_id,auth_id) do update
+      set tier=case when public.dlu_community_memberships.tier='vip'
+                        and public.dlu_community_memberships.revoked_at is null
+                        and public.dlu_community_memberships.expires_at>now()
+                        and excluded.tier='member' then 'vip' else excluded.tier end,
+          expires_at=case when public.dlu_community_memberships.tier='vip'
+                        and public.dlu_community_memberships.revoked_at is null
+                        and public.dlu_community_memberships.expires_at>now()
+                        and excluded.tier='member'
+                        then public.dlu_community_memberships.expires_at
+                        else excluded.expires_at end,
+          revoked_at=null;
+  end if;
+  accepted=(answer='accept'); server_id=invitation.server_id;
+  return next;
+end $$;
+revoke all on function public.dlu_community_decide(uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.dlu_community_decide(uuid,uuid,text,text) to service_role;
