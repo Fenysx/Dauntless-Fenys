@@ -62,6 +62,7 @@ Os arquivos `supabase/google-players.sql` e `supabase/functions/fenys-global/pla
 - A interface limpa o personagem ao sair, mesmo se a revogação remota falhar. Respostas antigas não restauram o perfil.
 - Uma conta Google já admitida pode voltar ao mesmo host sem pedir outro convite; contas desconhecidas continuam exigindo convite.
 - Falha ao sincronizar um personagem não pula os outros saves. O servidor conserva o progresso pendente e continua informando a falha.
+- A configuração multisservidor antiga aceita arquivos CRLF do Windows e repara a associação de filas ao host em instalações incompletas.
 - As notificações de entrada/saída usam também a credencial administradora recuperada pelo Google.
 
 ### Jogar no Linux com Wine
@@ -75,7 +76,7 @@ Essa integração não instala Wine, não configura Proton e não transforma o D
 
 ### Evidências desta revisão
 
-`npm test` passou com 70 testes. Também passaram localmente `integration-connection.cjs`, `integration-host.cjs`, `integration-cloud.cjs` e `integration-google.cjs`, usando a revisão fixada do Metagame. O último usa identidade Google e broker isolados: ele não substitui login OAuth real ou uma caçada pela internet.
+`npm test` passou com 71 testes. Também passaram localmente `integration-connection.cjs`, `integration-host.cjs`, `integration-cloud.cjs` e `integration-google.cjs`, usando a revisão fixada do Metagame. O último usa identidade Google e broker isolados: ele não substitui login OAuth real ou uma caçada pela internet.
 
 A API pública de personagens respondeu corretamente e recusou consulta de perfil sem autenticação (HTTP 401). As seis tabelas do schema privado `fenys_global` têm RLS; o RPC de personagens permite execução apenas pelo backend `service_role`, sem acesso direto por `anon` ou `authenticated`. O provedor Google foi consultado e continua desativado em 12/10/2026.
 

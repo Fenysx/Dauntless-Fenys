@@ -138,3 +138,15 @@ test('cadastro global sem senha é idempotente; chave original acompanha o jogad
  const pair=identity(),ticket=decodeCode(n.authority.invite('central').code),payload={operation:'register-player',realm:ticket.realm,hostId:ticket.hostId,secret:ticket.secret,name:'LostResponse',requestId:crypto.randomUUID(),time:Date.now()};const first=await call(n.root,'register-player',sign(pair,payload));const repeat=await call(n.root,'register-player',sign(pair,{...payload,requestId:crypto.randomUUID()}));assert.deepEqual(repeat,first);await assert.rejects(call(n.root,'register-player',sign(identity(),{...payload,name:'SecondPlayer',requestId:crypto.randomUUID()})),/já cadastrou/);
  const collision=decodeCode(n.authority.invite('central').code);await assert.rejects(call(n.root,'register-player',sign(identity(),{...payload,secret:collision.secret,name:'Fenys',requestId:crypto.randomUUID()})),/chave existente/);assert.equal(n.authority.account(n.admin.key).isAdmin,1);
 });
+
+
+test('overlay separa filas em arquivos Windows e repara instalação CRLF incompleta',()=>{
+ const {patchMatchmaking}=require('../src/fenys-cloud-setup');
+ const lf=fs.readFileSync(path.join(__dirname,'fixtures/matchmaking.ts'),'utf8').replace(/\r\n/g,'\n');
+ const expected=patchMatchmaking(lf),windows=patchMatchmaking(lf.replace(/\n/g,'\r\n'));
+ assert.equal(windows,expected);
+ const broken=expected.replace('            FenysHostKey:FenysRouting.hostForPlayer(PlayerId),\n','').replace(/\n/g,'\r\n');
+ assert.equal(patchMatchmaking(broken),expected);
+ assert.equal(patchMatchmaking(expected),expected);
+ assert.throws(()=>patchMatchmaking(lf.replace('Queue = {\n            Region,','Queue = {};// unknown upstream')),/incompatível/);
+});

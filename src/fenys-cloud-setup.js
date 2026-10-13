@@ -9,7 +9,18 @@ const {validateAuthorization}=require('./fenys-supabase');
 const CLOUD_IMPORT="\nimport {ValidateMetagameJWTAndGetPayload as FenysToken} from './controllers/auth';\n";
 const CLOUD_HOOK="\n// FENYS_CLOUD_V2: gateways are handled before local authentication/moderation.\nif(process.env.FENYS_CLOUD_ROLE){\n app.use(express.json({limit:'50mb'}));\n app.use(express.urlencoded({extended:true}));\n const fenysCloud=require('../fenys/fenys-cloud-runtime.js').start(FenysDb().$client,{online:FenysOnline,validateToken:FenysToken,revoke:(id:string)=>FenysRevocations.emit('revoke',id)});\n app.use(fenysCloud.middleware);\n}\n";
 function patchMatchmaking(source){
- if(source.includes('// FENYS_MATCHMAKING_V2'))return source;
+ source=source.replace(/\r\n/g,'\n');
+ const queueAnchor='Queue = {\n            Region,',hostAssignment='FenysHostKey:FenysRouting.hostForPlayer(PlayerId)';
+ // Windows checkouts use CRLF. Older installs could carry the marker while
+ // missing the queue owner, so repair that incomplete overlay as well.
+ if(source.includes('// FENYS_MATCHMAKING_V2')){
+  if(!source.includes(hostAssignment)){
+   if(!source.includes(queueAnchor))throw Error('Fila de matchmaking incompatível. Preserve o arquivo e atualize o Metagame.');
+   source=source.replace(queueAnchor,'Queue = {\n            '+hostAssignment+',\n            Region,');
+  }
+  return source;
+ }
+ if(!source.includes(queueAnchor))throw Error('Fila de matchmaking incompatível com a rede global.');
  if(!source.includes('const QueueKey = RegionQueueKey(HuntId, Region);')||!source.includes('GameMode === \'CITY\' ? [PlayerId] : undefined'))throw Error('Matchmaking incompatível com a rede global.');
  source="// FENYS_MATCHMAKING_V2\nconst FenysRouting=require('../../fenys/fenys-cloud-runtime.js');\nfunction FenysQueueKey(hunt:string,region:HuntRegion,host?:string){return RegionQueueKey(hunt,region)+(host?'@'+host:'');}\n"+source;
  source=source.replace('type MatchmakingQueueData = {','type MatchmakingQueueData = {\n    FenysHostKey?: string,');
@@ -90,3 +101,4 @@ async function installCloud(repo,{address,role,hostCode,rcloneBinary='rclone',su
  return {role,authority:role==='authority'?sv.address:authority,address:sv.address,backup};
 }
 module.exports={prepareCloudFiles,patchMatchmaking,installCloud};
+
