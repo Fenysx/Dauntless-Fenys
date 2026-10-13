@@ -29,6 +29,8 @@ function prepareGoogleFiles(input){
   // All aliases are imported by prepareFiles; install before legacy global routing and request logs.
   p.appSource=p.appSource.replace('export const app = express();','export const app = express();'+HOOK);
  }
+ if(!p.appSource.includes('// LAUNCHER_GOOGLE_V3')||!p.appSource.includes('app.use(googleHost.middleware)'))
+  throw Error('O arquivo app.ts deste servidor não é compatível com a integração Google. Nenhum save foi alterado. Confira a versão do Metagame e atualize o projeto antes de tentar de novo.');
  for(const [k,v] of Object.entries({FENYS_GOOGLE_MODE:'1',FENYS_CLOUD_ROLE:'',FENYS_CLOUD_CHAT_ADDRESS:'',DEPLOYSERVER_URL:'127.0.0.1:61001',CHAT:'1',CHAT_PRESENCE:'on',PROGRESSION_MODE:'real',ESCALATION_MODE:'real'}))p.metagameEnv=setEnv(p.metagameEnv,k,v);
  return p;
 }
