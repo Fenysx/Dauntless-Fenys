@@ -76,8 +76,8 @@
         </article>
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
-        <div class="page-title"><span class="kicker">JOGAR COM AMIGOS</span><h1>Conectar servidor</h1><p>O dono gera o código. O amigo cola o código e joga no servidor dele.</p></div>
-        <article class="panel fenys-panel-gap">
+        <div class="page-title"><span class="kicker">JOGAR COM AMIGOS</span><h1>Conectar servidor</h1><p>Entre com Google e conecte-se a um servidor pelo convite. Se você hospeda partidas, abra as opções de servidor abaixo.</p></div>
+        <details class="panel fenys-panel-gap" id="tailscale-tools"><summary><strong>Rede privada Tailscale (opcional)</strong></summary>
           <div class="panel-title"><h3>Conexão Tailscale</h3><button id="tailscale-refresh" class="btn btn-outline">Atualizar status</button></div>
           <p id="tailscale-status" class="notice" role="status" aria-live="polite">Verificando o Tailscale…</p>
           <p id="tailscale-ip" class="notice"></p>
@@ -89,8 +89,8 @@
           </div>
           <p class="notice">No primeiro acesso, entre na sua conta Tailscale pelo navegador. Não é uma senha do launcher. Se cada um usa uma conta Tailscale diferente, o dono compartilha o PC e o amigo aceita esse convite antes de usar o código do servidor.</p>
           <p class="notice">A instalação e o modo em segundo plano podem pedir permissão do Windows. Para hospedar a partida, mantenha o PC ligado, sem suspensão, e o launcher com os serviços abertos.</p>
-        </article>
-        <article class="panel">
+        </details>
+        <details class="panel" id="host-invite-tools"><summary><strong>Hospedar meu servidor — convites</strong></summary>
           <div class="panel-title"><h3>Meu servidor — convidar usuário</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
           <p class="notice">Escolha o modo de rede ao ativar o servidor Google: Tailscale, rede local ou acesso público HTTPS. O dono mantém os serviços e o launcher abertos.</p>
           <div class="form-preview">
@@ -101,18 +101,18 @@
             <label for="connection-result">Envie este código ao seu amigo</label><input id="connection-result" readonly placeholder="Código de conexão">
             <button id="connection-copy" class="btn btn-outline">Copiar código</button>
           </div>
-          <p class="notice">Inicie os serviços antes de gerar o código. Para criar convites, selecione sua chave administradora em Configurações. Não há login ou senha do launcher.</p>
-        </article>
+          <p class="notice">Inicie os serviços antes de gerar o código. A chave de administrador fica em Configurações → Administração e diagnóstico do servidor (avançado). Não há senha do launcher.</p>
+        </details>
         <article class="panel fenys-panel-gap">
-          <div class="panel-title"><h3>Entrar no servidor do meu amigo</h3></div>
+          <div class="panel-title"><h3>Jogar em outro servidor</h3></div>
           <div class="form-preview">
             <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="Código recebido do servidor Google">
             <label for="connection-username">Nome de jogador (somente personagem novo)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Usuário">
             <button id="connection-join" class="btn btn-red">Conectar ao servidor</button>
           </div>
-          <p class="notice">Nos servidores Google, o mesmo login recupera personagem e progresso na nuvem. Na próxima vez, use Jogar Agora. Se já tem uma conta neste servidor, vincule a chave existente em Configurações antes de conectar. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
+          <p class="notice">Nos servidores Google, o mesmo login recupera personagem e progresso na nuvem. Na próxima vez, use Jogar Agora. Se já tem personagem neste servidor, integre o servidor de origem e vincule o personagem à sua conta Google antes da primeira troca. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
         </article>
-        <article class="panel fenys-panel-gap">
+        <details class="panel fenys-panel-gap" id="google-host-tools"><summary><strong>Administração avançada — ativar servidor Google e sincronizar saves</strong></summary>
           <div class="panel-title"><h3>Servidor com personagens Google</h3></div>
           <p class="notice">Cada host executa seu próprio servidor e carrega o progresso do Supabase. O primeiro servidor recebe a autorização do dono; os demais usam uma autorização de host. Os serviços locais podem ser iniciados sem login Google.</p>
           <div class="form-preview">
@@ -122,7 +122,7 @@
             <button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
           <p class="notice">Mantenha todos fora do jogo. Quem já tem personagem deve vinculá-lo no servidor de origem antes da primeira troca; a integração não cria outro por cima do personagem antigo.</p>
           <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
-        </article>
+        </details>
         <article class="panel fenys-panel-gap" hidden>
           <div class="panel-title"><h3>Meu personagem em vários servidores</h3></div>
           <p id="global-state" class="notice" role="status" aria-live="polite">Consultando a rede global…</p>
