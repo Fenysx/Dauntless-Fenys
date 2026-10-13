@@ -30,7 +30,31 @@ class GooglePlayer{
  });}
  async home(server,{allowCreateNew=false,newName}={}){return this.exclusive(async()=>{const token=await this.auth.token();await this.refresh();if(!this.profile.linked&&!allowCreateNew)throw Error('Nenhum personagem vinculado a esta conta Google. Vincule o personagem existente no servidor de origem ou confirme explicitamente que deseja criar um personagem novo.');const creating=!this.profile.linked;const name=String(newName||'').trim();if(creating&&!/^[A-Za-z0-9_]{3,16}$/.test(name))throw Error('Escolha um nome para o primeiro personagem com 3 a 16 letras, números ou _.');if(!creating)await this.leavePrevious(server,token);await this.hostRequest(server,'join',creating?{name}:{},token);const c=this.settings();c.googleServer=server;c.googleSelected=true;this.saveSettings(c);return this.refresh();});}
  async key(){return this.exclusive(async()=>{await this.refresh();if(!this.profile.linked)throw Error('Conecte ao servidor ou vincule seu personagem existente antes de jogar.');const server=this.settings().googleServer;if(!server)throw Error('Cole um código do servidor para escolher onde jogar.');const caps=await this.hostRequest(server,'status');if(caps.mode!=='google')throw Error('Use um servidor integrado com Google.');await this.hostRequest(server,'join',{},await this.auth.token());await this.refresh();return this.profile.key;});}
- async signOut(){return this.exclusive(async()=>{const server=this.settings().googleServer;if(server&&this.auth.state().signedIn)await this.hostRequest(server,'leave',{},await this.auth.token());this.generation++;try{await this.auth.signOut();}finally{this.profile=null;const c=this.settings();c.googleSelected=false;this.saveSettings(c);}return this.state();});}
+ async signOut(){return this.exclusive(async()=>{
+  const server=this.settings().googleServer;
+  let hostReleasePending=false,remoteSignOutPending=false;
+  // Logout from this PC must still work if the previous host went offline.
+  // Cloud leases are not bypassed: another host must still wait for release/expiry.
+  if(server&&this.auth.state().signedIn){
+   try{await this.hostRequest(server,'leave',{},await this.auth.token());}
+   catch{hostReleasePending=true;}
+  }
+  this.generation++;
+  try{await this.auth.signOut();}
+  catch(e){
+   // GoogleAuth removes the protected local session before network revocation.
+   // Only report success if it actually removed the session.
+   if(this.auth.state().signedIn)throw e;
+   remoteSignOutPending=true;
+  }finally{
+   this.profile=null;
+   const c=this.settings();c.googleSelected=false;this.saveSettings(c);
+  }
+  const notices=[];
+  if(hostReleasePending)notices.push('A sessão no servidor anterior não pôde ser encerrada agora. A reserva do personagem na nuvem continua protegida até o servidor confirmar a saída ou o prazo expirar.');
+  if(remoteSignOutPending)notices.push('A conta saiu deste PC, mas a revogação remota no Supabase não pôde ser confirmada. Confira sua conexão antes de entrar novamente.');
+  return {...this.state(),...(notices.length?{notice:notices.join(' ')}:{})};
+ });}
 }
 module.exports={GooglePlayer};
 
