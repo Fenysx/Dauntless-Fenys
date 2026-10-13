@@ -170,7 +170,20 @@ $('connection-create').addEventListener('click',async()=>{
 });
 $('connection-join').addEventListener('click',async()=>{
  const button=$('connection-join');button.disabled=true;
- try{const r=await window.launcher.joinConnection($('connection-code').value,$('connection-username').value);if(!r.ok)throw Error(r.error);$('connection-code').value='';note('Servidor selecionado: '+r.server+'. Configure o executável do jogo e clique Jogar Agora.');await settings();await refresh();}
+ try{
+  const code=$('connection-code').value.trim();
+  const name=$('connection-username').value.trim();
+  let createNew=false;
+  if(code.startsWith('DLU3.')){
+   const google=await window.launcher.googleState();
+   if(!google?.ok||!google.signedIn)throw Error('Entre com Google antes de aceitar um convite.');
+   if(!google.linked){
+    if(!/^[A-Za-z0-9_]{3,16}$/.test(name))throw Error('Escolha um nome de 3 a 16 letras, números ou _ para o primeiro personagem.');
+    if(!window.confirm('Você ainda não vinculou um personagem Google.\n\nSe já jogou, cancele e vincule o personagem antigo no servidor de origem.\n\nVocê confirma que este é seu PRIMEIRO personagem?'))return;
+    createNew=true;
+   }
+  }
+  const r=await window.launcher.joinConnection(code,name,createNew);if(!r.ok)throw Error(r.error);$('connection-code').value='';note('Servidor selecionado: '+r.server+'. Configure o executável do jogo e clique Jogar Agora.');await settings();await refresh();}
  catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
 });
 $('connection-local').addEventListener('click',async()=>{
