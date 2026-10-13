@@ -61,3 +61,14 @@ O banco, a API e os controles estão implementados. Os testes unitários/CI vali
 - Se o prazo do lease for desconhecido, a transferência não é liberada automaticamente. Aguarde a confirmação da nuvem e evite iniciar dois servidores simultaneamente com o mesmo personagem.
 
 Essas proteções não substituem backup prévio, teste de recuperação e confirmação do save antes de formatar o computador ou desligar definitivamente o host de origem.
+
+
+## Interface simplificada — 1.8.0-beta.3
+
+A aba **Escolher servidor** é a área do jogador e exibe duas opções: **Servidor local** e **Servidores da comunidade**. Não é necessário informar IP, configurar Tailscale nem acessar chaves administrativas para apenas entrar em um servidor já publicado.
+
+Administradores encontram as ferramentas em **Configurações → Hospedar um servidor — integração Google e comunidade** (ou **Escolher servidor → Configurar hospedagem**). O painel mantém três etapas: integrar o host Google de origem, publicar um host HTTPS público e convidar jogadores por e-mail Google/nome de usuário. O launcher indica se o host ainda está no modo LAN/rede privada, caso em que ele não pode ser publicado no catálogo da comunidade.
+
+As ferramentas legadas por código, rede antiga e recuperação de contas continuam mantidas no código para compatibilidade; não são o fluxo principal de novos jogadores.
+
+Se o catálogo mostrar "Nenhum servidor disponível", isso não significa que o login Google falhou. Consulte a saúde da API e confirme se algum servidor HTTPS já foi **publicado**. O Supabase não transforma um host LAN em servidor público automaticamente. Não publique TCP 61001 e não force a ativação pública com jogadores em partida.

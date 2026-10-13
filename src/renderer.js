@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
-const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONVITES',connection:'CONECTAR SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
+const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
 function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
@@ -50,6 +50,12 @@ async function settings(){
   $('wine-settings').hidden=c.platform!=='linux';
   $('wine-executable').textContent=c.wineExecutable||'wine (sistema)';
   $('wine-prefix').textContent=c.winePrefix||'Padrão do Wine';
+  const hostReady=$('community-host-readiness');
+  if(hostReady){
+   hostReady.textContent=!c.googleHost?'Este PC ainda não possui integração de host Google. Inicie os serviços, configure o servidor de origem e vincule os personagens existentes antes de publicar.':
+     c.googleNetworkMode==='public'?'Host configurado para HTTPS público. Confira a conexão externa e os saves antes de publicar na comunidade.':
+     'Seu host Google está configurado para '+(c.googleNetworkMode==='lan'?'rede local (LAN)':'rede privada antiga')+'. Para aparecer na comunidade, o administrador precisa configurar HTTPS público e IPv4 acessível para as partidas.';
+  }
   $('serverAddress').value=c.gameServer||'127.0.0.1:61000';
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
   $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
@@ -225,7 +231,15 @@ $('google-cancel').addEventListener('click',async()=>{try{await window.launcher.
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
 $('server-local-select').addEventListener('click',()=>$('connection-local').click());
-$('google-go-server').addEventListener('click',()=>{setScreen('connection');$('google-host-tools').open=true;$('google-host-activate').scrollIntoView({behavior:'smooth',block:'center'});note('Para vincular o personagem existente, primeiro integre o servidor de origem. Mantenha os jogadores desconectados e faça backup dos saves.');});
+function openHostSettings(){
+ setScreen('settings');
+ $('admin-server-settings').open=true;
+ $('google-host-tools').open=true;
+ $('google-host-tools').scrollIntoView({behavior:'smooth',block:'start'});
+ void settings();
+}
+$('community-host-setup-open').addEventListener('click',openHostSettings);
+$('google-go-server').addEventListener('click',()=>{openHostSettings();note('Integre o servidor de origem antes de vincular seu personagem. Faça backup dos saves e mantenha todos fora do jogo.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{const button=$('google-refresh');button.disabled=true;button.textContent='Consultando Supabase…';$('google-state').textContent='Consultando personagem vinculado à conta Google…';try{const r=await window.launcher.googleRefresh();if(r?.ok){if(!r.signedIn)note('Entre com Google para consultar seu personagem.');else if(r.linked)note('Personagem encontrado na nuvem: '+(r.name||'sem nome informado')+'. Progresso revisão '+(r.revision||0)+'.');else note('Nenhum personagem vinculado a esta conta Google. Integre primeiro o servidor de origem para preservar seu personagem existente.');}return r;}finally{button.disabled=false;button.textContent='Conferir personagem na nuvem';}}));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
 $('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';});
@@ -266,7 +280,7 @@ async function communityRefresh(){
   const pending=Array.isArray(inbox.invitations)?inbox.invitations:[];
   $('community-bell-count').textContent=String(pending.length);
   $('community-bell').classList.toggle('has-notifications',pending.length>0);
-  $('community-catalog-state').textContent=servers.length?servers.length+' servidor(es) cadastrado(s). A disponibilidade é confirmada ao conectar.':'Nenhum servidor publicado ainda. O administrador pode publicar um host HTTPS.';
+  $('community-catalog-state').textContent=servers.length?servers.length+' servidor(es) cadastrado(s). A disponibilidade será confirmada ao conectar.':'';
   $('community-inbox-state').textContent=pending.length?pending.length+' convite(s) aguardando sua resposta.':'Nenhum convite pendente.';
   const list=$('community-server-list');list.replaceChildren();
   for(const server of servers){
@@ -274,7 +288,8 @@ async function communityRefresh(){
    const body=document.createElement('div'),name=document.createElement('strong'),subtitle=document.createElement('p');
    name.textContent=server.name;
    const policy={open:'Entrada livre',invite:'Somente convidados',vip:'Restrito / VIP'}[server.policy]||'Comunidade';
-   subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • Status a verificar';
+   const selected=auth.server===server.address;
+   subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • '+(selected?'Selecionado neste launcher':'Disponibilidade verificada ao conectar');
    body.append(name,subtitle);card.append(body);
    const button=communityButton(server.hasAccess?'Selecionar servidor':'Acesso restrito',async()=>{
     await communityOperation(async()=>{
@@ -300,7 +315,7 @@ async function communityRefresh(){
    },server.hasAccess?'btn-red':'btn-outline');
    button.disabled=!server.hasAccess;card.append(button);list.append(card);
   }
-  if(!servers.length)communityEmpty(list,'Os servidores publicados aparecerão aqui.');
+  if(!servers.length)communityEmpty(list,'Ainda não há servidores disponíveis. Servidores de amigos aparecerão depois de aceitar um convite Google. Se você hospeda, use Configurações → Hospedar servidor.');
   const own=$('community-owner-server'),old=own.value;own.replaceChildren();
   const mine=servers.filter(s=>s.owned);
   for(const server of mine){const option=document.createElement('option');option.value=server.id;option.textContent=server.name;own.append(option);}
@@ -334,7 +349,7 @@ async function communityOperation(fn,refresh=true){
  if(communityActionBusy)return;
  communityActionBusy=true;
  try{await fn();if(refresh)await communityRefresh();}
- catch(e){note('Comunidade: '+e.message);}
+ catch(e){$('community-admin-state').textContent='Não foi possível concluir: '+e.message;note('Comunidade: '+e.message);}
  finally{communityActionBusy=false;}
 }
 $('community-bell').addEventListener('click',()=>{setScreen('invites');$('community-notifications').scrollIntoView({behavior:'smooth',block:'center'});void communityRefresh();});
@@ -345,6 +360,7 @@ $('community-username-save').addEventListener('click',()=>void communityOperatio
  if(!r?.ok)throw Error(r?.error||'Nome indisponível.');note('Nome de usuário configurado: '+r.username);
 }));
 $('community-publish').addEventListener('click',()=>void communityOperation(async()=>{
+ $('community-admin-state').textContent='Conferindo autorização do host e publicando no Supabase…';
  const r=await window.launcher.communityPublish({name:$('community-host-name').value.trim(),description:$('community-host-description').value.trim(),policy:$('community-host-policy').value});
  if(!r?.ok)throw Error(r?.error||'Publicação não confirmada.');
  $('community-admin-state').textContent='Servidor '+r.name+' publicado na comunidade. Endereço e permissões verificados.';

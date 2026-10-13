@@ -78,7 +78,7 @@
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
         <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Escolher servidor</h1><p>Jogue no seu computador ou entre em servidores da comunidade com sua conta Google.</p></div>
-        <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Usar meu servidor local</button></div><p class="notice">Jogue com os serviços deste computador. Para receber amigos pela internet, a conexão externa precisa estar configurada.</p></article>
+        <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Para jogar usando o servidor que está instalado neste computador. Não precisa de internet pública para jogar sozinho.</p></article>
         <details class="panel fenys-panel-gap" id="tailscale-tools" hidden><summary><strong>Rede privada Tailscale (opcional)</strong></summary>
           <div class="panel-title"><h3>Conexão Tailscale</h3><button id="tailscale-refresh" class="btn btn-outline">Atualizar status</button></div>
           <p id="tailscale-status" class="notice" role="status" aria-live="polite">Verificando o Tailscale…</p>
@@ -94,7 +94,7 @@
         </details>
         <details class="panel" id="host-invite-tools" hidden><summary><strong>Hospedar meu servidor — convites</strong></summary>
           <div class="panel-title"><h3>Meu servidor — convidar usuário</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
-          <p class="notice">Escolha o modo de rede ao ativar o servidor Google: Tailscale, rede local ou acesso público HTTPS. O dono mantém os serviços e o launcher abertos.</p>
+          <p class="notice">Modo antigo de compartilhamento, preservado apenas para compatibilidade. Para novos servidores, utilize o cadastro na comunidade.</p>
           <div class="form-preview">
             <label for="connection-address">IP Tailscale deste computador</label><select id="connection-address"><option value="">Conecte o Tailscale neste PC</option></select>
             <button id="connection-setup" class="btn btn-outline">Configurar acesso Tailscale</button>
@@ -105,11 +105,15 @@
           </div>
           <p class="notice">Inicie os serviços antes de gerar o código. A chave de administrador fica em Configurações → Administração e diagnóstico do servidor (avançado). Não há senha do launcher.</p>
         </details>
-                <article class="panel fenys-panel-gap" id="community-catalog">
+        <article class="panel fenys-panel-gap" id="community-catalog">
           <div class="panel-title"><h3>Servidores da comunidade</h3><button id="community-list-refresh" class="btn btn-outline" type="button">Atualizar lista</button></div>
-          <p class="panel-description">Entre com Google para encontrar servidores hospedados por amigos ou pela comunidade. Servidores privados aparecem após você receber um convite; servidores VIP precisam de autorização do dono.</p>
+          <p class="panel-description">Entre com Google e escolha um servidor. Os privados aparecem depois que você aceita um convite no sino 🔔. Você não precisa instalar Tailscale.</p>
           <p id="community-catalog-state" class="notice" role="status">Entre com Google para carregar a comunidade.</p>
           <div id="community-server-list" class="community-list"></div>
+        </article>
+        <article class="panel fenys-panel-gap">
+          <div class="panel-title"><h3>Quer hospedar um servidor?</h3><button id="community-host-setup-open" class="btn btn-outline" type="button">Configurar hospedagem</button></div>
+          <p class="panel-description">Para administradores: prepare o servidor no seu PC ou em uma VPS. Para publicar na comunidade, ele precisa de acesso HTTPS público e das portas das partidas configuradas.</p>
         </article>
         <details id="legacy-code-tools" class="panel fenys-panel-gap" hidden><summary>Conexão antiga por código (compatibilidade)</summary>
           <div class="panel-title"><h3>Conexão antiga por código</h3></div><p class="notice">Aqui ficarão os servidores de amigos e da comunidade. Convites Google, notificações e catálogo ainda estão em desenvolvimento; o acesso atual por código continua disponível abaixo.</p>
@@ -119,38 +123,6 @@
             <button id="connection-join" class="btn btn-red">Conectar ao servidor</button>
           </div>
           <p class="notice">Nos servidores Google, o mesmo login recupera personagem e progresso na nuvem. Na próxima vez, use Jogar Agora. Se já tem personagem neste servidor, integre o servidor de origem e vincule o personagem à sua conta Google antes da primeira troca. Quando entrar no jogo, o dono verá sua presença em Atividades.</p>
-        </details>
-        <details class="panel fenys-panel-gap" id="google-host-tools"><summary><strong>Administração avançada — ativar servidor Google e sincronizar saves</strong></summary>
-          <div class="panel-title"><h3>Servidor com personagens Google</h3></div>
-          <p class="notice">Cada host executa seu próprio servidor e carrega o progresso do Supabase. O primeiro servidor recebe a autorização do dono; os demais usam uma autorização de host. Os serviços locais podem ser iniciados sem login Google.</p>
-          <div class="form-preview">
-            <label for="google-network-mode">Conexão do servidor</label><select id="google-network-mode"><option value="lan">Rede local — LAN</option><option value="public">Internet — HTTPS (VPS ou host público)</option><option value="tailscale" hidden>Rede privada antiga — Tailscale</option></select>
-            <div id="google-network-address-fields" hidden><label for="google-network-address">Endereço para os jogadores</label><input id="google-network-address" maxlength="260" placeholder="192.168.1.20:61000 ou https://jogo.exemplo.com"></div>
-            <div id="google-public-fields" hidden><label for="google-game-address">IPv4 público das partidas</label><input id="google-game-address" placeholder="IPv4 público do host"><button id="google-public-cert" class="btn btn-outline">Selecionar certificado HTTPS</button><button id="google-public-key" class="btn btn-outline">Selecionar chave privada HTTPS</button><p class="notice">Use certificado válido para o domínio/IP. Encaminhe a porta HTTPS e UDP 8770–8777 ao host. Uma conexão sob CGNAT precisa de IP público ou VPS. Consulte o guia de redes.</p></div>
-            <button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
-          <p class="notice">Mantenha todos fora do jogo. Quem já tem personagem deve vinculá-lo no servidor de origem antes da primeira troca; a integração não cria outro por cima do personagem antigo.</p>
-          <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
-          <div class="community-admin">
-            <h3>Publicar servidor na comunidade</h3>
-            <p class="notice">Primeiro ative o servidor Google com endpoint HTTPS público. A publicação exige a chave administradora local e uma conta Google; não expõe as chaves do host.</p>
-            <div class="form-preview">
-              <label for="community-host-name">Nome do servidor</label><input id="community-host-name" maxlength="70" placeholder="Meu Dauntless">
-              <label for="community-host-description">Descrição (opcional)</label><input id="community-host-description" maxlength="280" placeholder="Servidor da comunidade">
-              <label for="community-host-policy">Quem pode entrar</label><select id="community-host-policy"><option value="invite">Somente convidados</option><option value="open">Qualquer jogador Google</option><option value="vip">Acesso restrito / VIP</option></select>
-              <button id="community-publish" class="btn btn-red" type="button">Publicar ou atualizar meu servidor</button>
-            </div>
-            <h3>Convidar ou autorizar jogador</h3>
-            <div class="form-preview">
-              <label for="community-owner-server">Servidor que você administra</label><select id="community-owner-server"><option value="">Publique seu servidor primeiro</option></select>
-              <label for="community-invite-target">E-mail Google ou nome de usuário</label><input id="community-invite-target" maxlength="254" autocomplete="off" placeholder="amigo@gmail.com ou usuario">
-              <label for="community-invite-tier">Tipo de permissão</label><select id="community-invite-tier"><option value="member">Jogador convidado</option><option value="vip">Acesso VIP autorizado manualmente</option></select>
-              <label for="community-invite-days">Validade do VIP</label><select id="community-invite-days"><option value="30">30 dias</option><option value="90">90 dias</option><option value="365">365 dias</option></select>
-              <button id="community-invite-send" class="btn btn-outline" type="button">Enviar convite Google</button>
-              <label for="community-revoke-username">Revogar acesso pelo nome de usuário</label><input id="community-revoke-username" maxlength="20" placeholder="usuario">
-              <button id="community-revoke" class="btn btn-outline" type="button">Revogar acesso</button>
-            </div>
-            <p id="community-admin-state" class="notice" role="status"></p>
-          </div>
         </details>
         <article class="panel fenys-panel-gap" hidden>
           <div class="panel-title"><h3>Meu personagem em vários servidores</h3></div>
@@ -173,14 +145,16 @@
         </article>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
-        <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Selecione o executável do jogo e o servidor.</p></div>
+        <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Configure seu jogo e, se for administrar um host, prepare a hospedagem.</p></div>
         <article class="panel settings">
-          <label for="serverAddress">Endereço do Metagame (localhost ou Tailscale)</label>
+          <details id="legacy-network-settings"><summary><strong>Conexão manual antiga (avançado)</strong></summary>
+          <label for="serverAddress">Endereço do Metagame (compatibilidade)</label>
           <div class="path"><input id="serverAddress" class="fenys-input" placeholder="127.0.0.1:61000"><button id="serverSave" class="btn btn-red">Salvar</button></div>
-          <p class="notice">Para jogar com amigos, use o IP 100.x.y.z ou hostname *.ts.net do Tailscale. Nunca encaminhe a porta 61001 à internet.</p>
+          <p class="notice">Para servidores novos use Escolher servidor. Não abra a porta de administração TCP 61001 na internet.</p>
+          </details>
           <details class="panel" id="legacy-account-settings"><summary><strong>Recuperação de conta antiga (avançado)</strong></summary><p class="notice">Use esta opção apenas para migrar uma chave de personagem anterior. O acesso normal é feito com Google; não crie outro personagem por cima do existente.</p><label>Minha chave de conta para este servidor</label>
           <div class="path"><span id="accountKeyState">Não selecionada</span><button id="playerKeyPick" class="btn btn-outline">Vincular conta existente</button></div>
-          <p class="notice">Se você já tem uma conta e apenas mudou para o IP Tailscale, selecione sua chave anterior. O launcher verificará a conta no servidor antes de vinculá-la.</p>
+          <p class="notice">Use apenas para recuperar uma conta anterior; o launcher verificará a chave no servidor antes de vincular.</p>
           </details><details class="panel" id="admin-server-settings"><summary><strong>Administração e diagnóstico do servidor (avançado)</strong></summary><p class="notice">Somente para quem hospeda o servidor neste computador. Estas opções não são necessárias para entrar com Google.</p><label>Chave da conta administradora (apenas no computador do dono)</label>
           <div class="path"><span id="adminKeyState">Não selecionada</span><button id="adminKeyPick" class="btn btn-outline">Selecionar chave</button></div>
           <p class="notice">A chave do administrador fica no PC; ela não é mostrada na interface nem enviada ao GitHub.</p>
@@ -199,8 +173,44 @@
             <div class="path"><span id="wine-prefix">Padrão do Wine</span><button id="winePrefixPick" class="btn btn-outline">Selecionar ambiente</button></div>
             <p class="notice">Use um ambiente já configurado com winecfg e as dependências gráficas do jogo. Esta opção inicia o cliente pelo Wine; Proton e hospedagem de partidas no Linux ainda não foram integrados.</p>
           </div>
-          <p class="notice">No modo remoto, o launcher não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
+          <p class="notice">Em servidores da comunidade, o servidor remoto precisa estar acessível por HTTPS e pelas portas de partida; os controles de serviço locais não administram o PC remoto.</p>
         </article>
+        <details class="panel fenys-panel-gap" id="google-host-tools"><summary><strong>Hospedar um servidor — integração Google e comunidade</strong></summary>
+                  <p id="community-host-readiness" class="notice" role="status">Verificando a configuração deste host…</p>
+                  <p class="panel-description">Estas opções são exclusivas de quem administra um servidor. Para jogar, use apenas Escolher servidor.</p>
+                  <div class="panel-title"><h3>1. Integrar os personagens com Google</h3></div>
+                  <p class="notice">Cada host tem identidade própria e utiliza o Supabase para persistência. O primeiro host usa a autorização inicial; os demais recebem uma autorização de outro host. Não compartilhe a chave privada do servidor.</p>
+                  <div class="form-preview">
+                    <label for="google-network-mode">Conexão do servidor</label><select id="google-network-mode"><option value="lan">Rede local — LAN</option><option value="public">Internet — HTTPS (VPS ou host público)</option><option value="tailscale" hidden>Rede privada antiga — Tailscale</option></select>
+                    <div id="google-network-address-fields" hidden><label for="google-network-address">Endereço para os jogadores</label><input id="google-network-address" maxlength="260" placeholder="192.168.1.20:61000 ou https://jogo.exemplo.com"></div>
+                    <div id="google-public-fields" hidden><label for="google-game-address">IPv4 público das partidas</label><input id="google-game-address" placeholder="IPv4 público do host"><button id="google-public-cert" class="btn btn-outline">Selecionar certificado HTTPS</button><button id="google-public-key" class="btn btn-outline">Selecionar chave privada HTTPS</button><p class="notice">Use certificado válido para o domínio/IP. Encaminhe a porta HTTPS e UDP 8770–8777 ao host. Uma conexão sob CGNAT precisa de IP público ou VPS. Consulte o guia de redes.</p></div>
+                    <button id="google-authorization" class="btn btn-outline">Selecionar autorização Supabase do dono</button><label for="google-host-code">Autorização recebida de outro host (se aplicável)</label><input id="google-host-code" maxlength="2048" placeholder="Código de autorização do servidor"><button id="google-host-activate" class="btn btn-red">Ativar servidor Google</button></div>
+                  <p class="notice">Mantenha todos fora do jogo. Quem já tem personagem deve vinculá-lo no servidor de origem antes da primeira troca; a integração não cria outro por cima do personagem antigo.</p>
+                  <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
+                  <div class="community-admin">
+                    <h3>2. Publicar servidor na comunidade</h3>
+                    <p class="notice">Este passo só fica disponível após integrar o host em modo Internet — HTTPS, com IPv4 público e portas de partida configuradas. É possível hospedar numa VPS ou num computador da comunidade. A publicação exige a conta Google do administrador e a chave administrativa local.</p>
+                    <div class="form-preview">
+                      <label for="community-host-name">Nome do servidor</label><input id="community-host-name" maxlength="70" placeholder="Meu Dauntless">
+                      <label for="community-host-description">Descrição (opcional)</label><input id="community-host-description" maxlength="280" placeholder="Servidor da comunidade">
+                      <label for="community-host-policy">Quem pode entrar</label><select id="community-host-policy"><option value="invite">Somente convidados</option><option value="open">Qualquer jogador Google</option><option value="vip">Acesso restrito / VIP</option></select>
+                      <p class="notice">VIP significa acesso autorizado manualmente pelo dono do servidor; não existe cobrança automática.</p>
+                      <button id="community-publish" class="btn btn-red" type="button">Publicar ou atualizar meu servidor</button>
+                    </div>
+                    <h3>3. Convidar jogadores</h3>
+                    <div class="form-preview">
+                      <label for="community-owner-server">Servidor que você administra</label><select id="community-owner-server"><option value="">Publique seu servidor primeiro</option></select>
+                      <label for="community-invite-target">E-mail Google ou nome de usuário</label><input id="community-invite-target" maxlength="254" autocomplete="off" placeholder="amigo@gmail.com ou usuario">
+                      <label for="community-invite-tier">Tipo de permissão</label><select id="community-invite-tier"><option value="member">Jogador convidado</option><option value="vip">Acesso VIP autorizado manualmente</option></select>
+                      <label for="community-invite-days">Validade do VIP</label><select id="community-invite-days"><option value="30">30 dias</option><option value="90">90 dias</option><option value="365">365 dias</option></select>
+                      <button id="community-invite-send" class="btn btn-outline" type="button">Enviar convite Google</button>
+                      <label for="community-revoke-username">Revogar acesso pelo nome de usuário</label><input id="community-revoke-username" maxlength="20" placeholder="usuario">
+                      <button id="community-revoke" class="btn btn-outline" type="button">Revogar acesso</button>
+                    </div>
+                    <p id="community-admin-state" class="notice" role="status"></p>
+                  </div>
+                </details>
+        
       </section>
       <section class="screen" id="screen-activity" aria-label="Atividades" hidden><div class="page-title"><span class="kicker">DIAGNÓSTICO</span><h1>Atividades</h1><p>Mensagens e registros da sessão atual.</p></div><article class="panel"><div class="panel-title"><h3>Registro de execução</h3><button id="clear" class="btn btn-outline">Limpar</button></div><pre id="activity" class="activity-log">Aguardando ações…</pre></article></section>
     </main>
