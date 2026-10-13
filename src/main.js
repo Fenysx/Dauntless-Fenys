@@ -444,6 +444,34 @@ app.whenReady().then(()=>{
   const addresses=Object.values(os.networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal&&lanIP(x.address)).map(x=>x.address);
   return {addresses:[...new Set(addresses)]};
  });
+ // Read-only host setup state. Saved settings alone never prove Google integration:
+ // older Metagame builds can respond with "Unstubbed route" for /launcher/google/status.
+ ipcMain.handle('host:readiness',()=>vpnReply(async()=>{
+  const c=load(),state=await status();
+  let googleActive=false,googleReachable=false;
+  if(state.metagame&&(c.googleHost||fs.existsSync(path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json')))){
+   try{
+    const caps=await googleHostCall('127.0.0.1:61000','status');
+    googleReachable=caps?.mode==='google';
+    googleActive=googleReachable&&caps.registered===true;
+   }catch{} // A missing route means not ready, never success.
+  }
+  const identityFile=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
+  return {
+   servicesReady:Boolean(state.metagame&&state.deploy),
+   managedServices:state.owned.length>0,
+   googleActive,googleReachable,googleConfigured:Boolean(c.googleHost),
+   networkMode:c.googleNetworkMode||'lan',
+   advertisedAddress:c.googleHostAddress||'',
+   gameAddress:c.googleGameAddress||'',
+   adminKeySelected:Boolean(c.adminKeyFile&&fs.existsSync(c.adminKeyFile)),
+   authorizationSelected:Boolean(c.supabaseAuthorizationFile&&fs.existsSync(c.supabaseAuthorizationFile)),
+   identityPresent:fs.existsSync(identityFile),
+   signedIn:Boolean(googleAuth.state().signedIn),
+   publicCertSelected:Boolean(c.publicCertFile&&fs.existsSync(c.publicCertFile)),
+   publicKeySelected:Boolean(c.publicKeyFile&&fs.existsSync(c.publicKeyFile))
+  };
+ }));
  ipcMain.handle('system:doctor',async()=>{
   // Electron embeds its own Node runtime (often older than the host's Node.js).
   // Check the exact external executable used by launchService instead.

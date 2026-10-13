@@ -60,3 +60,30 @@
 details.panel>summary{cursor:pointer;color:#f5d8e3;font-size:13px}
 details.panel>summary:hover{color:#ff839d}
 @media(max-width:780px){.community-server{align-items:flex-start;flex-direction:column}.community-server button{max-width:100%}}
+
+/* Hosting wizard: minimal, progressive setup for nontechnical server owners. */
+#screen-host .hosting-step{padding:26px}
+#screen-host .hosting-step h3{margin:8px 0 4px;font-size:20px}
+#screen-host .hosting-number{display:inline-block;color:#ff8198;font-size:11px;font-weight:850;letter-spacing:1.2px}
+#screen-host .hosting-status{background:linear-gradient(110deg,#23131d,#14131a);border-color:#754053}
+#screen-host .hosting-status .notice{font-size:14px;font-weight:700;color:#f2dce3}
+#screen-host .hosting-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px}
+#screen-host .hosting-progress span{padding:12px 10px;border:1px solid #563041;border-radius:10px;color:#bba5b1;background:#21141e;text-align:center;font-size:11px;font-weight:800}
+#screen-host .hosting-progress span.complete{border-color:#3a8e6e;background:#102920;color:#86e9bc}
+#screen-host .hosting-guidance{margin:19px 0 0;padding:15px 17px;border:1px solid #603a4b;border-left:3px solid #f36582;border-radius:10px;background:#221620;color:#f4cad7;font-size:12px;line-height:1.7}
+#screen-host .hosting-form{max-width:570px;margin-top:18px}
+#screen-host .hosting-form input,#screen-host .hosting-form select,#screen-host .hosting-advanced input,#screen-host #google-host-result{width:100%;min-width:0;background:#111017;border:1px solid #664356;border-radius:9px;padding:12px 13px;color:#f8eef3;font:inherit;font-size:13px}
+#screen-host .hosting-form label{font-size:12px;color:#e4c9d7}
+#screen-host .hosting-form .notice{margin:0 0 5px}
+#screen-host .hosting-advanced{margin-top:21px;padding:14px 16px;border:1px solid #45303d;border-radius:11px;background:#141017}
+#screen-host .hosting-advanced summary{cursor:pointer;font-size:12px;color:#d8bdcc;font-weight:800;line-height:1.6}
+#screen-host .hosting-advanced[open] summary{margin-bottom:15px;color:#ffa3b7}
+#screen-host .hosting-advanced .settings label{font-size:12px}
+#screen-host .hosting-advanced .panel-title{margin-top:18px}
+#screen-host .hosting-advanced .activity-log{max-height:260px;min-height:100px}
+#screen-host .hosting-step .button-row{margin-top:18px}
+#screen-host .community-admin{border-top:none;margin-top:10px;padding:0}
+#screen-host #host-invite-section{border-top:1px solid #48303a;padding-top:22px;margin-top:25px}
+#screen-host #host-invite-section h3{margin:0 0 8px;font-size:17px}
+#screen-host [hidden]{display:none!important}
+@media(max-width:850px){#screen-host .hosting-progress{grid-template-columns:1fr}#screen-host .hosting-step{padding:18px}}
