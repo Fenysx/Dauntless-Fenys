@@ -177,8 +177,9 @@
         </article>
         <details class="panel fenys-panel-gap" id="google-host-tools"><summary><strong>Hospedar um servidor — integração Google e comunidade</strong></summary>
                   <p id="community-host-readiness" class="notice" role="status">Verificando a configuração deste host…</p>
+                  <p class="panel-description">Estas opções são exclusivas de quem administra um servidor. Para jogar, use apenas Escolher servidor.</p>
                   <div class="panel-title"><h3>1. Integrar os personagens com Google</h3></div>
-                  <p class="notice">Cada host executa seu próprio servidor e carrega o progresso do Supabase. O primeiro servidor recebe a autorização do dono; os demais usam uma autorização de host. Os serviços locais podem ser iniciados sem login Google.</p>
+                  <p class="notice">Cada host tem identidade própria e utiliza o Supabase para persistência. O primeiro host usa a autorização inicial; os demais recebem uma autorização de outro host. Não compartilhe a chave privada do servidor.</p>
                   <div class="form-preview">
                     <label for="google-network-mode">Conexão do servidor</label><select id="google-network-mode"><option value="lan">Rede local — LAN</option><option value="public">Internet — HTTPS (VPS ou host público)</option><option value="tailscale" hidden>Rede privada antiga — Tailscale</option></select>
                     <div id="google-network-address-fields" hidden><label for="google-network-address">Endereço para os jogadores</label><input id="google-network-address" maxlength="260" placeholder="192.168.1.20:61000 ou https://jogo.exemplo.com"></div>
@@ -188,11 +189,12 @@
                   <div class="button-row"><button id="google-host-invite" class="btn btn-outline">Autorizar outro servidor</button><button id="google-sync" class="btn btn-outline">Confirmar saves na nuvem</button></div><input id="google-host-result" readonly placeholder="Autorização de outro servidor"><p id="google-sync-state" class="notice" role="status"></p>
                   <div class="community-admin">
                     <h3>2. Publicar servidor na comunidade</h3>
-                    <p class="notice">Primeiro ative o servidor Google com endpoint HTTPS público. A publicação exige a chave administradora local e uma conta Google; não expõe as chaves do host.</p>
+                    <p class="notice">Este passo só fica disponível após integrar o host em modo Internet — HTTPS, com IPv4 público e portas de partida configuradas. É possível hospedar numa VPS ou num computador da comunidade. A publicação exige a conta Google do administrador e a chave administrativa local.</p>
                     <div class="form-preview">
                       <label for="community-host-name">Nome do servidor</label><input id="community-host-name" maxlength="70" placeholder="Meu Dauntless">
                       <label for="community-host-description">Descrição (opcional)</label><input id="community-host-description" maxlength="280" placeholder="Servidor da comunidade">
                       <label for="community-host-policy">Quem pode entrar</label><select id="community-host-policy"><option value="invite">Somente convidados</option><option value="open">Qualquer jogador Google</option><option value="vip">Acesso restrito / VIP</option></select>
+                      <p class="notice">VIP significa acesso autorizado manualmente pelo dono do servidor; não existe cobrança automática.</p>
                       <button id="community-publish" class="btn btn-red" type="button">Publicar ou atualizar meu servidor</button>
                     </div>
                     <h3>3. Convidar jogadores</h3>
