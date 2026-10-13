@@ -89,11 +89,11 @@ async function handle(req:Request){
   }
   if(op==='list'){
    const all=await db('dlu_community_servers',{enabled:'eq.true',select:'id,host_key,owner_auth_id,name,description,address,policy,enabled',order:'name.asc',limit:'100'});
-   const mine=await db('dlu_community_memberships',{auth_id:'eq.'+user.id,revoked_at:'is.null',select:'server_id,expires_at',limit:'200'});
+   const mine=await db('dlu_community_memberships',{auth_id:'eq.'+user.id,revoked_at:'is.null',select:'server_id,expires_at,tier',limit:'200'});
    const inbox=await invitesFor(user);
    const accessible=new Set(mine.filter((m:any)=>!m.expires_at||Date.parse(m.expires_at)>Date.now()).map((m:any)=>m.server_id));
    for(const i of inbox)accessible.add(i.server_id);
-   return json({servers:all.filter((s:any)=>s.policy!=='invite'||s.owner_auth_id===user.id||accessible.has(s.id)).map((s:any)=>({id:s.id,name:s.name,description:s.description,address:s.address,hostKey:s.host_key,policy:s.policy,owned:s.owner_auth_id===user.id,hasAccess:s.policy==='open'||s.owner_auth_id===user.id||accessible.has(s.id)}))});
+   return json({servers:all.filter((s:any)=>s.policy!=='invite'||s.owner_auth_id===user.id||accessible.has(s.id)).map((s:any)=>({id:s.id,name:s.name,description:s.description,address:s.address,hostKey:s.host_key,policy:s.policy,owned:s.owner_auth_id===user.id,hasAccess:s.policy==='open'||s.owner_auth_id===user.id||mine.some((m:any)=>m.server_id===s.id&&(!m.expires_at||Date.parse(m.expires_at)>Date.now())&&(s.policy!=='vip'||m.tier==='vip'))}))});
   }
   if(op==='inbox')return json({invitations:await invitesFor(user)});
   if(op==='access'){
@@ -142,18 +142,12 @@ async function handle(req:Request){
   }
   if(op==='decide'){
    if(!uuid(b.inviteId)||!['accept','decline'].includes(b.decision))invalid('Convite inválido.');
-   const rows=await db('dlu_community_invitations',{id:'eq.'+b.inviteId,select:'*',limit:'1'});
-   const invite=rows[0];
-   if(!invite||invite.status!=='pending'||Date.parse(invite.expires_at)<=Date.now()||(invite.recipient_auth_id!==user.id&&invite.recipient_email!==user.email))invalid('Este convite não está disponível para sua conta Google.',403);
-   const rowsChanged=await db('dlu_community_invitations',{id:'eq.'+invite.id,status:'eq.pending'},'PATCH',{status:b.decision==='accept'?'accepted':'declined'},{prefer:'return=representation'});
-   if(!rowsChanged.length)invalid('O convite já foi respondido.',409);
-   if(b.decision==='accept'){
-    const validUntil=invite.tier==='vip'?new Date(Date.now()+(invite.duration_days||30)*86400000).toISOString():null;
-    await db('dlu_community_memberships',{on_conflict:'server_id,auth_id'},'POST',{
-     server_id:invite.server_id,auth_id:user.id,tier:invite.tier,granted_by:user.id,expires_at:validUntil,revoked_at:null
-    },{prefer:'resolution=merge-duplicates,return=representation'});
-   }
-   return json({accepted:b.decision==='accept',serverId:invite.server_id});
+   try{
+    const result=await db('rpc/dlu_community_decide',{},'POST',{
+     invite_uuid:b.inviteId,google_auth_id:user.id,google_email:user.email,answer:b.decision
+    });
+    return json(result[0]||{accepted:false});
+   }catch(e){if((e as any)?.status===503)invalid('Convite expirado, já respondido ou não destinado à sua conta Google.',409);throw e;}
   }
   if(op==='revoke'){
    await ownerServer(b.serverId,user.id);
