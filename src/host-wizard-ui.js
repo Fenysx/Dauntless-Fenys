@@ -17,7 +17,7 @@
         && /^\d{1,3}(?:\.\d{1,3}){3}$/.test($('google-game-address').value.trim())
         && r.publicCertSelected && r.publicKeySelected:false;
     const authorization=r.authorizationSelected||r.identityPresent||/^DLUH3\.[\w-]+$/.test($('google-host-code').value.trim());
-    const needsActivation=!r.googleActive||r.networkMode!==mode;
+    const needsActivation=!r.googleActive||r.networkMode!==mode||r.advertisedAddress!==addr||(mode==='public'&&r.gameAddress!==$('google-game-address').value.trim());
     const canActivate=r.servicesReady&&r.managedServices&&r.adminKeySelected&&authorization&&addressOK&&needsActivation;
     $('google-host-activate').disabled=!canActivate;
     $('host-check-services').classList.toggle('complete',r.servicesReady);
