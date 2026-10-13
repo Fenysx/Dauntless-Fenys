@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const {parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,RAMS,PLATINUM,LEVEL_CAP}=require('../scripts/fenysx-character-preset.cjs');
+const {parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,isListeningOnLoopback,RAMS,PLATINUM,LEVEL_CAP}=require('../scripts/fenysx-character-preset.cjs');
 const native='server/upstream/UndauntedMetagame/src/vendor/';
 const catalog=JSON.parse(fs.readFileSync(path.join(__dirname,'..',native,'store_catalog.json')));
 const kinds=JSON.parse(fs.readFileSync(path.join(__dirname,'..',native,'store_item_kinds.json')));
@@ -70,4 +70,14 @@ test('offline preset requires actual Metagame real progression and never accepts
   fs.writeFileSync(path.join(dir,'.env'),'BIND_HOST=127.0.0.1\n');
   assert.equal(verifyRealProgression(dir),'real','real is the default when unset');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('detect a live local port before permitting an offline character save',async()=>{
+ const net=require('node:net');
+ const server=net.createServer();
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const port=server.address().port;
+ try{assert.equal(await isListeningOnLoopback(port),true);}
+ finally{await new Promise(resolve=>server.close(resolve));}
+ assert.equal(await isListeningOnLoopback(port),false);
 });
