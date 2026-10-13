@@ -445,11 +445,23 @@ app.whenReady().then(()=>{
   // Check the exact external executable used by launchService instead.
   const binary=process.platform==='win32'?'node.exe':'node';
   const nodeVersion=await new Promise(resolve=>execFile(binary,['--version'],{encoding:'utf8',timeout:4000,windowsHide:true},(error,stdout)=>resolve(error?'unavailable':String(stdout).trim().replace(/^v/,''))));
-  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false,nodeVersion});
+  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false,nodeVersion,freeMemoryBytes:os.freemem()});
   let providerMessage;
-  try{providerMessage=await googleAuth.provider()?'Habilitado; login real ainda precisa de teste.':'Desativado: habilite o provedor Google no painel Auth do Supabase.';}
+  try{providerMessage=await googleAuth.provider()?'Provedor habilitado no Supabase.':'Provedor desativado no Supabase.';}
   catch{providerMessage='Não foi possível consultar o Google OAuth (confira a internet).';}
-  return {ok:true,errors:report.errors,warnings:report.warnings,report:renderReport(report)+'\n\nGoogle OAuth: '+providerMessage};
+  let hostMessage='Metagame offline. Inicie os serviços para verificar as rotas do host Google.';
+  if(await tcp(PORTS.metagame)){
+   try{
+    const caps=await googleHostCall('127.0.0.1:61000','status');
+    hostMessage=caps?.mode==='google'&&caps?.registered?
+      'Integração Google ativa e host registrado. Confira o último save antes de migrar.':
+      'Resposta recebida, mas host Google não está registrado. Confira a ativação do servidor.';
+   }catch{
+    hostMessage='Metagame está online, mas não confirmou /launcher/google/status. A integração Google não foi ativada neste servidor ou a versão local não contém as rotas. Não crie outro personagem.';
+   }
+  }
+  return {ok:true,errors:report.errors,warnings:report.warnings,
+   report:renderReport(report)+'\n\nLogin Google: '+providerMessage+'\nGoogle no servidor local: '+hostMessage};
  });
  ipcMain.handle('settings:get',()=>{
   const {adminKeyFile,publicKeyFile,publicCertFile,...safe}=load();
