@@ -125,3 +125,17 @@ test('seleção Google não cria personagem nem altera servidor sem consentiment
  assert.equal(settings.googleServer,'https://comunidade.example');
  assert.equal(settings.googleSelected,true);
 });
+
+test('convite de compatibilidade nunca cria personagem Google silenciosamente',async t=>{
+ const n=await network(t),host=n.nodes[0];
+ let settings={};
+ const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=>'google-two'},
+  settings:()=>settings,saveSettings:c=>{settings=c;},request:n.invoke});
+ const invite=(await hostCall(host.address,'invite',{},null,host.admin.key)).code;
+ await assert.rejects(client.connect(invite,'FirstHero'),/confirme explicitamente/);
+ assert.equal(n.records.has(n.users.get('google-two')),false);
+ assert.equal(settings.googleSelected,undefined);
+ await client.connect(invite,'FirstHero',{allowCreateNew:true});
+ assert.equal(n.records.get(n.users.get('google-two')).name,'FirstHero');
+ assert.equal(settings.googleSelected,true);
+});
