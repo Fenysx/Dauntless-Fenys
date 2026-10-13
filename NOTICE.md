@@ -15,3 +15,6 @@ The repository's applicable source code is offered under AGPL-3.0-only. Preserve
 The Metagame schema fixture in test/fixtures/metagame-schema.sql combines the upstream Drizzle migrations at commit 29477558148a9db66cd1134a5c3df8bea7f9bea5, under the upstream AGPL-3.0-only license.
 
 The matchmaking fixture in test/fixtures/matchmaking.ts is upstream source at the same pinned commit, retained under its AGPL-3.0-only license for overlay compatibility tests.
+
+
+The complete upstream source tree is preserved under server/upstream at commit 29477558148a9db66cd1134a5c3df8bea7f9bea5. See server/upstream.lock.json, server/upstream/LICENSE.txt and server/upstream/NOTICE.md. Local integration changes are maintained separately in src/. Runtime credentials and proprietary game installations are not included. The upstream dxgi.dll proxy is provided as a binary; its source is not present in that upstream revision.
