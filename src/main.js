@@ -457,7 +457,7 @@ app.whenReady().then(()=>{
     googleMessage='O Metagame não reconhece a rota Google. É necessário integrar o host antes de publicar ou migrar personagens.';
    }
   }else googleMessage='Inicie o Metagame para verificar a integração Google.';
-  return {metagame:ports.metagame,deploy:ports.deploy,googleConfigured:!!c.googleHost,googleActive,
+  return {metagame:ports.metagame,deploy:ports.deploy,managedByLauncher:Array.isArray(ports.owned)&&ports.owned.includes('metagame')&&ports.owned.includes('deploy'),googleConfigured:!!c.googleHost,googleActive,
    googleMessage,networkMode:c.googleNetworkMode||'lan',hostAddress:c.googleHostAddress||'',
    adminKeySelected:!!c.adminKeyFile,authorizationSelected:!!c.supabaseAuthorizationFile,
    certSelected:!!c.publicCertFile,keySelected:!!c.publicKeyFile};
