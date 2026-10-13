@@ -404,12 +404,12 @@ app.whenReady().then(()=>{
    return {ok:true,code:encodeConnection(sv.address,invite)};
   }catch(e){return {ok:false,error:e.message};}
  });
- ipcMain.handle('connection:join',async(_event,code,username)=>{
+ ipcMain.handle('connection:join',async(_event,code,username,createNew=false)=>{
   let locked=false;
   try{
    if(busy)throw Error('Aguarde a operação atual.');
    assertGameClosed();busy=true;locked=true;
-   if(String(code).trim().startsWith('DLU3.')){await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();const result=await googlePlayer.connect(String(code).trim(),username);notify('Conectado com Google. Personagem e progresso confirmados na nuvem.');return {ok:true,...result};}
+   if(String(code).trim().startsWith('DLU3.')){await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();const result=await googlePlayer.connect(String(code).trim(),username,{allowCreateNew:createNew===true});notify('Conectado com Google. Personagem e progresso confirmados na nuvem.');return {ok:true,...result};}
    if(load().googleSelected)throw Error('Use um código de servidor integrado com Google para manter seu personagem.');
    if(String(code).trim().startsWith('FENYSC2.')){
     const invite=decodeGlobalCode(String(code).trim());if(invite.kind!=='player')throw Error('Use este código na ativação de host, não na conexão de jogador.');
