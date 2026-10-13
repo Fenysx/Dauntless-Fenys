@@ -26,7 +26,7 @@ test('API da comunidade nega ações anônimas e publicação sem assinatura de 
  const request=(body,authenticated=true)=>new Request('https://edge.test',{method:'POST',headers:authenticated?{authorization:'Bearer token'}:{},body:JSON.stringify(body)});
  assert.equal((await ctx.communityHandle(new Request('https://edge.test'))).status,200);
  assert.equal((await ctx.communityHandle(request({operation:'list'},false))).status,401);
- assert.equal((await ctx.communityHandle(request({operation:'register',envelope:{publicKey:'bad'}}))).status,401);
+ const unsigned=await ctx.communityHandle(request({operation:'register',envelope:{publicKey:'bad'}}));assert.equal(unsigned.status,401,await unsigned.text());
  const invalid=await ctx.communityHandle(request({operation:'username',username:'@@'}));
  assert.equal(invalid.status,400);
 });
