@@ -211,6 +211,7 @@ $('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('
 $('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
+$('google-go-server').addEventListener('click',()=>{setScreen('connection');$('google-host-activate').scrollIntoView({behavior:'smooth',block:'center'});note('Para vincular o personagem existente, primeiro integre o servidor de origem. Mantenha os jogadores desconectados e faça backup dos saves.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleRefresh()));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
 $('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';});
