@@ -462,6 +462,8 @@ app.whenReady().then(()=>{
    managedServices:state.owned.length>0,
    googleActive,googleReachable,googleConfigured:Boolean(c.googleHost),
    networkMode:c.googleNetworkMode||'lan',
+   advertisedAddress:c.googleHostAddress||'',
+   gameAddress:c.googleGameAddress||'',
    adminKeySelected:Boolean(c.adminKeyFile&&fs.existsSync(c.adminKeyFile)),
    authorizationSelected:Boolean(c.supabaseAuthorizationFile&&fs.existsSync(c.supabaseAuthorizationFile)),
    identityPresent:fs.existsSync(identityFile),
