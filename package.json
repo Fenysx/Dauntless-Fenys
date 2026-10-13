@@ -11,7 +11,8 @@
     "test": "node --test test/*.test.js",
     "server:prepare": "node scripts/prepare-server.cjs",
     "cloud:authorization": "node scripts/create-cloud-authorization.cjs",
-    "test:integration": "node scripts/test-integration.cjs"
+    "test:integration": "node scripts/test-integration.cjs",
+    "doctor": "node scripts/doctor.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",

@@ -142,3 +142,15 @@ O dono gera um código de conexão. No outro PC: conecte a rede escolhida (Tails
 Validação prática: crie/recupere o personagem, anote nível e inventário, faça uma atividade, feche o jogo e confirme a sincronização. Entre em outro host autorizado com o mesmo Google e confira UID/progresso. Não formate o PC nem apague chaves antigas antes dessa conferência.
 
 No Linux, siga a seção Wine do [guia do launcher](GUIA-LAUNCHER.md). A execução real do jogo por Wine continua experimental; os testes das APIs não a substituem.
+
+## 9. Conferência automática antes de jogar
+
+Com os dois `.env` configurados e as compilações prontas, execute na raiz:
+
+```bash
+npm run doctor
+```
+
+Se o servidor estiver numa pasta diferente de `runtime/server`, informe-a com `npm run doctor -- --server C:/DauntlessRuntime` (substitua pelo caminho real no Windows ou Linux). Erros apontam exatamente quais portas, builds, chaves de assinatura ou caminhos precisam de atenção. O comando **não corrige dados automaticamente**, não inicia os processos e não mostra senhas/chaves. Consulte [OPERACAO.md](OPERACAO.md#diagnostico-automatico-do-host).
+
+Uma saída sem erros indica somente que a configuração local básica está consistente. Faça ainda os testes de login Google, conexão entre computadores, caçada e sincronização do personagem antes de considerar a instalação concluída.

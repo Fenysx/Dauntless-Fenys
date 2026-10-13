@@ -64,3 +64,7 @@ O painel **Servidor com personagens Google** permite escolher **Tailscale**, **L
 ## Créditos e licença
 
 Projeto independente, sem vínculo com Phoenix Labs ou Epic Games. Base: [Dauntless Revived](https://github.com/mixutin/dauntless-revived), derivada de Undaunted. Código sob **AGPL-3.0-only**, com licenças específicas dos componentes de terceiros. Preserve [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) e os avisos da base ao redistribuir.
+
+## Diagnosticar o host antes de iniciar
+
+Após configurar os serviços em `runtime/server`, execute `npm run doctor`. O verificador examina Node.js, builds, `.env`, portas esperadas, chaves RSA, caminho do banco, chave de game server e executável, **sem iniciar processos, alterar saves ou imprimir segredos**. Use `npm run doctor -- --server C:/MinhaInstalacao` para uma pasta personalizada, ou `npm run doctor -- --json` para integrar com scripts. [Detalhes e soluções](docs/OPERACAO.md#diagnostico-automatico-do-host).
