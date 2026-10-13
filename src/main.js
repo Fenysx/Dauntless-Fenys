@@ -276,7 +276,30 @@ app.whenReady().then(()=>{
  const vpnReply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e.message||'Não foi possível concluir a operação.'};}};
  const previousAccount=()=>{const c=load();if(globalAccount.hasKey())return {key:globalAccount.key(),server:globalAccount.state().authority||c.cloudAuthority||'127.0.0.1:61000'};const server=c.cloudRole==='host'?c.cloudAuthority:backendAddress(),file=c.accountFiles?.[server]||c.accountFiles?.[backendAddress()]||c.gameKeyFile||path.join(friendKitDir(),'account.key');return fs.existsSync(file)?{key:readKeyFile(file),server}:null;};
  const linkPrevious=async()=>{await googlePlayer.refresh();if(googlePlayer.profile.linked)return googlePlayer.state();const previous=previousAccount();if(!previous)throw Error('Nenhuma conta antiga encontrada. Use um convite para criar seu personagem com Google.');const caps=await googleHostCall(previous.server,'status').catch(()=>null);if(caps?.mode!=='google')throw Error('Ative a integração Google no servidor de origem antes de vincular seu personagem atual. Não crie outra conta por cima dele.');return googlePlayer.link(previous.server,previous.key);};
- ipcMain.handle('google:state',()=>vpnReply(async()=>{if(googleAuth.state().signedIn&&!googlePlayer.profile&&!googlePlayer.busy)await googlePlayer.refresh();return {...googlePlayer.state(),configured:await googleAuth.provider(),hostEnabled:!!load().googleHost};}));
+ // The saved googleHost flag is not evidence that the installed Metagame
+ // actually has /launcher/google/status (older installations return "Unstubbed route").
+ let hostCapabilityCache={checkedAt:0,active:false};
+ const localGoogleEnabled=async()=>{
+  if(!load().googleHost)return false;
+  if(Date.now()-hostCapabilityCache.checkedAt<30000)return hostCapabilityCache.active;
+  hostCapabilityCache={checkedAt:Date.now(),active:false};
+  if(!await tcp(PORTS.metagame))return false;
+  try{
+   const caps=await googleHostCall('127.0.0.1:61000','status');
+   hostCapabilityCache.active=caps?.mode==='google'&&caps?.registered===true;
+  }catch{} // An absent route must never select the Google-only player flow.
+  return hostCapabilityCache.active;
+ };
+ ipcMain.handle('google:state',()=>vpnReply(async()=>{
+  let profileWarning=null,configured=null;
+  if(googleAuth.state().signedIn&&!googlePlayer.profile&&!googlePlayer.busy){
+   try{await googlePlayer.refresh();}catch{profileWarning='Não foi possível confirmar o personagem na nuvem agora. Não crie outro personagem.';}
+  }
+  try{configured=await googleAuth.provider();}catch{} // Offline is not "provider disabled".
+  const hostEnabled=await localGoogleEnabled();
+  return {...googlePlayer.state(),configured,profileWarning,hostEnabled,
+   hostWarning:load().googleHost&&!hostEnabled?'A integração Google do servidor local ainda não respondeu. Use o modo local existente e verifique a hospedagem.':null};
+ }));
  ipcMain.handle('google:login',()=>vpnReply(async()=>{assertGameClosed();if(!googleAuth.state().signedIn)await googleAuth.login();await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount()){try{await linkPrevious();}catch(e){return {...googlePlayer.state(),notice:e.message};}}return googlePlayer.state();}));
  ipcMain.handle('google:cancel',()=>{googleAuth.dispose();return {ok:true,...googlePlayer.state()};});
  ipcMain.handle('google:logout',()=>vpnReply(async()=>{assertGameClosed();return googlePlayer.signOut();}));
@@ -335,7 +358,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('google:sync',(_event,force)=>vpnReply(async()=>googleHostCall('127.0.0.1:61000',force?'sync-now':'sync-status',{},null,await localAdminKey())));
  ipcMain.handle('google:activate',(_event,options)=>vpnReply(async()=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
-  try{if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();if(!owned.size)throw Error('Inicie os serviços pelo launcher antes de configurar.');
+  try{if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();if(!owned.has('metagame')||!owned.has('deploy'))throw Error('Inicie Metagame e DeployServer pelo launcher; serviços externos não podem ser reconfigurados com segurança.');
    if(c.cloudRole==='host'){try{const e=await cloudRequest('127.0.0.1:61000','events',{cursor:null});if(e.onlineCount)throw Error('Encerre as partidas antes de migrar o host.');}catch(e){const source=await googleHostCall(c.cloudAuthority,'status').catch(()=>null);if(source?.mode!=='google')throw e;}}
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
    const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
@@ -459,7 +482,7 @@ app.whenReady().then(()=>{
   const identityFile=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
   return {
    servicesReady:Boolean(state.metagame&&state.deploy),
-   managedServices:state.owned.length>0,
+   managedServices:state.owned.includes('metagame')&&state.owned.includes('deploy'),
    googleActive,googleReachable,googleConfigured:Boolean(c.googleHost),
    networkMode:c.googleNetworkMode||'lan',
    advertisedAddress:c.googleHostAddress||'',
