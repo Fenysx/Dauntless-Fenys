@@ -20,7 +20,7 @@ test('cliente da comunidade exige Google, usa apenas publishable key e separa AP
 test('API da comunidade nega ações anônimas e publicação sem assinatura de host Google',async()=>{
  const source=stripTypeScriptTypes(fs.readFileSync(path.join(__dirname,'../supabase/functions/fenys-community/index.ts'),'utf8')).replace('Deno.serve(handle);','globalThis.communityHandle=handle;');
  const ctx={Request,Response,URL,URLSearchParams,crypto:crypto.webcrypto,TextEncoder,TextDecoder,Uint8Array,atob,
-  Deno:{env:{get:k=>k==='SUPABASE_URL'?'https://supabase.test':'private-service'}},
+  AbortSignal,Deno:{env:{get:k=>k==='SUPABASE_URL'?'https://supabase.test':'private-service'}},
   fetch:async url=>String(url).endsWith('/auth/v1/user')?json({id:crypto.randomUUID(),email:'user@example.com',identities:[{provider:'google'}]}):json([],200)};
  vm.runInNewContext(source,ctx);
  const request=(body,authenticated=true)=>new Request('https://edge.test',{method:'POST',headers:authenticated?{authorization:'Bearer token'}:{},body:JSON.stringify(body)});
