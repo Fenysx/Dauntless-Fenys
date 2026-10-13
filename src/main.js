@@ -6,6 +6,7 @@ const net=require('node:net');
 const crypto=require('node:crypto');
 const os=require('node:os');
 const {spawn}=require('node:child_process');
+const {inspectInstallation,renderReport}=require('./fenys-host-doctor');
 const {parseEndpoint:parseServerAddress}=require('./fenys-network');
 const {startRelay}=require('./fenys-public-relay');
 let publicRelay=null;
@@ -387,6 +388,13 @@ app.whenReady().then(()=>{
    notify('Conectado ao servidor '+server+'. Clique Jogar Agora para entrar na partida.');
    return {ok:true,server};
   }catch(e){return {ok:false,error:e.message};}finally{if(locked)busy=null;}
+ });
+ ipcMain.handle('system:doctor',async()=>{
+  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false});
+  let providerMessage;
+  try{providerMessage=await googleAuth.provider()?'Habilitado; login real ainda precisa de teste.':'Desativado: habilite o provedor Google no painel Auth do Supabase.';}
+  catch{providerMessage='Não foi possível consultar o Google OAuth (confira a internet).';}
+  return {ok:true,errors:report.errors,warnings:report.warnings,report:renderReport(report)+'\n\nGoogle OAuth: '+providerMessage};
  });
  ipcMain.handle('settings:get',()=>{
   const {adminKeyFile,publicKeyFile,publicCertFile,...safe}=load();
