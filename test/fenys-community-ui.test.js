@@ -8,23 +8,27 @@ const section=id=>{
  assert.ok(start>=0&&end>start,'seção '+id+' não encontrada');
  return html.slice(start,end);
 };
-test('seleção de servidor contém somente tarefas de jogador, sem painel administrativo',()=>{
- const playing=section('connection'),settings=section('settings');
+test('seleção de servidor contém apenas ações de jogador e abre hospedagem dedicada',()=>{
+ const playing=section('connection'),settings=section('settings'),hosting=section('host');
  for(const id of ['server-local-select','community-catalog','community-server-list','community-host-setup-open'])
   assert.ok(playing.includes('id="'+id+'"'),'falta '+id);
- assert.ok(!playing.includes('id="google-host-tools"'),'não colocar configurações administrativas na lista de servidores');
- assert.ok(settings.includes('id="google-host-tools"'),'hospedagem deve ficar em Configurações');
- assert.ok(settings.includes('id="community-host-readiness"'),'o host precisa mostrar o requisito HTTPS');
- assert.ok(settings.includes('id="legacy-network-settings"'),'configuração de endereço antigo permanece acessível como avançada');
+ assert.ok(!playing.includes('id="google-host-activate"'),'não exibir host Google na seleção de servidor');
+ for(const id of ['community-host-readiness','host-publish-form','host-invite-section','google-host-activate'])
+  assert.ok(hosting.includes('id="'+id+'"'),'requisito de hospedagem não disponível: '+id);
+ assert.ok(!settings.includes('id="community-publish"'),'não poluir preferências com publicação');
+ assert.ok(settings.includes('id="legacy-network-settings"'),'configuração antiga permanece acessível no avançado');
  assert.match(renderer,/function openHostSettings\(/);
+ assert.match(renderer,/setScreen\('host'\)/);
  assert.match(renderer,/\$\('community-host-setup-open'\)\.addEventListener\('click',openHostSettings\)/);
 });
-test('IDs únicos e controles legados preservados para compatibilidade do renderer',()=>{
- for(const id of ['google-host-tools','community-host-readiness','community-host-setup-open','community-publish','community-owner-server','connection-local','server-local-select']){
-  const matches=html.match(new RegExp('id="'+id+'"','g'))||[];
-  assert.equal(matches.length,1,id+' precisa existir uma vez');
+test('IDs únicos e controles antigos continuam presentes sem Tailscale no fluxo comum',()=>{
+ const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+ assert.equal(ids.length,new Set(ids).size,'IDs duplicados');
+ for(const id of ['screen-host','community-host-readiness','community-host-setup-open','community-publish',
+  'community-owner-server','connection-local','server-local-select','admin-server-settings']){
+  assert.ok(ids.includes(id),'falta '+id);
  }
  assert.match(section('connection'),/id="tailscale-tools" hidden/);
- assert.match(section('settings'),/Hospedar um servidor — integração Google e comunidade/);
+ assert.match(section('host'),/id="host-maintenance-tools"/);
  assert.ok(!section('settings').includes('A conexão exige Tailscale'));
 });
