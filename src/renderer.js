@@ -124,7 +124,26 @@ $('register-submit').addEventListener('click',async()=>{
  finally{button.disabled=false;}
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
-window.launcher.onActivity(note);
+let lastNativeWarning=0,lastGoogleWarning=0;
+window.launcher.onActivity(message=>{
+ const line=String(message);
+ // Routine health polling happens every ten seconds. Keep the Activity panel useful.
+ if(/^metagame: \{"level":30/.test(line)&&
+    /"msg":"GET \/undaunted\/api\/(ServerStatus|GetUserInfo) gs=0"/.test(line))return;
+ note(line);
+ if(/Game server on port 8777 .*exited with code 3221225786/.test(line)){
+  if(Date.now()-lastNativeWarning>45000){
+   lastNativeWarning=Date.now();
+   note('DIAGNÓSTICO RAMSGATE: o processo nativo saiu com 0xC000013A (encerramento por controle/sinal do Windows) antes de ficar disponível. Em Configurações → Administração → Verificar instalação, confira DLLs, caminho do executável e RAM. O código não prova quem encerrou o processo.');
+  }
+ }
+ if(/Unstubbed route (GET \/launcher\/google\/status|POST \/launcher\/google\/(sync-now|host-invite))/.test(line)){
+  if(Date.now()-lastGoogleWarning>45000){
+   lastGoogleWarning=Date.now();
+   note('DIAGNÓSTICO GOOGLE: o Metagame local ainda não respondeu às rotas Google. A conta Google pode estar conectada no launcher, mas o host precisa ser integrado antes de vincular o personagem antigo.');
+  }
+ }
+});
 let tailscaleWorking=false,tailscalePolling=false;
 const tailscaleButtons=['tailscale-install','tailscale-connect','tailscale-background','tailscale-share','tailscale-refresh'];
 async function tailscaleRefresh(){
