@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const {parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,RAMS,PLATINUM,LEVEL_CAP}=require('../scripts/fenysx-character-preset.cjs');
+const {parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,RAMS,PLATINUM,LEVEL_CAP}=require('../scripts/fenysx-character-preset.cjs');
 const native='server/upstream/UndauntedMetagame/src/vendor/';
 const catalog=JSON.parse(fs.readFileSync(path.join(__dirname,'..',native,'store_catalog.json')));
 const kinds=JSON.parse(fs.readFileSync(path.join(__dirname,'..',native,'store_item_kinds.json')));
@@ -57,4 +57,17 @@ test('invalid inputs are rejected before any database mutation',()=>{
  assert.throws(()=>mergeStacks([],new Map([['CURRENCY_NOTES',Number.MAX_SAFE_INTEGER+1]])),/Quantidade inválida/);
  assert.throws(()=>mergeStacks([{catalogId:'A',quantity:1},{catalogId:'A',quantity:2}],new Map([['A',5]])),/duplicada/);
  assert.throws(()=>storeUnlockPlan({webstore:[{id:'unknown',items:[{catalogId:'bad',quantity:1}]}]},{}),/Tipo desconhecido/);
+});
+
+test('offline preset requires actual Metagame real progression and never accepts stub',()=>{
+ const os=require('node:os');
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'fenysx-preset-env-'));
+ try{
+  fs.writeFileSync(path.join(dir,'.env'),'PROGRESSION_MODE=stub\n');
+  assert.throws(()=>verifyRealProgression(dir),/PROGRESSION_MODE=stub/);
+  fs.writeFileSync(path.join(dir,'.env'),'PROGRESSION_MODE=real\n');
+  assert.equal(verifyRealProgression(dir),'real');
+  fs.writeFileSync(path.join(dir,'.env'),'BIND_HOST=127.0.0.1\n');
+  assert.equal(verifyRealProgression(dir),'real','real is the default when unset');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
