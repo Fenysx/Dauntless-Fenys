@@ -449,7 +449,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('host:readiness',()=>vpnReply(async()=>{
   const c=load(),state=await status();
   let googleActive=false,googleReachable=false;
-  if(state.metagame){
+  if(state.metagame&&(c.googleHost||fs.existsSync(path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json')))){
    try{
     const caps=await googleHostCall('127.0.0.1:61000','status');
     googleReachable=caps?.mode==='google';
