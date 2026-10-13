@@ -68,7 +68,40 @@ test('falha de revogação limpa perfil local e resposta de perfil atrasada é d
  const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,request:()=>response.promise});
  client.profile={linked:true,userId:'old-user',key:'private-key'};
  const refreshing=client.refresh();const rejected=assert.rejects(refreshing,/conta Google mudou/);
- await new Promise(r=>setImmediate(r));await assert.rejects(client.signOut(),/offline/);
+ await new Promise(r=>setImmediate(r));const result=await client.signOut();assert.equal(result.signedIn,false);assert.match(result.notice,/revogação remota/);
  response.resolve({linked:true,userId:'old-user',key:'private-key'});await rejected;
  assert.equal(client.profile,null);assert.equal(settings.googleSelected,false);assert.equal(client.state().linked,false);
+});
+
+test('sair do Google com host offline limpa a sessão local sem liberar o lease à força',async()=>{
+ const {GooglePlayer}=require('../src/fenys-google-player');
+ let signedIn=true,settings={googleSelected:true,googleServer:'192.168.1.25:61000'},leaveCalls=0;
+ const auth={state:()=>({signedIn}),token:async()=> 'token',signOut:async()=>{signedIn=false;}};
+ const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,
+  hostRequest:async(_server,op)=>{assert.equal(op,'leave');leaveCalls++;throw Error('host offline');}});
+ client.profile={linked:true,userId:'old-user',revision:4,leaseUntil:new Date(Date.now()+30000).toISOString()};
+ const result=await client.signOut();
+ assert.equal(leaveCalls,1);assert.equal(result.signedIn,false);assert.equal(result.linked,false);
+ assert.equal(settings.googleSelected,false);assert.equal(settings.googleServer,'192.168.1.25:61000');
+ assert.equal(client.profile,null);assert.match(result.notice,/reserva do personagem na nuvem continua protegida/);
+});
+
+test('sair do Google com host acessível libera a sessão e não mostra aviso',async()=>{
+ const {GooglePlayer}=require('../src/fenys-google-player');
+ let signedIn=true,settings={googleSelected:true,googleServer:'192.168.1.25:61000'},leaveCalls=0;
+ const auth={state:()=>({signedIn}),token:async()=> 'token',signOut:async()=>{signedIn=false;}};
+ const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,
+  hostRequest:async(_server,op)=>{assert.equal(op,'leave');leaveCalls++;return {ok:true};}});
+ const result=await client.signOut();
+ assert.equal(leaveCalls,1);assert.equal(result.signedIn,false);assert.equal(result.notice,undefined);
+ assert.equal(settings.googleSelected,false);
+});
+
+test('falha em limpar a sessão Google local não deve ser exibida como logout bem-sucedido',async()=>{
+ const {GooglePlayer}=require('../src/fenys-google-player');
+ const auth={state:()=>({signedIn:true}),token:async()=> 'token',signOut:async()=>{throw Error('cofre indisponível');}};
+ let settings={googleSelected:true};
+ const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c});
+ await assert.rejects(client.signOut(),/cofre indisponível/);
+ assert.equal(settings.googleSelected,false);
 });
