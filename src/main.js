@@ -7,7 +7,7 @@ const crypto=require('node:crypto');
 const os=require('node:os');
 const {spawn,execFile}=require('node:child_process');
 const {inspectInstallation,renderReport}=require('./fenys-host-doctor');
-const {parseEndpoint:parseServerAddress}=require('./fenys-network');
+const {parseEndpoint:parseServerAddress,lanIP}=require('./fenys-network');
 const {startRelay}=require('./fenys-public-relay');
 let publicRelay=null;
 const {requestApi,createInvite,registerPlayer}=require('./fenys-api');
@@ -439,6 +439,10 @@ app.whenReady().then(()=>{
    notify('Conectado ao servidor '+server+'. Clique Jogar Agora para entrar na partida.');
    return {ok:true,server};
   }catch(e){return {ok:false,error:e.message};}finally{if(locked)busy=null;}
+ });
+ ipcMain.handle('network:localIPv4',()=>{
+  const addresses=Object.values(os.networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal&&lanIP(x.address)).map(x=>x.address);
+  return {addresses:[...new Set(addresses)]};
  });
  ipcMain.handle('system:doctor',async()=>{
   // Electron embeds its own Node runtime (often older than the host's Node.js).
