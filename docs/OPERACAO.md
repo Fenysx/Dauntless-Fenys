@@ -56,3 +56,17 @@ Peça aos jogadores para saírem, confirme o último save e encerre os serviços
 Se a nuvem contém uma revisão mais recente, não force a substituição pelo banco antigo. Recupere o snapshot confirmado com o fluxo normal. Se o disco de um host foi perdido antes de confirmar o save remoto, aquele progresso pode não ser recuperável.
 
 Após formatar somente o PC do jogador, a recuperação do modo Google é entrar na mesma conta e conectar a um host integrado. Isso pressupõe que o personagem já tenha sido vinculado e sincronizado. Uma chave antiga perdida antes do primeiro vínculo não é recuperada apenas pelo e-mail.
+
+## Diagnóstico automático do host
+
+Depois de executar `npm run server:prepare` e configurar os arquivos `.env`, na raiz do projeto rode:
+
+```bash
+npm run doctor
+```
+
+Se a cópia compilada estiver em outra pasta, use `npm run doctor -- --server C:/DauntlessRuntime`; para integrar a verificação com outros scripts, use `npm run doctor -- --json`. O diagnóstico funciona em Windows e Linux com Node.js 24+.
+
+A ferramenta examina a existência dos serviços compilados, arquivos `.env`, portas `61000`/`61001`, bind local, configuração de matchmaking, chaves RSA, caminho do banco, chave de game server e executável da partida. `ERRO` bloqueia a preparação; `ATENÇÃO` indica risco ou algo para conferir. Código de saída `1` significa erros de configuração; `0` significa que nenhuma verificação bloqueante falhou; `2` significa argumento inválido. O resultado **não contém valores de chaves ou tokens**. Os arquivos não são alterados e nenhum processo é iniciado.
+
+Esse teste verifica configurações locais, não prova que o firewall, o OAuth Google, o Supabase, o jogo ou um segundo PC estejam funcionando. Após corrigir os erros, inicie os serviços e valide a partida real. Não copie `.env` ao pedir ajuda; compartilhe apenas o relatório.
