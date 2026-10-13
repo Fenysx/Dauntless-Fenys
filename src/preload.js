@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('launcher',{
  connectionAddresses:()=>ipcRenderer.invoke('connection:addresses'),
  setupConnection:address=>ipcRenderer.invoke('connection:setup',address),
  createConnection:(address,name)=>ipcRenderer.invoke('connection:create',address,name),
- joinConnection:(code,username)=>ipcRenderer.invoke('connection:join',code,username),
+ joinConnection:(code,username,createNew=false)=>ipcRenderer.invoke('connection:join',code,username,createNew),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
  hostDoctor:()=>ipcRenderer.invoke('system:doctor'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
