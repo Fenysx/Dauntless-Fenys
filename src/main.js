@@ -305,7 +305,7 @@ app.whenReady().then(()=>{
   const fields={authId,address:config.address,name:String(options?.name||'').trim(),description:String(options?.description||'').trim(),policy:options?.policy};
   return communityCall('register',{envelope:communitySigned(config,'community-register',fields)});
  }));
- ipcMain.handle('google:local',(_event,createNew=false)=>vpnReply(async()=>{
+ ipcMain.handle('google:local',(_event,createNew=false,newName='')=>vpnReply(async()=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
   try{
    const caps=await googleHostCall('127.0.0.1:61000','status');
@@ -313,10 +313,10 @@ app.whenReady().then(()=>{
    await googlePlayer.refresh();
    if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();
    if(!googlePlayer.profile.linked&&createNew!==true)throw Error('Nenhum personagem vinculado. Para preservar seu personagem antigo, vincule-o primeiro no servidor de origem.');
-   return googlePlayer.home('127.0.0.1:61000',{allowCreateNew:createNew===true});
+   return googlePlayer.home('127.0.0.1:61000',{allowCreateNew:createNew===true,newName});
   }finally{busy=null;}
  }));
- ipcMain.handle('community:join',(_event,serverId,createNew=false)=>vpnReply(async()=>{
+ ipcMain.handle('community:join',(_event,serverId,createNew=false,newName='')=>vpnReply(async()=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
   try{
    const token=await googleAuth.token(),access=await community('access',{serverId},token);
@@ -326,7 +326,7 @@ app.whenReady().then(()=>{
    await googlePlayer.refresh();
    if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();
    if(!googlePlayer.profile.linked&&createNew!==true)throw Error('Nenhum personagem vinculado ao Google. Vincule o personagem existente no servidor de origem ou confirme a criação do primeiro personagem.');
-   const state=await googlePlayer.home(access.address,{allowCreateNew:createNew===true});
+   const state=await googlePlayer.home(access.address,{allowCreateNew:createNew===true,newName});
    notify('Servidor da comunidade selecionado: '+access.address+'. O progresso será validado pelo Supabase.');
    return {...state,server:access.address};
   }finally{busy=null;}
