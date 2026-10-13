@@ -459,7 +459,7 @@ app.whenReady().then(()=>{
   const identityFile=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
   return {
    servicesReady:Boolean(state.metagame&&state.deploy),
-   managedServices:state.owned.length>0,
+   managedServices:Boolean(state.metagame&&state.deploy&&state.owned.includes('metagame')&&state.owned.includes('deploy')),
    googleActive,googleReachable,googleConfigured:Boolean(c.googleHost),
    networkMode:c.googleNetworkMode||'lan',
    advertisedAddress:c.googleHostAddress||'',
