@@ -46,7 +46,7 @@ O código do launcher, serviços, integração e banco está versionado. Os arqu
 
 O cliente proprietário original, mapas e arquivos `.pak` **não são distribuídos**. É necessário possuir uma instalação compatível. A base contém binários de integração de terceiros; o código fonte do proxy `dxgi.dll` não é fornecido pelo upstream. Portanto, não prometemos reconstrução de todos os binários exclusivamente a partir do código deste repositório.
 
-## Redes sem Tailscale obrigatório (1.7.0-beta.1)
+## Escolher servidor e comunidade (1.8.0-beta.1)
 
 O painel **Servidor com personagens Google** permite escolher **Tailscale**, **LAN** ou **Público HTTPS**. No modo público, o launcher fornece uma ponte HTTP local para o cliente 1.4.4, com transporte HTTPS e chat WSS até o host. [Configuração e limites de cada modo](docs/REDES.md).
 
@@ -54,8 +54,8 @@ O painel **Servidor com personagens Google** permite escolher **Tailscale**, **L
 
 - Launcher para Windows; pacotes Linux com execução experimental do cliente via Wine.
 - Metagame e DeployServer compiláveis; partidas nativas dependem do cliente Windows 1.4.4.
-- Convites Google por Tailscale, LAN e HTTPS público implementados; progresso continua no Supabase.
-- Google OAuth real depende da configuração do provedor; a última verificação em 12/10/2026 encontrou o provedor desativado.
+- Servidor local e servidores da comunidade, com catálogo, convites Google por e-mail/nome de usuário e sino de notificações; permissões de acesso livre, convite ou VIP concedido manualmente. O progresso continua vinculado ao Supabase. Hospedagem externa exige HTTPS público e portas UDP alcançáveis. Veja [guia da comunidade](docs/COMUNIDADE.md).
+- O login Google real foi confirmado no launcher; o vínculo do personagem antigo e as partidas em VPS ainda precisam ser testados antes de considerar a migração finalizada.
 - Testes automatizados de API e progresso entre dois Metagames disponíveis. Login Google real, partida em dois PCs e partida via Wine ainda precisam de validação prática.
 - O instalador do launcher não embute toda a base nem instala automaticamente o jogo.
 
