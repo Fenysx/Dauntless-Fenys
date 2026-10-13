@@ -36,3 +36,12 @@ src-backup-*/
 
 # Upstream checkout used only by the integration workflow
 test-upstream/
+
+
+# Instalações e credenciais geradas localmente
+/runtime/
+**/fenys/
+**/fenys-backups/
+*.pak
+*.ucas
+*.utoc

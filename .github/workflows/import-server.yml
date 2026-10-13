@@ -1,0 +1,47 @@
+name: Importar base fixada do servidor
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [server/upstream.lock.json, .github/workflows/import-server.yml]
+permissions:
+  contents: write
+concurrency:
+  group: import-server
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Importar árvore original sem dados de execução
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -e server/upstream; then
+            echo 'A base já existe; atualizações precisam de revisão explícita.'
+            exit 1
+          fi
+          repo=$(node -p "require('./server/upstream.lock.json').repository")
+          revision=$(node -p "require('./server/upstream.lock.json').commit")
+          expected=$(node -p "require('./server/upstream.lock.json').tree")
+          git fetch --no-tags "$repo" "$revision"
+          test "$(git rev-parse FETCH_HEAD)" = "$revision"
+          test "$(git rev-parse FETCH_HEAD^{tree})" = "$expected"
+          git read-tree --prefix=server/upstream/ -u FETCH_HEAD
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Vendor exact Dauntless Revived server base $revision"
+          test "$(git rev-parse HEAD:server/upstream)" = "$expected"
+      - name: Testar launcher
+        run: npm test
+      - name: Compilar serviços e testar integrações da cópia importada
+        run: npm run test:integration
+      - name: Publicar cópia verificada sem sobrescrever mudanças concorrentes
+        run: git push origin HEAD:main

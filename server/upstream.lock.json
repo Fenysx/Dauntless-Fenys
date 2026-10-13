@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/mixutin/dauntless-revived.git",
+  "commit": "29477558148a9db66cd1134a5c3df8bea7f9bea5",
+  "tree": "d079e39ae8f654623dd4fbc3320d04c6fd92a132",
+  "destination": "server/upstream",
+  "license": "AGPL-3.0-only"
+}
