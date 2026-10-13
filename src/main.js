@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const net=require('node:net');
 const crypto=require('node:crypto');
 const os=require('node:os');
-const {spawn}=require('node:child_process');
+const {spawn,execFile}=require('node:child_process');
 const {inspectInstallation,renderReport}=require('./fenys-host-doctor');
 const {parseEndpoint:parseServerAddress}=require('./fenys-network');
 const {startRelay}=require('./fenys-public-relay');
@@ -390,7 +390,11 @@ app.whenReady().then(()=>{
   }catch(e){return {ok:false,error:e.message};}finally{if(locked)busy=null;}
  });
  ipcMain.handle('system:doctor',async()=>{
-  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false});
+  // Electron embeds its own Node runtime (often older than the host's Node.js).
+  // Check the exact external executable used by launchService instead.
+  const binary=process.platform==='win32'?'node.exe':'node';
+  const nodeVersion=await new Promise(resolve=>execFile(binary,['--version'],{encoding:'utf8',timeout:4000,windowsHide:true},(error,stdout)=>resolve(error?'unavailable':String(stdout).trim().replace(/^v/,''))));
+  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false,nodeVersion});
   let providerMessage;
   try{providerMessage=await googleAuth.provider()?'Habilitado; login real ainda precisa de teste.':'Desativado: habilite o provedor Google no painel Auth do Supabase.';}
   catch{providerMessage='Não foi possível consultar o Google OAuth (confira a internet).';}
