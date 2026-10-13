@@ -16,6 +16,7 @@ const {call:cloudRequest,decodeCode:decodeGlobalCode}=require('./fenys-cloud-pro
 const {installCloud}=require('./fenys-cloud-setup');
 const {validateAuthorization}=require('./fenys-supabase');
 const {GoogleAuth}=require('./fenys-google-auth');
+const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {installGoogle}=require('./fenys-google-setup');
@@ -175,9 +176,8 @@ async function monitorPlayers(){
    const reported=new Set();for(const event of data.events||[]){notify(event.name+(event.kind==='joined'?' conectou ao seu servidor.':' saiu do seu servidor.'));reported.add(event.name);}
    if(previousPlayers){for(const name of names)if(!previousPlayers.has(name)&&!reported.has(name))notify(name+' conectou ao seu servidor.');for(const name of previousPlayers)if(!names.has(name)&&!reported.has(name))notify(name+' saiu do seu servidor.');}cloudCursor=data.cursor;previousPlayers=names;return;
   }
-  const c=load(),file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');
-  if(!fs.existsSync(file))return;
-  const data=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:readKeyFile(file)});
+  const key=await localAdminKey();
+  const data=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key});
   if(data.limited===true||!Array.isArray(data.players))return;
   const names=new Set(data.players.filter(p=>typeof p?.name==='string').map(p=>p.name));
   if(previousPlayers){
@@ -223,10 +223,10 @@ async function playerOverview(){
    .map(p=>({name:p.name.slice(0,32),where:['menu','city','hunt','dojo','tutorial','unknown'].includes(p.where)?p.where:'unknown'}));
  return {limited:false,count:Number.isFinite(data.playersOnline)?Math.min(100000,Math.max(0,Math.floor(data.playersOnline))):players.length,players,server};
 }
-function configureChat(server){
+function configureChat(server,localAppData){
  // As in friend-kit/play.ps1: do not let the legacy 1.4.4 XMPP profile contact Epic.
  const host=server.split(':')[0];
- const iniDir=path.join(process.env.LOCALAPPDATA||path.join(app.getPath('home'),'AppData','Local'),'Archon','Saved','Config','WindowsClient');
+ const iniDir=path.join(localAppData,'Archon','Saved','Config','WindowsClient');
  const file=path.join(iniDir,'Engine.ini');
  fs.mkdirSync(iniDir,{recursive:true});
  const current=fs.existsSync(file)?fs.readFileSync(file,'utf8'):'';
@@ -242,10 +242,11 @@ function configureChat(server){
  const xmpp=['[OnlineSubsystemMcp.XMPP]',`ServerAddr="ws://${host}"`,'ServerPort=61099','bUseSSL=false'];
  fs.writeFileSync(file,[...xmpp,'',...keep].join('\r\n'),'utf8');
 }
-async function spawnGame(exe,args){
+async function spawnGame(exe,args,runtime){
  if(activeGame&&activeGame.exitCode===null)throw Error('O jogo já está aberto.');
  return new Promise((resolve,reject)=>{
-  const child=spawn(exe,args,{cwd:path.dirname(exe),detached:true,stdio:'ignore',windowsHide:false});
+  const launch=gameLaunch(runtime,exe,args);
+  const child=spawn(launch.command,launch.args,launch.options);
   child.once('error',err=>{if(activeGame===child)activeGame=null;reject(err);});
   child.once('spawn',()=>{activeGame=child;child.unref();resolve();});
   child.once('exit',()=>{if(activeGame===child)activeGame=null;});
@@ -271,6 +272,7 @@ app.whenReady().then(()=>{
  const linkPrevious=async()=>{await googlePlayer.refresh();if(googlePlayer.profile.linked)return googlePlayer.state();const previous=previousAccount();if(!previous)throw Error('Nenhuma conta antiga encontrada. Use um convite para criar seu personagem com Google.');const caps=await googleHostCall(previous.server,'status').catch(()=>null);if(caps?.mode!=='google')throw Error('Ative a integração Google no servidor de origem antes de vincular seu personagem atual. Não crie outra conta por cima dele.');return googlePlayer.link(previous.server,previous.key);};
  ipcMain.handle('google:state',()=>vpnReply(async()=>{if(googleAuth.state().signedIn&&!googlePlayer.profile&&!googlePlayer.busy)await googlePlayer.refresh();return {...googlePlayer.state(),configured:await googleAuth.provider(),hostEnabled:!!load().googleHost};}));
  ipcMain.handle('google:login',()=>vpnReply(async()=>{assertGameClosed();if(!googleAuth.state().signedIn)await googleAuth.login();await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount()){try{await linkPrevious();}catch(e){return {...googlePlayer.state(),notice:e.message};}}return googlePlayer.state();}));
+ ipcMain.handle('google:cancel',()=>{googleAuth.dispose();return {ok:true,...googlePlayer.state()};});
  ipcMain.handle('google:logout',()=>vpnReply(async()=>{assertGameClosed();return googlePlayer.signOut();}));
  ipcMain.handle('google:link',()=>vpnReply(async()=>{assertGameClosed();return linkPrevious();}));
  ipcMain.handle('google:refresh',()=>vpnReply(()=>googlePlayer.refresh()));
@@ -388,7 +390,7 @@ app.whenReady().then(()=>{
   const linked=c.accountFiles && c.accountFiles[server];
   const local=parseServerAddress(server).local;
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
-  return {...safe,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
+  return {...safe,platform:process.platform,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
  ipcMain.handle('settings:setServer',async(_event,value)=>{
   assertGameClosed();
@@ -441,6 +443,8 @@ app.whenReady().then(()=>{
   }catch(e){return {ok:false,error:e.message};}
  });
  ipcMain.handle('settings:pickRepo',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openDirectory']});if(r.canceled)return null;const c=load();c.repoPath=r.filePaths[0];save(c);return c;});
+ ipcMain.handle('settings:pickWine',async()=>{assertGameClosed();const r=await dialog.showOpenDialog(win,{title:'Selecionar executável Wine',properties:['openFile']});if(r.canceled)return null;const c=load();c.wineExecutable=r.filePaths[0];save(c);return {selected:true};});
+ ipcMain.handle('settings:pickWinePrefix',async()=>{assertGameClosed();const r=await dialog.showOpenDialog(win,{title:'Selecionar ambiente Wine (pasta com drive_c e system.reg)',properties:['openDirectory']});if(r.canceled)return null;const dir=r.filePaths[0];if(!fs.existsSync(path.join(dir,'system.reg'))||!fs.existsSync(path.join(dir,'drive_c')))throw Error('Selecione um ambiente Wine já configurado com winecfg.');const c=load();c.winePrefix=dir;save(c);return {selected:true};});
  ipcMain.handle('settings:pickLauncher',async()=>{const r=await dialog.showOpenDialog(win,{filters:[{name:'Aplicativos Windows',extensions:['exe']}],properties:['openFile']});if(r.canceled)return null;const c=load();c.launcherExe=r.filePaths[0];save(c);return c;});
  ipcMain.handle('players:online',async()=>{
   try{return {ok:true,data:await playerOverview()};}
@@ -451,10 +455,10 @@ app.whenReady().then(()=>{
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
  ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
-  if(process.platform!=='win32')throw new Error('O jogo no Linux ainda precisa de integração com Wine/Proton. O launcher Linux suporta as telas, não a execução do jogo.');
   const c=load();const exe=gameExePath(c);
   if(!fs.existsSync(exe))throw new Error(`Executável do Dauntless 1.4.4 não encontrado: ${exe}`);
   await verifyGame(path.dirname(exe));
+  const runtime=await gameRuntime(c,{home:app.getPath('home')});
   if(hostedOnThisPC(backendAddress()))await startAll();
   const googleCaps=await googleHostCall(backendAddress(),'status').catch(()=>null);
   if(googleCaps?.mode==='google'&&!load().googleSelected){if(!googleAuth.state().signedIn)throw Error('Clique em Continuar com Google antes de jogar.');if(previousAccount())await linkPrevious();await googlePlayer.home(hostedOnThisPC(backendAddress())?'127.0.0.1:61000':backendAddress());}
@@ -466,8 +470,8 @@ app.whenReady().then(()=>{
   const key=await accountKey();
   const s=hostedOnThisPC(server)?await startAll():await status();
   if(!s.gameOnline)throw new Error('Servidor selecionado offline. Confira o Tailscale e a porta 61000.');
-  configureChat(server);
-  await spawnGame(exe,gameArgs(server,key));
+  configureChat(server,runtime.localAppData);
+  await spawnGame(exe,gameArgs(server,key),runtime);
   notify(`Dauntless 1.4.4 iniciado pelo cliente Win64, conectado a ${server}.`);
   return s;
  }));
@@ -476,3 +480,4 @@ app.whenReady().then(()=>{
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 // Preserve current behavior: services started by Fenys stop when Fenys exits.
 app.on('before-quit',()=>{googleAuth?.dispose();tailscale?.dispose();for(const child of owned.values()){try{child.kill('SIGTERM');}catch{}}});
+

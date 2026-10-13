@@ -15,13 +15,17 @@ permissions:
 
 jobs:
   tests:
-    name: Validar codigo e contratos
-    runs-on: ubuntu-latest
+    name: Validar codigo e contratos (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
 
-      - name: Node.js 22
+      - name: Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -31,6 +35,7 @@ jobs:
         run: npm ci
 
       - name: Conferir sintaxe
+        shell: bash
         run: |
           for file in src/*.js; do node --check "$file"; done
 
@@ -66,3 +71,4 @@ jobs:
 
       - name: Validar progresso Google entre Metagames independentes
         run: node test/integration-google.cjs
+

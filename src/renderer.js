@@ -46,6 +46,9 @@ async function settings(){
   const c=await window.launcher.getSettings();
   $('repo').textContent=c.repoPath;
   $('exe').textContent=c.launcherExe||'Não configurado';
+  $('wine-settings').hidden=c.platform!=='linux';
+  $('wine-executable').textContent=c.wineExecutable||'wine (sistema)';
+  $('wine-prefix').textContent=c.winePrefix||'Padrão do Wine';
   $('serverAddress').value=c.gameServer||'127.0.0.1:61000';
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
   $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
@@ -65,6 +68,8 @@ for(const id of ['restart','restart2'])$(id).addEventListener('click',()=>action
 $('refresh').addEventListener('click',refresh);
 $('repoPick').addEventListener('click',async()=>{try{await window.launcher.pickRepo();await settings();}catch(e){note(e.message);}});
 $('exePick').addEventListener('click',async()=>{try{await window.launcher.pickLauncher();await settings();}catch(e){note(e.message);}});
+$('winePick').addEventListener('click',async()=>{try{await window.launcher.pickWine();await settings();}catch(e){note(e.message);}});
+$('winePrefixPick').addEventListener('click',async()=>{try{await window.launcher.pickWinePrefix();await settings();}catch(e){note(e.message);}});
 $('serverSave').addEventListener('click',async()=>{
  try{
   const result=await window.launcher.setServer($('serverAddress').value);
@@ -193,7 +198,8 @@ setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRe
 let googleWorking=false;
 async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;}catch(e){$('google-state').textContent=e.message;}}
 async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();return r;}catch(e){note(e.message);}finally{googleWorking=false;}}
-$('google-login').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogin()));
+$('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('google-login').disabled=true;$('google-cancel').hidden=false;try{await googleOperation(()=>window.launcher.googleLogin());}finally{$('google-login').disabled=false;$('google-cancel').hidden=true;}});
+$('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
 $('google-refresh').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleRefresh()));
@@ -202,3 +208,4 @@ $('google-host-activate').addEventListener('click',()=>void googleOperation(()=>
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
+

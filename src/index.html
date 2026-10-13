@@ -47,7 +47,7 @@
         <article class="panel">
           <div class="panel-title"><h3>Meu personagem na nuvem</h3><span class="chip">GOOGLE</span></div>
           <p id="google-state" class="notice" role="status" aria-live="polite">Consultando a integração Google…</p>
-          <div class="button-row"><button id="google-login" class="btn btn-red">Continuar com Google</button><button id="google-logout" class="btn btn-outline" hidden>Sair da conta Google</button><button id="google-refresh" class="btn btn-outline">Conferir personagem na nuvem</button></div>
+          <div class="button-row"><button id="google-login" class="btn btn-red">Continuar com Google</button><button id="google-cancel" class="btn btn-outline" hidden>Cancelar login</button><button id="google-logout" class="btn btn-outline" hidden>Sair da conta Google</button><button id="google-refresh" class="btn btn-outline">Conferir personagem na nuvem</button></div>
           <button id="google-link" class="btn btn-outline">Vincular meu personagem atual ao Google</button>
           <p class="notice">Depois do primeiro vínculo confirmado, entre com o mesmo Google em outro PC para recuperar o personagem. Não é preciso guardar uma chave de jogador. Antes de formatar, confira o vínculo e o último save confirmado. O login abre somente no navegador oficial; não há senha do launcher.</p>
         </article>
@@ -155,6 +155,13 @@
           <div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar</button></div>
           <label>Executável do jogo Dauntless 1.4.4</label>
           <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
+          <div id="wine-settings" hidden>
+            <label>Wine para Linux</label>
+            <div class="path"><span id="wine-executable">wine (sistema)</span><button id="winePick" class="btn btn-outline">Selecionar Wine</button></div>
+            <label>Ambiente Wine de 64 bits</label>
+            <div class="path"><span id="wine-prefix">Padrão do Wine</span><button id="winePrefixPick" class="btn btn-outline">Selecionar ambiente</button></div>
+            <p class="notice">Use um ambiente já configurado com winecfg e as dependências gráficas do jogo. Esta opção inicia o cliente pelo Wine; Proton e hospedagem de partidas no Linux ainda não foram integrados.</p>
+          </div>
           <p class="notice">No modo remoto, o launcher não inicia nem encerra serviços. A conexão exige Tailscale funcionando no host e no cliente.</p>
         </article>
       </section>
@@ -166,3 +173,4 @@
 <script src="renderer.js"></script>
 </body>
 </html>
+

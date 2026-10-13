@@ -2,6 +2,7 @@ const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
  googleState:()=>ipcRenderer.invoke('google:state'),
  googleLogin:()=>ipcRenderer.invoke('google:login'),
+ googleCancel:()=>ipcRenderer.invoke('google:cancel'),
  googleLogout:()=>ipcRenderer.invoke('google:logout'),
  googleLink:()=>ipcRenderer.invoke('google:link'),
  googleRefresh:()=>ipcRenderer.invoke('google:refresh'),
@@ -27,6 +28,8 @@ contextBridge.exposeInMainWorld('launcher',{
  getSettings:()=>ipcRenderer.invoke('settings:get'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
+ pickWine:()=>ipcRenderer.invoke('settings:pickWine'),
+ pickWinePrefix:()=>ipcRenderer.invoke('settings:pickWinePrefix'),
  setServer:address=>ipcRenderer.invoke('settings:setServer',address),
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
@@ -40,3 +43,4 @@ contextBridge.exposeInMainWorld('launcher',{
  play:()=>ipcRenderer.invoke('game:play'),
  onActivity:callback=>ipcRenderer.on('activity',(_event,message)=>callback(message))
 });
+

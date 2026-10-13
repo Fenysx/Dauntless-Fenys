@@ -2,9 +2,9 @@
 
 Launcher comunitário para **Dauntless Revived 1.4.4**, com controle local de serviços, conexão privada por Tailscale, cadastro individual de jogadores e convites de uso único do Metagame.
 
-**Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O suporte à execução do jogo é **Windows**; os pacotes Linux abrem o launcher, mas a integração de Wine/Proton ainda está pendente.
+**Não inclui o cliente proprietário do Dauntless**, nem fornece downloads do jogo. O cliente inicia nativamente no **Windows** e possui integração experimental com **Wine no Linux**. A execução de partidas no Wine ainda precisa ser validada com o cliente 1.4.4.
 
-## Google + personagem na nuvem (1.6.0-beta.1)
+## Google + personagem na nuvem (1.6.0-beta.2)
 
 O fluxo principal é **Continuar com Google → colar código do servidor → jogar**. O login abre no navegador e usa Supabase Auth com PKCE. Não há senha própria do launcher, nem arquivo de chave de jogador para guardar. Iniciar, desligar e reiniciar os serviços locais continua disponível sem entrar com Google.
 
@@ -55,6 +55,30 @@ Fontes oficiais: [Google no Supabase](https://supabase.com/docs/guides/auth/soci
 
 Os arquivos `supabase/google-players.sql` e `supabase/functions/fenys-global/players.ts` documentam o backend. `supabase/dashboard-api.ts` é o bundle único implantado, incluindo o endpoint antigo de backups para compatibilidade.
 
+## Correções e execução Linux (1.6.0-beta.2)
+
+- Login reservado desde a consulta inicial: dois cliques não abrem duas tentativas. O botão **Cancelar login** encerra a tentativa, inclusive antes de abrir o navegador.
+- Cancelamento, timeout e saída descartam respostas atrasadas, inclusive durante a validação do usuário. Falhas ao abrir o navegador liberam a próxima tentativa.
+- A interface limpa o personagem ao sair, mesmo se a revogação remota falhar. Respostas antigas não restauram o perfil.
+- Uma conta Google já admitida pode voltar ao mesmo host sem pedir outro convite; contas desconhecidas continuam exigindo convite.
+- Falha ao sincronizar um personagem não pula os outros saves. O servidor conserva o progresso pendente e continua informando a falha.
+- As notificações de entrada/saída usam também a credencial administradora recuperada pelo Google.
+
+### Jogar no Linux com Wine
+
+1. Instale e configure Wine de 64 bits e as dependências gráficas necessárias ao cliente 1.4.4. Abra `winecfg` no ambiente que pretende usar.
+2. Em **Configurações**, selecione o executável do jogo. Escolha também o Wine e a pasta do ambiente (a pasta contém `drive_c` e `system.reg`). Sem seleção, são usados `wine` do sistema e `WINEPREFIX` ou `~/.wine`.
+3. Conecte a um servidor remoto pelo Tailscale. Entre com Google quando o provedor estiver habilitado, ou use o acesso existente compatível.
+4. Clique em **Jogar Agora**. O launcher valida os arquivos, resolve a pasta AppData dentro do Wine, configura o chat e passa os argumentos diretamente ao Wine. A DLL `dxgi` da versão 1.4.4 é carregada com a preferência nativa.
+
+Essa integração não instala Wine, não configura Proton e não transforma o DeployServer em host Linux. O jogo e o servidor nativo precisam de validação prática; os testes automatizados do runtime verificam argumentos, prefixo, caminhos e tratamento de erros.
+
+### Evidências desta revisão
+
+`npm test` passou com 70 testes. Também passaram localmente `integration-connection.cjs`, `integration-host.cjs`, `integration-cloud.cjs` e `integration-google.cjs`, usando a revisão fixada do Metagame. O último usa identidade Google e broker isolados: ele não substitui login OAuth real ou uma caçada pela internet.
+
+A API pública de personagens respondeu corretamente e recusou consulta de perfil sem autenticação (HTTP 401). As seis tabelas do schema privado `fenys_global` têm RLS; o RPC de personagens permite execução apenas pelo backend `service_role`, sem acesso direto por `anon` ou `authenticated`. O provedor Google foi consultado e continua desativado em 12/10/2026.
+
 ## Correção 1.4.1
 
 O launcher volta a abrir diretamente, sem login ou senha local. Iniciar, desligar e reiniciar os serviços não dependem de autenticação nem de o Metagame já estar ligado. Para criar convites, a API continua validando a chave administradora original.
@@ -78,7 +102,7 @@ Referências: [CLI Tailscale](https://tailscale.com/docs/reference/tailscale-cli
 
 - Windows: launcher e botão JOGAR foram testados localmente na versão 1.0.0.
 - Convites, cadastro e Tailscale: integração em desenvolvimento; teste ponta a ponta com jogadores externos ainda é necessário.
-- Linux: instaladores AppImage/DEB compilam. O jogo não é iniciado no Linux por esta versão.
+- Linux: AppImage/DEB e execução do cliente via Wine implementados. Partida real via Wine, Proton e hospedagem de processos de jogo no Linux ainda pendentes.
 - Atualização automática do jogo e mods: ainda não implementada.
 
 ## Executar o código
@@ -175,3 +199,4 @@ O launcher restringe os endpoints HTTP configuráveis a localhost e endereços T
 Não envie `.env`, tokens, chaves `UUK_`, banco SQLite ou arquivos do jogo ao GitHub. Conexões remotas ainda precisam de teste real de acesso e da configuração correta de firewall/Tailscale.
 
 Código do Dauntless Launcher Ultimate e integrações derivadas de [Dauntless Revived](https://github.com/mixutin/dauntless-revived), baseado em [Undaunted](https://github.com/SyST3MDeV/Undaunted), conforme avisos do projeto original. Licença **AGPL-3.0-only**. Consulte o arquivo de licença e `NOTICE.md`. Projeto não afiliado à Phoenix Labs ou Epic Games.
+

@@ -58,7 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/test.yml/runs?head_sha=$GITHUB_SHA&event=push")
-          echo "$RUNS" | jq -e '.workflow_runs | any(.head_branch == "main" and .status == "completed" and .conclusion == "success")'
+          TEST_RUN_ID=$(echo "$RUNS" | jq -r '.workflow_runs | map(select(.head_branch == "main")) | sort_by(.run_number) | last | .id // empty')
+          test "$TEST_RUN_ID" != ""
+          timeout 15m gh run watch "$TEST_RUN_ID" --exit-status --interval 15
 
       - name: Buscar instaladores da compilacao validada
         uses: actions/download-artifact@v4
@@ -97,10 +99,11 @@ jobs:
             Launcher comunitário para Dauntless Revived.
 
             **Windows:** instalador com Continuar com Google, vínculo do personagem existente, recuperação pela nuvem e conexão por código Tailscale.
-            **Linux:** pacotes AppImage e deb compilados; o jogo via Wine/Proton ainda não foi validado.
+            **Linux:** cliente configurável via Wine, com seleção do executável e ambiente. A partida real pelo Wine ainda precisa de validação; Proton e hospedagem nativa no Linux permanecem pendentes.
             **Configuração pendente:** o dono precisa habilitar o provedor Google no Supabase com seu Client ID/Client Secret e autorizar o retorno local do launcher. O login real não foi validado sem essa configuração.
             **Importante:** o jogo original não está incluído. Tailscale e configuração do servidor pelo dono são necessários.
             Atualizações automáticas dos mods e jogo ainda estão em desenvolvimento.
 
             Esta é uma pré-release destinada a testes, não uma versão final.
+
 

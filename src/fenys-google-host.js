@@ -23,7 +23,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
   if(lease.revision!==current.revision)throw Error('Existe outra revisão na nuvem. Os dados locais foram preservados.');
   db.prepare('UPDATE launcher_google_sessions SET leaseUntil=?,error=NULL WHERE userId=?').run(Date.parse(lease.leaseUntil),row.userId);
  }
- function flush(){return enqueue(async()=>{if(!registered)await register();for(const row of rows())try{await save(row);}catch(e){db.prepare('UPDATE launcher_google_sessions SET leaseUntil=0,error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);throw e;}return {confirmed:true};});}
+ function flush(){return enqueue(async()=>{if(!registered)await register();let failure;for(const row of rows())try{await save(row);}catch(e){db.prepare('UPDATE launcher_google_sessions SET leaseUntil=0,error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);failure??=e;}if(failure)throw failure;return {confirmed:true};});}
  function mark(){db.prepare('UPDATE launcher_google_sessions SET dirty=1,changes=changes+1 WHERE active=1').run();}
  function identities(req){const ids=new Set(),me=account(req.headers['x-undaunted-user-api-key']);if(me)ids.add(me.userId);const bearer=req.headers.authorization;try{if(typeof bearer==='string'&&/^Bearer /i.test(bearer)){const token=validateToken(bearer.slice(7));if(token?.userId)ids.add(token.userId);}}catch{}
   for(const [k,v] of Object.entries(req.body||{}))if(/^(password|auth_password|exchange_code|key|uuk)$/i.test(k)&&typeof v==='string'){const user=account(v);if(user)ids.add(user.userId);}
@@ -59,7 +59,8 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
    if(route==='join'){await transfer(async()=>{
     if(!registered)await register();if(me.linked&&online().some(x=>x.UserId===me.userId))throw Error('O personagem ainda está em uma partida. Feche o jogo antes de conectar.');
     const secret=String(req.body?.secret||''),invite=db.prepare('SELECT * FROM launcher_google_invites WHERE secretHash=? AND expiresAt>?').get(hash(secret),now());const existing=me.linked&&db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(me.userId);
-    if(!localRequest(req)&&!existing?.active&&(!invite||(invite.usedBy&&invite.usedBy!==me.userId)))throw Error('Use um convite válido do dono do servidor.');
+    const admitted=existing&&existing.authId===me.authId;
+    if(!localRequest(req)&&!admitted&&(!invite||(invite.usedBy&&invite.usedBy!==me.userId)))throw Error('Use um convite válido do dono do servidor.');
     if(existing?.active&&(existing.dirty||existing.pending))await flush();
     const sid=existing?.active?existing.session:crypto.randomUUID();const r=await call('join',{session:sid,name:req.body?.name||undefined},token);
     try{
@@ -82,3 +83,4 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
 }
 function start(db,options){if(process.env.FENYS_GOOGLE_MODE!=='1')return {middleware:(_req,_res,next)=>next()};const config=JSON.parse(fs.readFileSync(path.join(process.cwd(),'fenys/google-host.json'),'utf8'));return createGoogleHost(db,{...options,config});}
 module.exports={createGoogleHost,start};
+

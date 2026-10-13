@@ -27,13 +27,14 @@ test('Edge verifica Google no servidor, recusa assinatura alterada e ignora auth
 });
 function player(db,name,admin=0){const userId='UID-'+crypto.randomUUID(),cid=crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');db.prepare('INSERT INTO users VALUES(?,?,0,?)').run(userId,name,admin);db.prepare('INSERT INTO userapikeys VALUES(?,?)').run(userId,hash(key));db.prepare('INSERT INTO characters VALUES(?,?,?,?,?,?,?)').run(cid,userId,'2026-10-12','2026-10-12',name,1,'{"Level":20}');db.prepare('INSERT INTO inventories VALUES(?,?,?)').run(cid,'[]','{"rams":1000}');return {userId,cid,key};}
 async function network(t){
- const users=new Map([['google-one',crypto.randomUUID()],['google-two',crypto.randomUUID()]]),records=new Map(),authorized=new Map();let failAfterSave=false;
+ const users=new Map([['google-one',crypto.randomUUID()],['google-two',crypto.randomUUID()]]),records=new Map(),authorized=new Map();let failAfterSave=false,rejectUser=null;
  const invoke=async(op,fields,token)=>{
   const auth=users.get(token);if(op==='profile'){if(!auth)throw Error('google denied');const p=records.get(auth);return p?{linked:true,authId:auth,userId:p.userId,name:p.name,key:p.key,schema:p.snapshot?.schema,activeHost:p.host?authorized.get(p.host):null,leaseUntil:p.leaseUntil,revision:p.revision}:{linked:false};}
   const s=verify(fields.envelope,op);if(!authorized.has(s.publicKey))throw Error('host denied');if(op==='host-register')return {registered:true};
   if(['join','link'].includes(op)&&!auth)throw Error('google denied');
   if(op==='link'){if([...records.values()].some(p=>p.userId===s.userId&&p.auth!==auth))throw Error('already linked');const old=records.get(auth);if(old&&old.userId!==s.userId)throw Error('other character');if(!old)records.set(auth,{auth,userId:s.userId,name:s.snapshot.tables.users[0].name,key:s.nativeKey,snapshot:structuredClone(s.snapshot),revision:1,origin:s.publicKey});return {linked:true,revision:1};}
   if(op==='join'){let p=records.get(auth);if(!p){p={auth,userId:'UID-'+crypto.randomUUID(),name:s.name,key:'UUK_'+crypto.randomBytes(24).toString('hex'),revision:0,origin:s.publicKey,snapshot:null};records.set(auth,p);}if(Date.parse(p.leaseUntil)>Date.now()&&(p.host!==s.publicKey||p.session!==s.session))throw Error('character busy');p.host=s.publicKey;p.session=s.session;p.leaseUntil=new Date(Date.now()+75000).toISOString();return {...structuredClone(p),authId:auth,originHost:p.origin};}
+  if(s.userId===rejectUser)throw Error('isolated player sync failure');
   const p=[...records.values()].find(p=>p.userId===s.userId);if(!p)throw Error('unknown');if(op==='save'&&p.commitId===s.commitId)return {revision:p.revision,commitId:p.commitId,leaseUntil:p.leaseUntil};if(p.host!==s.publicKey||p.session!==s.session)throw Error('session expired');
   if(op==='save'){assert.equal(s.expectedRevision,p.revision);assert.equal(s.snapshot.userId,p.userId);p.snapshot=structuredClone(s.snapshot);p.revision++;p.commitId=s.commitId;if(failAfterSave){failAfterSave=false;throw Error('lost cloud response');}}
   if(op==='release'){p.leaseUntil=new Date(0).toISOString();return {released:true};}
@@ -46,7 +47,7 @@ async function network(t){
   await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));const address='100.64.2.'+(i+1)+':'+server.address().port;authorized.set(pair.publicKey,address);host=createGoogleHost(db,{config:{...pair,realm:crypto.randomUUID(),address},invoke,autoStart:false});await host.register();nodes.push({db,host,address,admin});
  }
  const nativeFetch=fetch;t.mock.method(globalThis,'fetch',(url,...args)=>nativeFetch(String(url).replace(/100\.64\.2\.[12]/g,'127.0.0.1'),...args));
- return {nodes,invoke,users,records,setFail:()=>failAfterSave=true};
+ return {nodes,invoke,users,records,setFail:()=>failAfterSave=true,rejectSync:userId=>rejectUser=userId};
 }
 test('mesmo Google recupera personagem após apagar dados do PC e troca entre hosts com UID, nível e inventário preservados',async t=>{
  const n=await network(t),[a,b]=n.nodes,p=player(a.db,'PlayerOne');const auth={state:()=>({signedIn:true}),token:async()=> 'google-one'};let settings={};
@@ -65,3 +66,28 @@ test('resposta perdida do Supabase conserva outbox e recupera sem repetir revis�
 });
 
 test('falha de rede ao renovar Google conserva a sessão para tentar novamente',async t=>{const auth=new GoogleAuth({directory:temporary(t),fetchImpl:async()=>{throw Error('network offline');}});auth.write({access_token:'expired',refresh_token:'recoverable',expires_at:0,user:{id:crypto.randomUUID(),email:'user@example.test'}});await assert.rejects(auth.token(),/offline/);assert.equal(auth.state().signedIn,true);assert.equal(auth.read().refresh_token,'recoverable');});
+
+
+test('jogador admitido retorna pela VPN sem novo convite, outra conta continua bloqueada',async t=>{
+ const n=await network(t),a=n.nodes[0],p=player(a.db,'ReturningPlayer');
+ const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});
+ await client.link(a.address,p.key);const code=(await hostCall(a.address,'invite',{},null,a.admin.key)).code;await client.connect(code);
+ await hostCall(a.address,'leave',{},'google-one');
+ const remote=async token=>{let status=200,body;const req={method:'POST',url:'/launcher/google/join',body:{},headers:{authorization:'Bearer '+token},socket:{remoteAddress:'100.64.4.9'}};const res={status(n){status=n;return this;},json(value){body=value;}};await a.host.middleware(req,res,()=>assert.fail('not a game request'));return {status,body};};
+ assert.equal((await remote('google-one')).status,200);
+ assert.equal((await remote('google-two')).status,409);
+ assert.equal(a.db.prepare('SELECT active FROM launcher_google_sessions WHERE userId=?').get(p.userId).active,1);
+});
+
+test('falha de um personagem não impede salvar os demais jogadores',async t=>{
+ const n=await network(t),a=n.nodes[0],one=player(a.db,'FirstPlayer'),two=player(a.db,'SecondPlayer');
+ for(const [p,token] of [[one,'google-one'],[two,'google-two']]){
+  const c=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=>token},settings:()=>({}),saveSettings(){},request:n.invoke});
+  await c.link(a.address,p.key);await c.connect((await hostCall(a.address,'invite',{},null,a.admin.key)).code);
+ }
+ a.db.prepare('UPDATE characters SET data=? WHERE userId=?').run('{"Level":55}',two.userId);a.host.mark();n.rejectSync(one.userId);
+ await assert.rejects(a.host.flush(),/isolated player/);
+ assert.equal(JSON.parse(n.records.get(n.users.get('google-two')).snapshot.tables.characters[0].data).Level,55);
+ assert.equal(a.db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(two.userId).dirty,0);
+ assert.equal(a.db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(one.userId).dirty,1);
+});
