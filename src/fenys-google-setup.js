@@ -29,6 +29,12 @@ function prepareGoogleFiles(input){
   // All aliases are imported by prepareFiles; install before legacy global routing and request logs.
   p.appSource=p.appSource.replace('export const app = express();','export const app = express();'+HOOK);
  }
+ // A previous partial installation may still contain the marker, while never
+ // registering the middleware. Refuse to claim that such a host is ready.
+ if(!p.appSource.includes('// LAUNCHER_GOOGLE_V3')
+    || !p.appSource.includes("require('../fenys/fenys-google-host.js')")
+    || !p.appSource.includes('app.use(googleHost.middleware)'))
+  throw Error('A versão local do Metagame não permite instalar as rotas Google com segurança. Verifique src/app.ts; nenhum personagem foi alterado.');
  for(const [k,v] of Object.entries({FENYS_GOOGLE_MODE:'1',FENYS_CLOUD_ROLE:'',FENYS_CLOUD_CHAT_ADDRESS:'',DEPLOYSERVER_URL:'127.0.0.1:61001',CHAT:'1',CHAT_PRESENCE:'on',PROGRESSION_MODE:'real',ESCALATION_MODE:'real'}))p.metagameEnv=setEnv(p.metagameEnv,k,v);
  return p;
 }
@@ -59,6 +65,13 @@ async function installGoogle(repo,{address,hostCode,authorizationFile,adminKey,n
  try{
   for(const [f,b] of changed)fs.writeFileSync(f,b,{mode:0o600});for(const [k,f] of Object.entries(files))fs.writeFileSync(f,p[k],{mode:0o600});
   await run(base,[path.join(base,'node_modules/typescript/bin/tsc')]);
+  // TypeScript can return success while the working directory points at an old,
+  // uninstrumented build. A healthy Supabase host registration alone is NOT
+  // proof that /launcher/google/status will be served by this Metagame.
+  const compiledApp=path.join(base,'dist','app.js');
+  const compiled=fs.existsSync(compiledApp)?fs.readFileSync(compiledApp,'utf8'):'';
+  if(!compiled.includes('fenys-google-host.js')||!compiled.includes('googleHost.middleware'))
+   throw Error('O Metagame compilado não contém a integração Google. Verifique dist/app.js e a pasta do projeto antes de registrar o host; os arquivos anteriores serão restaurados.');
   // Persist the identity before a one-use authorization can be consumed, so retries reuse it.
   fs.writeFileSync(file,JSON.stringify(config),{mode:0o600});registering=true;await register(config);
  }catch(e){
