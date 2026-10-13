@@ -98,13 +98,11 @@ jobs:
             ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
 
-            **Novidade beta.2:** botão **Configurações → Verificar instalação** no launcher, com diagnóstico do host e estado do provedor Google sem expor chaves nem precisar do terminal. O comando `npm run doctor` continua disponível na cópia de desenvolvimento.
-
-            **Windows:** instalador com Continuar com Google, vínculo do personagem existente, recuperação pela nuvem e conexão por código em redes Tailscale, LAN ou servidores públicos HTTPS.
-            **Linux:** cliente configurável via Wine, com seleção do executável e ambiente. A partida real pelo Wine ainda precisa de validação; Proton e hospedagem nativa no Linux permanecem pendentes.
-            **Configuração pendente:** o dono precisa habilitar o provedor Google no Supabase com seu Client ID/Client Secret e autorizar o retorno local do launcher. O login real não foi validado sem essa configuração.
-            **Importante:** o jogo original não está incluído. Tailscale é opcional. LAN exige rede local confiável; acesso público exige certificado HTTPS válido e portas UDP acessíveis. A configuração do servidor pelo dono continua necessária.
-            Atualizações automáticas dos mods e jogo ainda estão em desenvolvimento.
+            **Novidades 1.8 beta:** seleção simplificada **Servidor local** / **Servidores da comunidade**. Catálogo de hosts Google públicos, sino para convites por e-mail Google ou nome de usuário, aceitação/recusa, políticas de entrada livre, convite e VIP manual. Hosts podem publicar o endereço HTTPS com assinatura do servidor já integrado.
+            **Hospedagem externa:** a API utiliza HTTPS com certificado válido, e as partidas dependem de IPv4 público acessível e UDP 8770–8777. O script `npm run host:run` permite executar os serviços em uma VPS Windows sem manter o Electron aberto. Consulte `docs/COMUNIDADE.md`.
+            **Contas antigas:** migração de personagem requer integração do servidor de origem e confirmação de saves. As telas antigas de Tailscale e convites por chave saíram do fluxo principal, mas continuam no código por compatibilidade.
+            **Segurança:** Supabase autentica o Google; o host valida permissões antes de admitir jogadores remotos. VIP significa autorização manual, sem cobrança automática.
+            **Limitações da versão de testes:** não há relay UDP, sistema de pagamento nem validação de partida real em dois PCs externos ou VPS. A operação depende de configuração do host e de sua rede.
 
             Esta é uma pré-release destinada a testes, não uma versão final.
 
