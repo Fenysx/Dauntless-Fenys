@@ -112,12 +112,14 @@ test('seleção Google não cria personagem nem altera servidor sem consentiment
  const auth={generation:0,state:()=>({signedIn:true}),token:async()=>'google-test'};
  const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:v=>{settings=v;},
   request:async op=>{assert.equal(op,'profile');return cloudLinked?{linked:true,name:'PrimeiroPersonagem',key:'UUK_TEST'}:{linked:false};},
-  hostRequest:async(_server,route)=>{hostCalls++;assert.equal(route,'join');cloudLinked=true;return {confirmed:true};}});
+  hostRequest:async(_server,route,body)=>{hostCalls++;assert.equal(route,'join');assert.deepEqual(body,{name:'NewSlayer'});cloudLinked=true;return {confirmed:true};}});
  await assert.rejects(client.home('https://comunidade.example'),/Nenhum personagem vinculado/);
  assert.equal(hostCalls,0,'sem autorização, não chama /join no servidor');
  assert.equal(settings.googleServer,'old.example:61000','sem autorização, conserva servidor anterior');
  assert.equal(settings.googleSelected,false);
- const result=await client.home('https://comunidade.example',{allowCreateNew:true});
+ await assert.rejects(client.home('https://comunidade.example',{allowCreateNew:true,newName:'!!!'}),/Escolha um nome/);
+ assert.equal(hostCalls,0);
+ const result=await client.home('https://comunidade.example',{allowCreateNew:true,newName:'NewSlayer'});
  assert.equal(hostCalls,1);
  assert.equal(result.linked,true);
  assert.equal(settings.googleServer,'https://comunidade.example');
