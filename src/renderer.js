@@ -174,7 +174,7 @@ $('connection-join').addEventListener('click',async()=>{
  catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
 });
 $('connection-local').addEventListener('click',async()=>{
- try{const google=await window.launcher.googleState();if(google.ok&&google.signedIn&&google.hostEnabled){let createNew=false;if(!google.linked){if(!window.confirm('Nenhum personagem está vinculado ao Google.\n\nSe você já jogou Dauntless, clique em Cancelar e vincule seu personagem antigo primeiro.\n\nConfirma que é um jogador NOVO e deseja criar seu primeiro personagem?'))return;createNew=true;}const result=await window.launcher.googleLocal(createNew);if(!result.ok)throw Error(result.error||'Não foi possível selecionar o servidor local.');}else {const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');}await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
+ try{const google=await window.launcher.googleState();if(google.ok&&google.signedIn&&google.hostEnabled){let createNew=false;if(!google.linked){if(!window.confirm('Nenhum personagem está vinculado ao Google.\n\nSe você já jogou Dauntless, clique em Cancelar e vincule seu personagem antigo primeiro.\n\nConfirma que é um jogador NOVO e deseja criar seu primeiro personagem?'))return;createNew=true;}let newName='';if(createNew){const choice=window.prompt('Nome do seu primeiro personagem (3 a 16 letras, números ou _):','');if(choice===null)return;newName=choice.trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Escolha um nome com 3 a 16 letras, números ou _.');}const result=await window.launcher.googleLocal(createNew,newName);if(!result.ok)throw Error(result.error||'Não foi possível selecionar o servidor local.');}else {const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');}await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
  catch(e){note(e.message);}
 });
 $('connection-copy').addEventListener('click',async()=>{
@@ -272,7 +272,14 @@ async function communityRefresh(){
       if(!window.confirm('Nenhum personagem está vinculado à sua conta Google.\n\nSe você já tem um personagem, clique em Cancelar e vincule-o no servidor de origem para não perder o progresso.\n\nVocê confirma que nunca jogou e deseja criar seu PRIMEIRO personagem neste servidor?'))return;
       createNew=true;
      }
-     const result=await window.launcher.communityJoin(server.id,createNew);
+     let newName='';
+     if(createNew){
+      const choice=window.prompt('Nome do seu primeiro personagem (3 a 16 letras, números ou _):','');
+      if(choice===null)return;
+      newName=choice.trim();
+      if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Escolha um nome com 3 a 16 letras, números ou _.');
+     }
+     const result=await window.launcher.communityJoin(server.id,createNew,newName);
      if(!result?.ok)throw Error(result?.error||'Não foi possível conectar.');
      note('Servidor '+server.name+' selecionado. Clique em Jogar Agora para entrar.');
      await settings();await refresh();
