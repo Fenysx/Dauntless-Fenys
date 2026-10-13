@@ -139,3 +139,27 @@ test('convite de compatibilidade nunca cria personagem Google silenciosamente',a
  assert.equal(n.records.get(n.users.get('google-two')).name,'FirstHero');
  assert.equal(settings.googleSelected,true);
 });
+
+test('troca de servidor respeita lease ativo e recupera quando o host antigo caiu',async()=>{
+ const old='https://host-antigo.example',destination='https://host-novo.example';
+ let leaseUntil=new Date(Date.now()+60000).toISOString(),activeHost=old,joinCount=0;
+ let settings={googleSelected:true,googleServer:old};
+ const client=new GooglePlayer({
+  auth:{state:()=>({signedIn:true}),token:async()=>'google-token'},
+  settings:()=>settings,saveSettings:v=>{settings=v;},
+  request:async()=>({linked:true,name:'Hero',userId:'UID-test',revision:8,key:'UUK_test',activeHost,leaseUntil}),
+  hostRequest:async(server,route)=>{
+   if(route==='leave'){assert.equal(server,old);throw Error('host offline');}
+   assert.equal(route,'join');assert.equal(server,destination);joinCount++;activeHost=destination;return {confirmed:true};
+  }
+ });
+ await assert.rejects(client.home(destination),/reservado pelo servidor anterior/);
+ assert.equal(joinCount,0);
+ assert.equal(settings.googleServer,old,'nao troca antes do lease expirar');
+ leaseUntil=new Date(Date.now()-1000).toISOString();
+ const linked=await client.home(destination);
+ assert.equal(joinCount,1);
+ assert.equal(linked.name,'Hero');
+ assert.equal(settings.googleServer,destination);
+ assert.equal(settings.googleSelected,true);
+});
