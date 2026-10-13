@@ -281,9 +281,12 @@ app.whenReady().then(()=>{
  let hostCapabilityCache={checkedAt:0,active:false};
  const localGoogleEnabled=async()=>{
   if(!load().googleHost)return false;
-  if(Date.now()-hostCapabilityCache.checkedAt<30000)return hostCapabilityCache.active;
+  if(!await tcp(PORTS.metagame)){
+   hostCapabilityCache={checkedAt:Date.now(),active:false};
+   return false;
+  }
+  if(Date.now()-hostCapabilityCache.checkedAt<15000)return hostCapabilityCache.active;
   hostCapabilityCache={checkedAt:Date.now(),active:false};
-  if(!await tcp(PORTS.metagame))return false;
   try{
    const caps=await googleHostCall('127.0.0.1:61000','status');
    hostCapabilityCache.active=caps?.mode==='google'&&caps?.registered===true;
@@ -364,7 +367,7 @@ app.whenReady().then(()=>{
    const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
    let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
-   c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
+   c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);hostCapabilityCache.checkedAt=0;notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
   }finally{busy=null;}
  }));
  ipcMain.handle('tailscale:status',()=>vpnReply(()=>tailscale.status()));
@@ -586,9 +589,9 @@ app.whenReady().then(()=>{
   catch(e){return {ok:false,error:e.message};}
  });
  ipcMain.handle('server:status',()=>status());
- ipcMain.handle('server:start',()=>runLocked(startAll));
- ipcMain.handle('server:stop',()=>runLocked(stopOwned));
- ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();return startAll();}));
+ ipcMain.handle('server:start',()=>runLocked(async()=>{hostCapabilityCache.checkedAt=0;return startAll();}));
+ ipcMain.handle('server:stop',()=>runLocked(async()=>{hostCapabilityCache.checkedAt=0;return stopOwned();}));
+ ipcMain.handle('server:restart',()=>runLocked(async()=>{if(owned.size===0)throw new Error('Não há serviços iniciados por este launcher para reiniciar.');await stopOwned();hostCapabilityCache.checkedAt=0;return startAll();}));
  ipcMain.handle('game:play',()=>runLocked(async()=>{
   assertGameClosed();
   const c=load();const exe=gameExePath(c);
