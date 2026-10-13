@@ -276,7 +276,14 @@ $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
 $('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';$('google-lan-address-help').hidden=mode!=='lan';if(mode==='lan')void settings();void window.hostWizard?.refresh();});
 for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');void window.hostWizard?.refresh();}catch(e){note(e.message);}});
-$('google-host-activate').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-mode').value==='tailscale'?$('connection-address').value:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()})));
+$('google-host-activate').addEventListener('click',()=>void googleOperation(async()=>{
+ const preflight=await window.launcher.hostReadiness();
+ if(!preflight?.ok||!preflight.servicesReady||!preflight.managedServices)throw Error('Inicie o servidor local pelo launcher antes de integrar.');
+ if(preflight.googleActive&&!window.confirm('Mudar a rede exige reiniciar serviços. Faça backup, encerre todas as partidas e confirme que ninguém está jogando. Continuar?'))return {ok:true};
+ const result=await window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-mode').value==='tailscale'?$('connection-address').value:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()});
+ if(result?.ok)window.hostWizard.userEdited=false;
+ return result;
+}));
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
@@ -375,7 +382,7 @@ async function communityRefresh(){
   $('community-catalog-state').textContent='A lista não pôde ser consultada: '+e.message;
   $('community-inbox-state').textContent='Não foi possível conferir os convites: '+e.message;
   $('community-bell-count').textContent='—';
- }finally{communityLoading=false;}
+ }finally{communityLoading=false;void window.hostWizard?.refresh();}
 }
 async function communityOperation(fn,refresh=true){
  if(communityActionBusy)return;
