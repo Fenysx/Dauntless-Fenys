@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {createRequire}=require('node:module');
+const net=require('node:net');
 
 const RAMS=1_000_000_000_000;
 const PLATINUM=10_000_000_000_000;
@@ -114,6 +115,22 @@ function verifyRealProgression(metagame){
  if(mode==='stub')throw Error('PROGRESSION_MODE=stub no .env. Com servidor desligado, altere somente essa chave para PROGRESSION_MODE=real antes de aplicar.');
  return mode;
 }
+function isListeningOnLoopback(port){
+ return new Promise(resolve=>{
+  const socket=net.createConnection({host:'127.0.0.1',port});
+  let completed=false;
+  const finish=exists=>{if(completed)return;completed=true;socket.destroy();resolve(exists);};
+  socket.setTimeout(1100);
+  socket.once('connect',()=>finish(true));
+  socket.once('error',()=>finish(false));
+  socket.once('timeout',()=>finish(true)); // fail closed on uncertain port state
+ });
+}
+async function assertLocalServicesStopped(){
+ for(const port of [61000,61001]){
+  if(await isListeningOnLoopback(port))throw Error('Serviço ainda pode estar ativo na porta '+port+'. Pare Metagame e DeployServer antes de alterar o save.');
+ }
+}
 function localClient(metagame){
  const packageJson=path.resolve(metagame,'package.json');
  if(!fs.existsSync(packageJson))throw Error('Pasta Metagame não encontrada: '+packageJson);
@@ -156,6 +173,7 @@ async function run(argv){
   if(!o['server-stopped']||o.confirm!==TARGET_NAME)
    throw Error('Servidor e jogo devem estar DESLIGADOS. Informe --apply --server-stopped --confirm Fenysx somente após verificar UID e Character ID.');
   verifyRealProgression(metagame);
+  await assertLocalServicesStopped();
   if(!o['accept-client-overflow-risk'])
    throw Error('Rams e platina pedidos ultrapassam int32. A versão 1.4.4 pode exibir valores incorretos; acrescente --accept-client-overflow-risk após conferir o backup e aceitar este risco.');
   if(db.prepare("SELECT name FROM sqlite_master WHERE type='table' and name='fenys_passports'").get()){
@@ -200,4 +218,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={RAMS,PLATINUM,TARGET_NAME,LEVEL_CAP,parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,run};
+module.exports={RAMS,PLATINUM,TARGET_NAME,LEVEL_CAP,parseArgs,storeUnlockPlan,maxProgression,mergeStacks,mergeInstances,verifyRealProgression,isListeningOnLoopback,assertLocalServicesStopped,run};
