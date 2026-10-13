@@ -77,7 +77,7 @@
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
         <div class="page-title"><span class="kicker">JOGAR COM AMIGOS</span><h1>Conectar servidor</h1><p>Entre com Google e conecte-se a um servidor pelo convite. Se você hospeda partidas, abra as opções de servidor abaixo.</p></div>
-        <details class="panel fenys-panel-gap" id="tailscale-tools"><summary><strong>Rede privada Tailscale (opcional)</strong></summary>
+        <details class="panel fenys-panel-gap" id="tailscale-tools" hidden><summary><strong>Rede privada Tailscale (opcional)</strong></summary>
           <div class="panel-title"><h3>Conexão Tailscale</h3><button id="tailscale-refresh" class="btn btn-outline">Atualizar status</button></div>
           <p id="tailscale-status" class="notice" role="status" aria-live="polite">Verificando o Tailscale…</p>
           <p id="tailscale-ip" class="notice"></p>
@@ -90,7 +90,7 @@
           <p class="notice">No primeiro acesso, entre na sua conta Tailscale pelo navegador. Não é uma senha do launcher. Se cada um usa uma conta Tailscale diferente, o dono compartilha o PC e o amigo aceita esse convite antes de usar o código do servidor.</p>
           <p class="notice">A instalação e o modo em segundo plano podem pedir permissão do Windows. Para hospedar a partida, mantenha o PC ligado, sem suspensão, e o launcher com os serviços abertos.</p>
         </details>
-        <details class="panel" id="host-invite-tools"><summary><strong>Hospedar meu servidor — convites</strong></summary>
+        <details class="panel" id="host-invite-tools" hidden><summary><strong>Hospedar meu servidor — convites</strong></summary>
           <div class="panel-title"><h3>Meu servidor — convidar usuário</h3><button id="connection-local" class="btn btn-outline">Usar meu servidor local</button></div>
           <p class="notice">Escolha o modo de rede ao ativar o servidor Google: Tailscale, rede local ou acesso público HTTPS. O dono mantém os serviços e o launcher abertos.</p>
           <div class="form-preview">
@@ -104,7 +104,7 @@
           <p class="notice">Inicie os serviços antes de gerar o código. A chave de administrador fica em Configurações → Administração e diagnóstico do servidor (avançado). Não há senha do launcher.</p>
         </details>
         <article class="panel fenys-panel-gap">
-          <div class="panel-title"><h3>Jogar em outro servidor</h3></div>
+          <div class="panel-title"><h3>Jogar em outro servidor</h3></div><p class="notice">Em breve: convites por e-mail Google ou nome de usuário, notificações para aceitar/recusar e catálogo de servidores públicos. Essas funções ainda dependem da API e da infraestrutura de rede; não estão ativas nesta versão.</p>
           <div class="form-preview">
             <label for="connection-code">Código recebido do dono</label><input id="connection-code" maxlength="2048" autocomplete="off" placeholder="Código recebido do servidor Google">
             <label for="connection-username">Nome de jogador (somente personagem novo)</label><input id="connection-username" maxlength="16" autocomplete="off" placeholder="Usuário">
