@@ -27,7 +27,7 @@ test('Edge verifica Google no servidor, recusa assinatura alterada e ignora auth
 });
 function player(db,name,admin=0){const userId='UID-'+crypto.randomUUID(),cid=crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');db.prepare('INSERT INTO users VALUES(?,?,0,?)').run(userId,name,admin);db.prepare('INSERT INTO userapikeys VALUES(?,?)').run(userId,hash(key));db.prepare('INSERT INTO characters VALUES(?,?,?,?,?,?,?)').run(cid,userId,'2026-10-12','2026-10-12',name,1,'{"Level":20}');db.prepare('INSERT INTO inventories VALUES(?,?,?)').run(cid,'[]','{"rams":1000}');return {userId,cid,key};}
 async function network(t){
- const users=new Map([['google-one',crypto.randomUUID()],['google-two',crypto.randomUUID()]]),records=new Map(),authorized=new Map();let failAfterSave=false,rejectUser=null;
+ const users=new Map([['google-one',crypto.randomUUID()],['google-two',crypto.randomUUID()]]),records=new Map(),authorized=new Map();let failAfterSave=false,rejectUser=null,permission=()=>({managed:false});
  const invoke=async(op,fields,token)=>{
   const auth=users.get(token);if(op==='profile'){if(!auth)throw Error('google denied');const p=records.get(auth);return p?{linked:true,authId:auth,userId:p.userId,name:p.name,key:p.key,schema:p.snapshot?.schema,activeHost:p.host?authorized.get(p.host):null,leaseUntil:p.leaseUntil,revision:p.revision}:{linked:false};}
   const s=verify(fields.envelope,op);if(!authorized.has(s.publicKey))throw Error('host denied');if(op==='host-register')return {registered:true};
@@ -44,10 +44,10 @@ async function network(t){
  for(let i=0;i<2;i++){
   const db=database(t),pair=identity(),admin=player(db,'Admin'+i,1);let host;
   const server=http.createServer(async(req,res)=>{res.status=function(n){this.statusCode=n;return this;};res.json=function(b){this.setHeader('content-type','application/json');this.end(JSON.stringify(b));};let raw='';for await(const b of req)raw+=b;req.body=raw?JSON.parse(raw):{};await host.middleware(req,res,()=>{const owner=db.prepare('SELECT userId FROM userapikeys WHERE keyHash=?').get(hash(req.headers['x-undaunted-user-api-key']||''));if(!owner){res.status(401).json({error:'native auth'});return;}if(req.url==='/test/save')db.prepare('UPDATE characters SET data=?,updateVersion=updateVersion+1 WHERE userId=?').run(JSON.stringify({Level:req.body.level}),owner.userId);res.json(db.prepare('SELECT * FROM characters WHERE userId=?').get(owner.userId));});});
-  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));const address='100.64.2.'+(i+1)+':'+server.address().port;authorized.set(pair.publicKey,address);host=createGoogleHost(db,{config:{...pair,realm:crypto.randomUUID(),address},invoke,autoStart:false});await host.register();nodes.push({db,host,address,admin});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));const address='100.64.2.'+(i+1)+':'+server.address().port;authorized.set(pair.publicKey,address);host=createGoogleHost(db,{config:{...pair,realm:crypto.randomUUID(),address},invoke,autoStart:false,communityAccess:(_key,token)=>Promise.resolve(permission(token))});await host.register();nodes.push({db,host,address,admin});
  }
  const nativeFetch=fetch;t.mock.method(globalThis,'fetch',(url,...args)=>nativeFetch(String(url).replace(/100\.64\.2\.[12]/g,'127.0.0.1'),...args));
- return {nodes,invoke,users,records,setFail:()=>failAfterSave=true,rejectSync:userId=>rejectUser=userId};
+ return {nodes,invoke,users,records,setFail:()=>failAfterSave=true,rejectSync:userId=>rejectUser=userId,setCommunityPermission:fn=>permission=fn};
 }
 test('mesmo Google recupera personagem após apagar dados do PC e troca entre hosts com UID, nível e inventário preservados',async t=>{
  const n=await network(t),[a,b]=n.nodes,p=player(a.db,'PlayerOne');const auth={state:()=>({signedIn:true}),token:async()=> 'google-one'};let settings={};
@@ -91,4 +91,18 @@ test('falha de um personagem não impede salvar os demais jogadores',async t=>{
  assert.equal(JSON.parse(n.records.get(n.users.get('google-two')).snapshot.tables.characters[0].data).Level,55);
  assert.equal(a.db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(two.userId).dirty,0);
  assert.equal(a.db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(one.userId).dirty,1);
+});
+
+test('host aplica permissão da comunidade no backend e não permite contornar VIP com sessão antiga',async t=>{
+ const n=await network(t),a=n.nodes[0],p=player(a.db,'VipTest');
+ const c=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});
+ await c.link(a.address,p.key);
+ const remote=async token=>{let status=200,body;const req={method:'POST',url:'/launcher/google/join',body:{},headers:{authorization:'Bearer '+token},socket:{remoteAddress:'100.64.4.9'}};const res={status(n){status=n;return this;},json(value){body=value;}};await a.host.middleware(req,res,()=>assert.fail('not game'));return {status,body};};
+ n.setCommunityPermission(token=>({managed:true,allowed:token==='google-one',reason:'VIP não autorizado'}));
+ assert.equal((await remote('google-one')).status,200);
+ n.setCommunityPermission(()=>({managed:true,allowed:false,reason:'VIP revogado'}));
+ const blocked=await remote('google-one');
+ assert.equal(blocked.status,409);
+ assert.match(blocked.body.error,/VIP revogado/);
+ assert.equal((await remote('google-two')).status,409);
 });

@@ -1,6 +1,6 @@
 {
   "name": "dauntless-launcher-ultimate",
-  "version": "1.7.0-beta.2",
+  "version": "1.8.0-beta.1",
   "private": true,
   "description": "Launcher comunitário do Dauntless",
   "main": "src/main.js",
@@ -12,7 +12,8 @@
     "server:prepare": "node scripts/prepare-server.cjs",
     "cloud:authorization": "node scripts/create-cloud-authorization.cjs",
     "test:integration": "node scripts/test-integration.cjs",
-    "doctor": "node scripts/doctor.cjs"
+    "doctor": "node scripts/doctor.cjs",
+    "host:run": "node scripts/run-community-host.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",

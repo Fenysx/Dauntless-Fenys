@@ -1,6 +1,6 @@
-# Conectar por Tailscale, LAN ou HTTPS público
+# Conectar por LAN ou HTTPS público (sem exigir Tailscale)
 
-A partir de **1.7.0-beta.1**, Tailscale é opcional no fluxo Google. Em **Conectar servidor → Servidor com personagens Google → Conexão do servidor**, escolha:
+Na versão **1.8.0-beta.1**, a navegação principal apresenta **Servidor local** e **Servidores da comunidade**. O host configura a rede em **Escolher servidor → Administração avançada → Conexão do servidor**. Tailscale permanece somente como compatibilidade de instalações antigas, não é obrigatório para novos jogadores.
 
 | Modo | Endereço anunciado | O que o jogador precisa |
 |---|---|---|
@@ -8,13 +8,13 @@ A partir de **1.7.0-beta.1**, Tailscale é opcional no fluxo Google. Em **Conect
 | Rede local — LAN | Ex.: `192.168.1.20:61000` | Acesso à mesma rede local e convite |
 | Público — HTTPS | Ex.: `https://jogo.seudominio.com` ou `https://jogo.seudominio.com:8443` | Internet e convite; não precisa instalar Tailscale |
 
-Os três modos usam a mesma conta Google, autorização dos hosts e persistência pessoal no Supabase. O acesso público ainda é por convite; não cria cadastro aberto, catálogo comunitário ou sistema de pagamento. Um servidor hospedado em uma VPS paga pode usar esse modo, mas cobrança de jogadores é uma funcionalidade separada.
+Todos os modos integrados usam a mesma identidade Google e progresso no Supabase. Na 1.8 beta, o catálogo e convites Google podem selecionar hosts públicos; veja [COMUNIDADE.md](COMUNIDADE.md). Hospedagem paga em uma VPS não implica cobrança de jogadores. Autorizações VIP são manuais e não processam pagamentos.
 
 ## Preparação comum
 
 Configure e compile os serviços conforme [INSTALACAO.md](INSTALACAO.md). Ative o provedor Google e a API conforme [NUVEM.md](NUVEM.md). Selecione a chave administradora local. Mantenha todos fora do jogo antes de ativar ou trocar o modo de rede. A pasta `server/upstream` permanece intacta; as alterações são feitas na cópia de execução.
 
-Para mudar o modo de um host Google, selecione a nova conexão e clique novamente em **Ativar servidor Google**. Use esse painel também para voltar ao Tailscale. O botão antigo **Configurar acesso Tailscale** é para servidores ainda não integrados; ele não substitui a atualização do cadastro Google.
+Para mudar o modo de um host Google, selecione a nova conexão e clique novamente em **Ativar servidor Google**. O modo legado Tailscale pode ser recuperado apenas por compatibilidade. O botão antigo **Configurar acesso Tailscale** é para servidores ainda não integrados; ele não substitui a atualização do cadastro Google.
 
 A troca só anuncia o novo endereço após compilar o Metagame. Se a compilação ou o registro falhar, o launcher restaura os arquivos, módulos, certificados e a configuração anterior. Se a nuvem estiver indisponível durante a restauração do cadastro, o host tenta confirmar o endereço anterior ao reconectar.
 

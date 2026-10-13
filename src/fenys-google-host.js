@@ -3,9 +3,10 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {createHost}=require('./fenys-roaming-host');
 const {cloud,signed,encodeInvite}=require('./fenys-google-cloud');
+const {community}=require('./fenys-community');
 const {lanRequest}=require('./fenys-network');
 const {privateRequest,localRequest,hash}=require('./fenys-cloud-protocol');
-function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},validateToken=()=>null,now=Date.now,autoStart=true}={}){
+function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},validateToken=()=>null,communityAccess=(key,token)=>community('access',{hostKey:key},token),now=Date.now,autoStart=true}={}){
  const progress=createHost(db,{online,revoke,force:true});
  db.exec(`CREATE TABLE IF NOT EXISTS launcher_google_sessions(userId TEXT PRIMARY KEY,authId TEXT NOT NULL,session TEXT NOT NULL,revision INTEGER NOT NULL,leaseUntil INTEGER NOT NULL,active INTEGER NOT NULL,dirty INTEGER NOT NULL,changes INTEGER NOT NULL,pending TEXT,error TEXT); CREATE TABLE IF NOT EXISTS launcher_google_invites(secretHash TEXT PRIMARY KEY,expiresAt INTEGER NOT NULL,usedBy TEXT);`);
  let queue=Promise.resolve(),transferring=false,inFlight=0,registered=false,timer=null;
@@ -61,7 +62,14 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
     if(!registered)await register();if(me.linked&&online().some(x=>x.UserId===me.userId))throw Error('O personagem ainda está em uma partida. Feche o jogo antes de conectar.');
     const secret=String(req.body?.secret||''),invite=db.prepare('SELECT * FROM launcher_google_invites WHERE secretHash=? AND expiresAt>?').get(hash(secret),now());const existing=me.linked&&db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(me.userId);
     const admitted=existing&&existing.authId===me.authId;
-    if(!localRequest(req)&&!admitted&&(!invite||(invite.usedBy&&invite.usedBy!==me.userId)))throw Error('Use um convite válido do dono do servidor.');
+    // The host enforces membership on EVERY remote join, including previously admitted players.
+    // On a directory outage, access fails closed instead of bypassing VIP revocations.
+    let access=null;
+    if(!localRequest(req)){
+     access=await communityAccess(config.publicKey,token);
+     if(access?.managed&&!access.allowed)throw Error(access.reason||'Sua conta Google não tem acesso a este servidor.');
+    }
+    if(!localRequest(req)&&!access?.managed&&!admitted&&(!invite||(invite.usedBy&&invite.usedBy!==me.userId)))throw Error('Use um convite válido do dono do servidor.');
     if(existing?.active&&(existing.dirty||existing.pending))await flush();
     const sid=existing?.active?existing.session:crypto.randomUUID();const r=await call('join',{session:sid,name:req.body?.name||undefined},token);
     try{

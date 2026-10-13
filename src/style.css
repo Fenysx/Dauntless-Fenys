@@ -41,3 +41,22 @@
 #screen-connection textarea, #screen-connection select {width:100%;background:#111520;border:1px solid #303749;color:#eef1fa;border-radius:10px;padding:12px;font:inherit;box-sizing:border-box;}
 #screen-connection textarea {resize:vertical;overflow-wrap:anywhere;}
 #connection-players:empty::after {content:'Nenhuma conexão recente pelo launcher.';color:#9aa5b6;}
+
+
+/* Community-first navigation, without Tailscale prompts */
+.community-bell{position:relative;min-width:50px;gap:7px}
+.community-bell[hidden]{display:none!important}
+.community-bell.has-notifications{border-color:#f25272;box-shadow:0 0 0 1px #a32945}
+.community-bell span{font-size:11px;font-weight:900;color:#ffb8c5}
+.community-list{display:grid;gap:11px;margin-top:16px}
+.community-server{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #503140;border-radius:12px;padding:15px 16px;background:#161018}
+.community-server>div:first-child{flex:1;min-width:0}
+.community-server strong{display:block;font-size:14px;color:#f4e7ef}
+.community-server p{margin:5px 0 0;font-size:11px;line-height:1.6;color:#b6a6b1;overflow-wrap:anywhere}
+.community-actions{display:flex;gap:8px;flex-wrap:wrap}
+.community-admin{border-top:1px solid #48303a;margin-top:25px;padding-top:20px}
+.community-admin h3{font-size:16px;margin:22px 0 8px}
+#screen-connection .form-preview select{width:100%;min-width:0}
+details.panel>summary{cursor:pointer;color:#f5d8e3;font-size:13px}
+details.panel>summary:hover{color:#ff839d}
+@media(max-width:780px){.community-server{align-items:flex-start;flex-direction:column}.community-server button{max-width:100%}}
