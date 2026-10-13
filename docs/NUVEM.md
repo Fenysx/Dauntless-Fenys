@@ -69,7 +69,7 @@ Para hosts seguintes, use **Autorizar outro servidor** e o código `DLUH3` produ
 
 Confirme o login real, vínculo do personagem antigo, reconexão ao mesmo host, mudança para um segundo host e recuperação em um perfil local novo. Confira o save antes de apagar dados antigos. Testes automatizados usam um broker isolado e não entram na sua conta Google.
 
-O último status registrado da instância original (12/10/2026) era provedor Google desativado. Este tutorial não afirma que o OAuth já foi configurado nem altera o projeto de produção.
+O login Google real foi confirmado no launcher durante os testes de outubro de 2026. O vínculo de personagem antigo e a partida em servidores externos ainda exigem validação específica; não confunda um login concluído com progresso sincronizado.
 
 
 ## 7. Hospedagem externa: VPS ou servidor da comunidade
@@ -95,7 +95,7 @@ O launcher pode rodar no PC do jogador enquanto Metagame, DeployServer e serviç
 
 ### Servidores da comunidade
 
-Cada host terá identidade e autorização próprias. Um futuro catálogo Supabase pode registrar nome, endereço HTTPS, status e política de entrada (amigos, aberto, restrito/VIP), sem expor credenciais privadas. **Esse catálogo, os convites Google e o controle de acesso VIP ainda não estão implementados.** Não conceda acesso com base apenas na interface: o host deve validar a permissão no backend antes de entregar credenciais ou permitir partidas.
+Cada host terá identidade e autorização próprias. A versão 1.8 beta adiciona catálogo Supabase, convites Google por e-mail/nome de usuário e autorizações VIP manuais, com verificação de permissão no host. Consulte [COMUNIDADE.md](COMUNIDADE.md). Ainda precisam de validação real de partidas fora da rede local. Cobrança de assinaturas e relay UDP não estão implementados.
 
 ### Critérios de aceite antes de contratar hospedagem definitiva
 
