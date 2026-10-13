@@ -85,8 +85,13 @@ class GoogleAuth{
  async signOut(){
   if(this.signingOut)throw Error('Aguarde a saída da conta Google.');
   this.signingOut=true;this.cancel?.();let s;try{s=this.read();}catch{}
-  try{this.clear();if(s)await this.api('logout?scope=local',{token:s.access_token,method:'POST'});}finally{this.signingOut=false;}
-  return this.state();
+  let notice=null;
+  try{
+   this.clear(); // The local encrypted session is removed even when the network is down.
+   if(s)try{await this.api('logout?scope=local',{token:s.access_token,method:'POST'});}
+   catch{notice='Você saiu deste computador, mas não foi possível confirmar a revogação da sessão no Supabase. A sessão remota poderá continuar válida até expirar.';}
+  }finally{this.signingOut=false;}
+  return {...this.state(),...(notice?{notice}:{})};
  }
  dispose(){this.cancel?.();this.generation++;}
 }
