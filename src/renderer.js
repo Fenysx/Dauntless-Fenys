@@ -60,7 +60,7 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`).classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void connectionAddresses();void tailscaleRefresh();void globalRefresh();}});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void communityRefresh();void globalRefresh();}if(node.dataset.screen==='invites')void communityRefresh();});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -182,7 +182,7 @@ $('connection-copy').addEventListener('click',async()=>{
 });
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
-setInterval(()=>{if(!$('screen-connection').hidden)void tailscaleRefresh();},10000);
+// Old Tailscale flow is hidden; do not poll or prompt players to install it.
 let globalWorking=false;
 async function globalRefresh(){
  try{const r=await window.launcher.globalState();if(!r.ok)throw Error(r.error);
@@ -206,7 +206,7 @@ setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRe
 
 let googleWorking=false;
 async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;}catch(e){$('google-state').textContent=e.message;}}
-async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();return r;}catch(e){note(e.message);}finally{googleWorking=false;}}
+async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();void communityRefresh();return r;}catch(e){note(e.message);}finally{googleWorking=false;}}
 $('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('google-login').disabled=true;$('google-cancel').hidden=false;try{await googleOperation(()=>window.launcher.googleLogin());}finally{$('google-login').disabled=false;$('google-cancel').hidden=true;}});
 $('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
@@ -222,3 +222,122 @@ $('google-host-invite').addEventListener('click',()=>void googleOperation(async(
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
 
+// Community directory, invitation notifications and access management.
+let communityLoading=false,communityActionBusy=false;
+function communityEmpty(container,message){
+ container.replaceChildren();const p=document.createElement('p');p.className='notice';p.textContent=message;container.append(p);
+}
+function communityButton(label,callback,style='btn-outline'){
+ const button=document.createElement('button');button.type='button';button.className='btn '+style;
+ button.textContent=label;button.addEventListener('click',()=>void callback());return button;
+}
+async function communityRefresh(){
+ if(communityLoading)return;
+ communityLoading=true;
+ try{
+  const auth=await window.launcher.googleState();
+  if(!auth?.ok||!auth.signedIn){
+   $('community-bell').hidden=true;
+   $('community-bell-count').textContent='0';
+   $('community-catalog-state').textContent='Entre com Google na aba Conta e convites para consultar os servidores.';
+   $('community-inbox-state').textContent='Entre com Google para receber convites.';
+   communityEmpty($('community-server-list'),'Nenhum servidor consultado.');
+   communityEmpty($('community-inbox-list'),'Nenhum convite consultado.');
+   return;
+  }
+  $('community-bell').hidden=false;
+  const [catalog,inbox]=await Promise.all([window.launcher.communityList(),window.launcher.communityInbox()]);
+  if(!catalog?.ok)throw Error(catalog?.error||'Falha no catálogo de servidores.');
+  if(!inbox?.ok)throw Error(inbox?.error||'Falha na consulta de convites.');
+  const servers=Array.isArray(catalog.servers)?catalog.servers:[];
+  const pending=Array.isArray(inbox.invitations)?inbox.invitations:[];
+  $('community-bell-count').textContent=String(pending.length);
+  $('community-bell').classList.toggle('has-notifications',pending.length>0);
+  $('community-catalog-state').textContent=servers.length?servers.length+' servidor(es) cadastrado(s). A disponibilidade é confirmada ao conectar.':'Nenhum servidor publicado ainda. O administrador pode publicar um host HTTPS.';
+  $('community-inbox-state').textContent=pending.length?pending.length+' convite(s) aguardando sua resposta.':'Nenhum convite pendente.';
+  const list=$('community-server-list');list.replaceChildren();
+  for(const server of servers){
+   const card=document.createElement('div');card.className='community-server';
+   const body=document.createElement('div'),name=document.createElement('strong'),subtitle=document.createElement('p');
+   name.textContent=server.name;
+   const policy={open:'Entrada livre',invite:'Somente convidados',vip:'Restrito / VIP'}[server.policy]||'Comunidade';
+   subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • Status a verificar';
+   body.append(name,subtitle);card.append(body);
+   const button=communityButton(server.hasAccess?'Selecionar servidor':'Acesso restrito',async()=>{
+    await communityOperation(async()=>{
+     const result=await window.launcher.communityJoin(server.id);
+     if(!result?.ok)throw Error(result?.error||'Não foi possível conectar.');
+     note('Servidor '+server.name+' selecionado. Clique em Jogar Agora para entrar.');
+     await settings();await refresh();
+    },false);
+   },server.hasAccess?'btn-red':'btn-outline');
+   button.disabled=!server.hasAccess;card.append(button);list.append(card);
+  }
+  if(!servers.length)communityEmpty(list,'Os servidores publicados aparecerão aqui.');
+  const own=$('community-owner-server'),old=own.value;own.replaceChildren();
+  const mine=servers.filter(s=>s.owned);
+  for(const server of mine){const option=document.createElement('option');option.value=server.id;option.textContent=server.name;own.append(option);}
+  if(mine.some(s=>s.id===old))own.value=old;
+  if(!mine.length){const option=document.createElement('option');option.value='';option.textContent='Publique seu servidor HTTPS primeiro';own.append(option);}
+  const incoming=$('community-inbox-list');incoming.replaceChildren();
+  for(const invitation of pending){
+   const card=document.createElement('div');card.className='community-server';
+   const body=document.createElement('div'),name=document.createElement('strong'),hint=document.createElement('p');
+   name.textContent=invitation.serverName||'Servidor da comunidade';
+   hint.textContent=(invitation.tier==='vip'?'Convite VIP':'Convite de jogador')+' • válido até '+new Date(invitation.expires_at).toLocaleDateString('pt-BR');
+   body.append(name,hint);
+   const actions=document.createElement('div');actions.className='community-actions';
+   for(const [label,decision] of [['Aceitar','accept'],['Recusar','decline']]){
+    actions.append(communityButton(label,()=>communityOperation(async()=>{
+     const r=await window.launcher.communityDecide(invitation.id,decision);
+     if(!r?.ok)throw Error(r?.error||'Não foi possível responder ao convite.');
+     note(decision==='accept'?'Convite aceito. O servidor agora pode aparecer na lista.':'Convite recusado.');
+    }),decision==='accept'?'btn-red':'btn-outline'));
+   }
+   card.append(body,actions);incoming.append(card);
+  }
+  if(!pending.length)communityEmpty(incoming,'Você não tem convites pendentes.');
+ }catch(e){
+  $('community-catalog-state').textContent='A lista não pôde ser consultada: '+e.message;
+  $('community-inbox-state').textContent='Não foi possível conferir os convites: '+e.message;
+  $('community-bell-count').textContent='—';
+ }finally{communityLoading=false;}
+}
+async function communityOperation(fn,refresh=true){
+ if(communityActionBusy)return;
+ communityActionBusy=true;
+ try{await fn();if(refresh)await communityRefresh();}
+ catch(e){note('Comunidade: '+e.message);}
+ finally{communityActionBusy=false;}
+}
+$('community-bell').addEventListener('click',()=>{setScreen('invites');$('community-notifications').scrollIntoView({behavior:'smooth',block:'center'});void communityRefresh();});
+$('community-list-refresh').addEventListener('click',()=>void communityRefresh());
+$('community-inbox-refresh').addEventListener('click',()=>void communityRefresh());
+$('community-username-save').addEventListener('click',()=>void communityOperation(async()=>{
+ const r=await window.launcher.communityUsername($('community-username').value.trim());
+ if(!r?.ok)throw Error(r?.error||'Nome indisponível.');note('Nome de usuário configurado: '+r.username);
+}));
+$('community-publish').addEventListener('click',()=>void communityOperation(async()=>{
+ const r=await window.launcher.communityPublish({name:$('community-host-name').value.trim(),description:$('community-host-description').value.trim(),policy:$('community-host-policy').value});
+ if(!r?.ok)throw Error(r?.error||'Publicação não confirmada.');
+ $('community-admin-state').textContent='Servidor '+r.name+' publicado na comunidade. Endereço e permissões verificados.';
+ note('Servidor publicado: '+r.name);
+}));
+$('community-invite-send').addEventListener('click',()=>void communityOperation(async()=>{
+ const id=$('community-owner-server').value;if(!id)throw Error('Publique e escolha um servidor que você administra.');
+ const target=$('community-invite-target').value.trim();if(!target)throw Error('Informe o e-mail Google ou nome de usuário.');
+ const r=await window.launcher.communityInvite(id,target,$('community-invite-tier').value,Number($('community-invite-days').value));
+ if(!r?.ok)throw Error(r?.error||'Convite não enviado.');
+ $('community-admin-state').textContent='Convite enviado para '+r.recipient+'. Ele aparecerá no launcher quando o destinatário entrar com Google.';
+ $('community-invite-target').value='';
+}));
+$('community-revoke').addEventListener('click',()=>void communityOperation(async()=>{
+ const id=$('community-owner-server').value;if(!id)throw Error('Escolha um servidor que você administra.');
+ const username=$('community-revoke-username').value.trim();if(!username)throw Error('Informe o nome de usuário.');
+ if(!window.confirm('Revogar o acesso de '+username+' a este servidor?'))return;
+ const r=await window.launcher.communityRevoke(id,username);
+ if(!r?.ok)throw Error(r?.error||'Não foi possível revogar.');
+ $('community-admin-state').textContent='Permissão revogada para '+username+'. A próxima entrada será verificada pelo servidor.';
+}));
+void communityRefresh();
+setInterval(()=>{if(!communityLoading&&!googleWorking)void communityRefresh();},30000);
