@@ -444,6 +444,24 @@ app.whenReady().then(()=>{
   const addresses=Object.values(os.networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal&&lanIP(x.address)).map(x=>x.address);
   return {addresses:[...new Set(addresses)]};
  });
+ // Read-only hosting state: never infer that a registered host is publicly reachable or that Ramsgate is healthy.
+ ipcMain.handle('hosting:readiness',()=>vpnReply(async()=>{
+  const c=load(),ports=await status();
+  let googleActive=false,googleMessage='';
+  if(ports.metagame){
+   try{
+    const caps=await googleHostCall('127.0.0.1:61000','status');
+    googleActive=caps?.mode==='google'&&caps?.registered===true;
+    if(!googleActive)googleMessage='O Metagame respondeu, mas o host Google ainda não foi ativado e registrado.';
+   }catch{
+    googleMessage='O Metagame não reconhece a rota Google. É necessário integrar o host antes de publicar ou migrar personagens.';
+   }
+  }else googleMessage='Inicie o Metagame para verificar a integração Google.';
+  return {metagame:ports.metagame,deploy:ports.deploy,googleConfigured:!!c.googleHost,googleActive,
+   googleMessage,networkMode:c.googleNetworkMode||'lan',hostAddress:c.googleHostAddress||'',
+   adminKeySelected:!!c.adminKeyFile,authorizationSelected:!!c.supabaseAuthorizationFile,
+   certSelected:!!c.publicCertFile,keySelected:!!c.publicKeyFile};
+ }));
  ipcMain.handle('system:doctor',async()=>{
   // Electron embeds its own Node runtime (often older than the host's Node.js).
   // Check the exact external executable used by launchService instead.
