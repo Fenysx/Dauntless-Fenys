@@ -50,3 +50,14 @@ Para adicionar novo host, cadastre-o pela integração \`fenys-global/players\` 
 ## Situação da 1.8.0-beta.1
 
 O banco, a API e os controles estão implementados. Os testes unitários/CI validam componentes isolados; **não** substituem um teste de partida real em uma VPS externa. Não é um serviço de hosting comercial pronto, não inclui cobrança e não inclui relay UDP.
+
+
+## Proteção de personagens — 1.8.0-beta.2
+
+- Entrar em **Servidor local** ou **Servidores da comunidade** não pode criar um personagem novo silenciosamente. Para uma conta Google ainda sem vínculo, o launcher tenta reconhecer a conta antiga do servidor de origem; se não encontrar, explica que a vinculação deve ser feita antes de migrar.
+- Somente jogadores realmente novos podem confirmar explicitamente que desejam criar seu **primeiro** personagem e informar um nome de 3 a 16 letras, números ou sublinhado. O nome só é usado na criação; mudar de servidor não renomeia personagens vinculados.
+- O fluxo de compatibilidade por convite DLU3 também exige essa confirmação antes da primeira criação. Cancelar a operação mantém a seleção e os dados anteriores.
+- Se o host anterior ficar indisponível, o launcher não ignora um **lease Google ainda ativo**. Depois que o prazo de reserva da sessão no Supabase expirar, pode tentar a conexão no novo host; o broker continua responsável por recusar sessões duplas e atualizações conflitantes.
+- Se o prazo do lease for desconhecido, a transferência não é liberada automaticamente. Aguarde a confirmação da nuvem e evite iniciar dois servidores simultaneamente com o mesmo personagem.
+
+Essas proteções não substituem backup prévio, teste de recuperação e confirmação do save antes de formatar o computador ou desligar definitivamente o host de origem.

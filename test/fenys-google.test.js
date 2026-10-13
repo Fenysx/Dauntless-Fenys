@@ -106,3 +106,60 @@ test('host aplica permissão da comunidade no backend e não permite contornar V
  assert.match(blocked.body.error,/VIP revogado/);
  assert.equal((await remote('google-two')).status,409);
 });
+
+test('seleção Google não cria personagem nem altera servidor sem consentimento explícito',async()=>{
+ let cloudLinked=false,hostCalls=0,settings={googleServer:'old.example:61000',googleSelected:false};
+ const auth={generation:0,state:()=>({signedIn:true}),token:async()=>'google-test'};
+ const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:v=>{settings=v;},
+  request:async op=>{assert.equal(op,'profile');return cloudLinked?{linked:true,name:'PrimeiroPersonagem',key:'UUK_TEST'}:{linked:false};},
+  hostRequest:async(_server,route,body)=>{hostCalls++;assert.equal(route,'join');assert.deepEqual(body,{name:'NewSlayer'});cloudLinked=true;return {confirmed:true};}});
+ await assert.rejects(client.home('https://comunidade.example'),/Nenhum personagem vinculado/);
+ assert.equal(hostCalls,0,'sem autorização, não chama /join no servidor');
+ assert.equal(settings.googleServer,'old.example:61000','sem autorização, conserva servidor anterior');
+ assert.equal(settings.googleSelected,false);
+ await assert.rejects(client.home('https://comunidade.example',{allowCreateNew:true,newName:'!!!'}),/Escolha um nome/);
+ assert.equal(hostCalls,0);
+ const result=await client.home('https://comunidade.example',{allowCreateNew:true,newName:'NewSlayer'});
+ assert.equal(hostCalls,1);
+ assert.equal(result.linked,true);
+ assert.equal(settings.googleServer,'https://comunidade.example');
+ assert.equal(settings.googleSelected,true);
+});
+
+test('convite de compatibilidade nunca cria personagem Google silenciosamente',async t=>{
+ const n=await network(t),host=n.nodes[0];
+ let settings={};
+ const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=>'google-two'},
+  settings:()=>settings,saveSettings:c=>{settings=c;},request:n.invoke});
+ const invite=(await hostCall(host.address,'invite',{},null,host.admin.key)).code;
+ await assert.rejects(client.connect(invite,'FirstHero'),/confirme explicitamente/);
+ assert.equal(n.records.has(n.users.get('google-two')),false);
+ assert.equal(settings.googleSelected,undefined);
+ await client.connect(invite,'FirstHero',{allowCreateNew:true});
+ assert.equal(n.records.get(n.users.get('google-two')).name,'FirstHero');
+ assert.equal(settings.googleSelected,true);
+});
+
+test('troca de servidor respeita lease ativo e recupera quando o host antigo caiu',async()=>{
+ const old='https://host-antigo.example',destination='https://host-novo.example';
+ let leaseUntil=new Date(Date.now()+60000).toISOString(),activeHost=old,joinCount=0;
+ let settings={googleSelected:true,googleServer:old};
+ const client=new GooglePlayer({
+  auth:{state:()=>({signedIn:true}),token:async()=>'google-token'},
+  settings:()=>settings,saveSettings:v=>{settings=v;},
+  request:async()=>({linked:true,name:'Hero',userId:'UID-test',revision:8,key:'UUK_test',activeHost,leaseUntil}),
+  hostRequest:async(server,route)=>{
+   if(route==='leave'){assert.equal(server,old);throw Error('host offline');}
+   assert.equal(route,'join');assert.equal(server,destination);joinCount++;activeHost=destination;return {confirmed:true};
+  }
+ });
+ await assert.rejects(client.home(destination),/reservado pelo servidor anterior/);
+ assert.equal(joinCount,0);
+ assert.equal(settings.googleServer,old,'nao troca antes do lease expirar');
+ leaseUntil=new Date(Date.now()-1000).toISOString();
+ const linked=await client.home(destination);
+ assert.equal(joinCount,1);
+ assert.equal(linked.name,'Hero');
+ assert.equal(settings.googleServer,destination);
+ assert.equal(settings.googleSelected,true);
+});

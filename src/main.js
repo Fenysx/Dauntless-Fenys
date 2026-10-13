@@ -305,7 +305,18 @@ app.whenReady().then(()=>{
   const fields={authId,address:config.address,name:String(options?.name||'').trim(),description:String(options?.description||'').trim(),policy:options?.policy};
   return communityCall('register',{envelope:communitySigned(config,'community-register',fields)});
  }));
- ipcMain.handle('community:join',(_event,serverId)=>vpnReply(async()=>{
+ ipcMain.handle('google:local',(_event,createNew=false,newName='')=>vpnReply(async()=>{
+  if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
+  try{
+   const caps=await googleHostCall('127.0.0.1:61000','status');
+   if(caps.mode!=='google'||caps.registered!==true)throw Error('Inicie e integre o servidor local ao Google antes de vincular o personagem.');
+   await googlePlayer.refresh();
+   if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();
+   if(!googlePlayer.profile.linked&&createNew!==true)throw Error('Nenhum personagem vinculado. Para preservar seu personagem antigo, vincule-o primeiro no servidor de origem.');
+   return googlePlayer.home('127.0.0.1:61000',{allowCreateNew:createNew===true,newName});
+  }finally{busy=null;}
+ }));
+ ipcMain.handle('community:join',(_event,serverId,createNew=false,newName='')=>vpnReply(async()=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
   try{
    const token=await googleAuth.token(),access=await community('access',{serverId},token);
@@ -314,7 +325,8 @@ app.whenReady().then(()=>{
    if(caps.mode!=='google'||caps.registered!==true||caps.hostKey!==access.hostKey)throw Error('A identidade Google do servidor não confere com o catálogo.');
    await googlePlayer.refresh();
    if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();
-   const state=await googlePlayer.home(access.address);
+   if(!googlePlayer.profile.linked&&createNew!==true)throw Error('Nenhum personagem vinculado ao Google. Vincule o personagem existente no servidor de origem ou confirme a criação do primeiro personagem.');
+   const state=await googlePlayer.home(access.address,{allowCreateNew:createNew===true,newName});
    notify('Servidor da comunidade selecionado: '+access.address+'. O progresso será validado pelo Supabase.');
    return {...state,server:access.address};
   }finally{busy=null;}
@@ -392,12 +404,12 @@ app.whenReady().then(()=>{
    return {ok:true,code:encodeConnection(sv.address,invite)};
   }catch(e){return {ok:false,error:e.message};}
  });
- ipcMain.handle('connection:join',async(_event,code,username)=>{
+ ipcMain.handle('connection:join',async(_event,code,username,createNew=false)=>{
   let locked=false;
   try{
    if(busy)throw Error('Aguarde a operação atual.');
    assertGameClosed();busy=true;locked=true;
-   if(String(code).trim().startsWith('DLU3.')){await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();const result=await googlePlayer.connect(String(code).trim(),username);notify('Conectado com Google. Personagem e progresso confirmados na nuvem.');return {ok:true,...result};}
+   if(String(code).trim().startsWith('DLU3.')){await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount())await linkPrevious();const result=await googlePlayer.connect(String(code).trim(),username,{allowCreateNew:createNew===true});notify('Conectado com Google. Personagem e progresso confirmados na nuvem.');return {ok:true,...result};}
    if(load().googleSelected)throw Error('Use um código de servidor integrado com Google para manter seu personagem.');
    if(String(code).trim().startsWith('FENYSC2.')){
     const invite=decodeGlobalCode(String(code).trim());if(invite.kind!=='player')throw Error('Use este código na ativação de host, não na conexão de jogador.');
