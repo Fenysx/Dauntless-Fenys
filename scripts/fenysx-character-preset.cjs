@@ -57,14 +57,18 @@ function maxProgression(pathConfig){
   return {progressionId:p.progression_id,progress,rank};
  });
 }
-function mergeStacks(items,changes){
+function mergeStacks(items,changes,exactIds=new Set()){
  if(!Array.isArray(items))throw Error('Inventário empilhável inválido.');
  const result=items.map(item=>({...item}));
  for(const [catalogId,quantity] of changes){
   if(!Number.isSafeInteger(quantity)||quantity<0)throw Error('Quantidade inválida.');
   const matches=result.filter(x=>x.catalogId===catalogId);
   if(matches.length>1)throw Error('Pilha duplicada no inventário: '+catalogId);
-  if(matches.length)matches[0].quantity=quantity;
+  if(matches.length){
+   const old=Number(matches[0].quantity);
+   if(!Number.isSafeInteger(old)||old<0)throw Error('Quantidade existente inválida em '+catalogId);
+   matches[0].quantity=exactIds.has(catalogId)?quantity:Math.max(old,quantity);
+  }
   else result.push({catalogId,quantity});
  }
  return result;
@@ -133,7 +137,7 @@ async function run(argv){
   // Abort before any mutation if the existing data is malformed.
   const currentStacks=JSON.parse(inv.stackedItems),currentInstances=JSON.parse(inv.instancedItems);
   const requested=new Map([...store.stacked,['CURRENCY_NOTES',RAMS],['CURRENCY_PLATINUM',PLATINUM],['CURRENCY_PLATINUM_UNIV',PLATINUM]]);
-  const nextStacks=mergeStacks(currentStacks,requested),nextInstances=mergeInstances(currentInstances,store.instanced);
+  const nextStacks=mergeStacks(currentStacks,requested,new Set(['CURRENCY_NOTES','CURRENCY_PLATINUM','CURRENCY_PLATINUM_UNIV'])),nextInstances=mergeInstances(currentInstances,store.instanced);
   const plan={mode:o.apply?'apply':'preview',name:TARGET_NAME,userId:original.user.userId,characterId:original.character.characterId,
    requestedLevel:100,version144SupportedSlayerLevel:LEVEL_CAP,requestedReforgeHearts:100,reforgeAvailable:false,
    rams:RAMS,platinum:PLATINUM,oneTimeStoreStacked:store.stacked.size,
