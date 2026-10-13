@@ -7,10 +7,12 @@ class GooglePlayer{
  async credential(){await this.refresh();if(!this.profile.linked)throw Error('Vincule seu personagem ou conecte com um convite.');return this.profile.key;}
  async exclusive(fn){if(this.busy)throw Error('Aguarde a conexão Google em andamento.');this.busy=true;try{return await fn();}finally{this.busy=false;}}
  async link(server,key){return this.exclusive(async()=>{const token=await this.auth.token();await this.hostRequest(server,'link',{key},token);return this.refresh();});}
- async connect(code,name){return this.exclusive(async()=>{
+ async connect(code,name,{allowCreateNew=false}={}){return this.exclusive(async()=>{
   const invite=decodeInvite(code),token=await this.auth.token(),caps=await this.hostRequest(invite.address,'status');
   if(caps.mode!=='google'||caps.hostKey!==invite.hostKey||!caps.registered)throw Error('O destino não confirmou sua integração Google.');
   await this.refresh();if(this.profile.schema&&this.profile.schema!==caps.schema)throw Error('O servidor usa uma configuração de progresso incompatível. Seu personagem foi preservado.');
+  if(!this.profile.linked&&!allowCreateNew)throw Error('Esta conta Google não tem personagem vinculado. Vincule o personagem antigo ou confirme explicitamente a criação do primeiro personagem.');
+  if(!this.profile.linked&&!/^[A-Za-z0-9_]{3,16}$/.test(String(name||'').trim()))throw Error('Escolha um nome para o primeiro personagem com 3 a 16 letras, números ou _.');
   const old=this.profile.activeHost||this.settings().googleServer;if(old&&old!==invite.address){const until=Date.parse(this.profile.leaseUntil||'');try{await this.hostRequest(old,'leave',{},token);}catch(e){if(until>Date.now())throw e;}}
   await this.hostRequest(invite.address,'join',{secret:invite.secret,name:String(name||'').trim()||undefined},token);
   const c=this.settings();c.googleServer=invite.address;c.googleSelected=true;this.saveSettings(c);await this.refresh();return {...this.state(),confirmed:true};
