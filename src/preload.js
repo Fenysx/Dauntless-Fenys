@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('launcher',{
  createConnection:(address,name)=>ipcRenderer.invoke('connection:create',address,name),
  joinConnection:(code,username)=>ipcRenderer.invoke('connection:join',code,username),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
+ hostDoctor:()=>ipcRenderer.invoke('system:doctor'),
  pickRepo:()=>ipcRenderer.invoke('settings:pickRepo'),
  pickLauncher:()=>ipcRenderer.invoke('settings:pickLauncher'),
  pickWine:()=>ipcRenderer.invoke('settings:pickWine'),

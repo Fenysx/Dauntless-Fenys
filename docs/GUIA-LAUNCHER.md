@@ -203,3 +203,9 @@ Não envie `.env`, tokens, chaves `UUK_`, banco SQLite ou arquivos do jogo ao Gi
 
 Código do Dauntless Launcher Ultimate e integrações derivadas de [Dauntless Revived](https://github.com/mixutin/dauntless-revived), baseado em [Undaunted](https://github.com/SyST3MDeV/Undaunted), conforme avisos do projeto original. Licença **AGPL-3.0-only**. Consulte o arquivo de licença e `NOTICE.md`. Projeto não afiliado à Phoenix Labs ou Epic Games.
 
+
+## Verificar instalação diretamente no launcher
+
+Abra **Configurações → Verificação do servidor → Verificar instalação**. O launcher usa a pasta de servidor selecionada em Configurações e verifica builds, `.env`, portas e parâmetros importantes, sem abrir o terminal. O relatório aparece logo abaixo do botão, separando erros e avisos. A verificação também consulta se o Google OAuth está habilitado no Supabase; se a rede estiver indisponível, informa que essa consulta não foi possível.
+
+O diagnóstico é **somente leitura**: não cria contas, não instala o jogo, não habilita o Google, não inicia processos e não envia credenciais a terceiros. Para instaladores empacotados, a verificação não exige o código-fonte do repositório. Se quiser verificar pelo terminal, use `npm run doctor` no projeto clonado. A ausência de erros não substitui uma partida real entre PCs.

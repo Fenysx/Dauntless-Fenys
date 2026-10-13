@@ -98,6 +98,8 @@ jobs:
             ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
 
+            **Novidade beta.2:** botão **Configurações → Verificar instalação** no launcher, com diagnóstico do host e estado do provedor Google sem expor chaves nem precisar do terminal. O comando `npm run doctor` continua disponível na cópia de desenvolvimento.
+
             **Windows:** instalador com Continuar com Google, vínculo do personagem existente, recuperação pela nuvem e conexão por código em redes Tailscale, LAN ou servidores públicos HTTPS.
             **Linux:** cliente configurável via Wine, com seleção do executável e ambiente. A partida real pelo Wine ainda precisa de validação; Proton e hospedagem nativa no Linux permanecem pendentes.
             **Configuração pendente:** o dono precisa habilitar o provedor Google no Supabase com seu Client ID/Client Secret e autorizar o retorno local do launcher. O login real não foi validado sem essa configuração.

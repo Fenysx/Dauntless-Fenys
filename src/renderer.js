@@ -68,6 +68,14 @@ for(const id of ['stop','stop2'])$(id).addEventListener('click',()=>action('stop
 for(const id of ['restart','restart2'])$(id).addEventListener('click',()=>action('restart'));
 $('refresh').addEventListener('click',refresh);
 $('repoPick').addEventListener('click',async()=>{try{await window.launcher.pickRepo();await settings();}catch(e){note(e.message);}});
+$('hostDoctor').addEventListener('click',async()=>{
+ const button=$('hostDoctor');button.disabled=true;
+ const output=$('hostDoctorReport');output.hidden=false;output.textContent='Conferindo os arquivos locais e o estado do Google…';
+ try{const result=await window.launcher.hostDoctor();if(!result?.ok)throw Error(result?.error||'Diagnóstico indisponível.');
+  output.textContent=result.report;note('Diagnóstico: '+result.errors+' erro(s) e '+result.warnings+' aviso(s). Consulte o relatório em Configurações.');}
+ catch(e){output.textContent='Não foi possível concluir a verificação: '+e.message;}
+ finally{button.disabled=false;}
+});
 $('exePick').addEventListener('click',async()=>{try{await window.launcher.pickLauncher();await settings();}catch(e){note(e.message);}});
 $('winePick').addEventListener('click',async()=>{try{await window.launcher.pickWine();await settings();}catch(e){note(e.message);}});
 $('winePrefixPick').addEventListener('click',async()=>{try{await window.launcher.pickWinePrefix();await settings();}catch(e){note(e.message);}});

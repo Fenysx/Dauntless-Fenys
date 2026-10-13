@@ -59,3 +59,28 @@ test('sinaliza endereço inseguro e chave de exemplo sem devolver a chave', t =>
   assert.ok(report.findings.some(f=>f.code==='GAMESERVER_KEY'));
   assert.doesNotMatch(renderReport(report),/COLOQUE_A_CHAVE_REAL/);
 });
+
+
+test('diagnóstico pode ser carregado pelo instalador sem depender da pasta scripts',t=>{
+ const engine=require('../src/fenys-host-doctor');
+ const root=createHost(t,{metagameEnv:METAGAME,deployEnv:DEPLOY});
+ const result=engine.inspectInstallation({
+  root:'/nao-existe-projeto-fonte',
+  serverDir:path.join(root,'runtime','server'),
+  checkSourceLayout:false,nodeVersion:'24.5.0',platform:'win32'
+ });
+ assert.equal(result.errors,0);
+ assert.equal(result.findings.some(x=>x.code==='SOURCE_LAYOUT'),false);
+ assert.equal(typeof engine.renderReport(result),'string');
+});
+test('instalador Electron inclui diagnóstico e interface não expõe variáveis privadas',()=>{
+ const packaged=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8')).build.files;
+ assert.ok(packaged.includes('src/**/*'));
+ const main=fs.readFileSync(path.join(__dirname,'..','src','main.js'),'utf8');
+ const preload=fs.readFileSync(path.join(__dirname,'..','src','preload.js'),'utf8');
+ const html=fs.readFileSync(path.join(__dirname,'..','src','index.html'),'utf8');
+ assert.match(main,/ipcMain\.handle\('system:doctor'/);
+ assert.match(preload,/ipcRenderer\.invoke\('system:doctor'\)/);
+ assert.match(html,/id="hostDoctorReport"/);
+ assert.doesNotMatch(main.slice(main.indexOf("ipcMain.handle('system:doctor'"),main.indexOf("ipcMain.handle('settings:get'")),/METAGAME_API_KEY|AUTH_SIGNING_PRIVKEY_B64/);
+});
