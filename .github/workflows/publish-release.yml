@@ -98,6 +98,7 @@ jobs:
             ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
 
+            **Proteções 1.8.0-beta.2:** criar o primeiro personagem com Google exige confirmação e nome escolhido pelo jogador; quem já tem personagem deve vinculá-lo no host de origem. Se o servidor anterior estiver offline, a troca só prossegue após expirar o lease da nuvem, preservando o progresso.
             **Novidades 1.8 beta:** seleção simplificada **Servidor local** / **Servidores da comunidade**. Catálogo de hosts Google públicos, sino para convites por e-mail Google ou nome de usuário, aceitação/recusa, políticas de entrada livre, convite e VIP manual. Hosts podem publicar o endereço HTTPS com assinatura do servidor já integrado.
             **Hospedagem externa:** a API utiliza HTTPS com certificado válido, e as partidas dependem de IPv4 público acessível e UDP 8770–8777. O script `npm run host:run` permite executar os serviços em uma VPS Windows sem manter o Electron aberto. Consulte `docs/COMUNIDADE.md`.
             **Contas antigas:** migração de personagem requer integração do servidor de origem e confirmação de saves. As telas antigas de Tailscale e convites por chave saíram do fluxo principal, mas continuam no código por compatibilidade.
