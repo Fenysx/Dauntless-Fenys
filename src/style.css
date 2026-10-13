@@ -60,3 +60,29 @@
 details.panel>summary{cursor:pointer;color:#f5d8e3;font-size:13px}
 details.panel>summary:hover{color:#ff839d}
 @media(max-width:780px){.community-server{align-items:flex-start;flex-direction:column}.community-server button{max-width:100%}}
+
+
+/* Server host setup: one obvious path, technical controls folded away. */
+.hosting-wizard{display:grid;gap:16px;max-width:930px}
+.hosting-wizard .panel{margin:0}
+.hosting-wizard [hidden]{display:none!important}
+.hosting-intro{border-color:#694057}
+.hosting-intro label,.hosting-fields label{display:block;font-size:12px;color:#ddcbd7;margin:10px 0 7px}
+.hosting-wizard input,.hosting-wizard select{display:block;width:100%;min-width:0;max-width:550px;border-radius:9px;border:1px solid #533848;background:#10121a;color:#f5e9f0;padding:12px;font:inherit;font-size:13px;box-sizing:border-box}
+.hosting-wizard input:focus,.hosting-wizard select:focus{outline:2px solid #ef6b83;outline-offset:1px}
+.hosting-step{display:grid;gap:12px}
+.hosting-step-head{display:flex;align-items:flex-start;gap:15px}
+.hosting-step-head h3{margin:1px 0 5px;font-size:17px}
+.hosting-step-head p{color:#b4a5b1;font-size:12px;line-height:1.6;margin:0}
+.hosting-step-number{display:flex;flex:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid #c1546e;background:#451e30;color:#ffe2eb;font-weight:900}
+.hosting-step .button-row{margin:4px 0}
+.hosting-fields{display:grid;gap:7px;max-width:630px}
+.hosting-fields label{margin:9px 0 0}
+.hosting-fields small{display:block;color:#ae9ca9;font-size:11px;line-height:1.6}
+.hosting-fields .btn{justify-self:start;margin:7px 0}
+.hosting-wizard .notice{line-height:1.6}
+.hosting-progress{border-left:3px solid #da5472;padding-left:12px}
+.hosting-vps-note p{color:#c9b2c1;line-height:1.7}
+.hosting-advanced>summary{cursor:pointer;font-size:13px;color:#dac7d5;font-weight:700}
+.hosting-advanced .service-row:first-of-type{margin-top:17px}
+@media(max-width:780px){.hosting-step-head{gap:10px}.hosting-step .button-row{flex-wrap:wrap}.hosting-step .button-row .btn{width:100%}}
