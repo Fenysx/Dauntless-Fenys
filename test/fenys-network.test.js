@@ -4,7 +4,7 @@ const {parseEndpoint,origin,lanRequest}=require('../src/fenys-network');
 const {createGateway,allowed}=require('../src/fenys-public-gateway');
 const {startRelay}=require('../src/fenys-public-relay');
 const {encodeInvite,decodeInvite}=require('../src/fenys-google-cloud');
-const {prepareGoogleFiles}=require('../src/fenys-google-setup');
+const {prepareGoogleFiles,validateNetwork}=require('../src/fenys-google-setup');
 const tls=require('./fixtures/network-tls.json');
 const lookup=(_host,options,cb)=>cb(null,options.all?[{address:'127.0.0.1',family:4}]:'127.0.0.1',4);
 const listen=s=>new Promise(r=>s.listen(0,'127.0.0.1',()=>r(s.address().port)));
@@ -70,4 +70,16 @@ test('configuração LAN/pública mantém serviços internos no loopback',()=>{
  const root='server/upstream/';const input={appSource:fs.readFileSync(root+'UndauntedMetagame/src/app.ts','utf8'),serverSource:fs.readFileSync(root+'UndauntedMetagame/src/server.ts','utf8'),metagameEnv:fs.readFileSync(root+'UndauntedMetagame/.env.example','utf8'),deployEnv:fs.readFileSync(root+'UndauntedDeployServer/.env.example','utf8')};
  const lan=prepareGoogleFiles({...input,address:'192.168.1.20:61000',networkMode:'lan'});assert.match(lan.metagameEnv,/FENYS_LAN_IP=192.168.1.20/);assert.match(lan.metagameEnv,/BIND_HOST=127.0.0.1/);assert.match(lan.deployEnv,/MY_IP=192.168.1.20/);
  const pub=prepareGoogleFiles({...input,address:'https://public.test:8443',networkMode:'public',gameAddress:'203.0.113.10'});assert.match(pub.metagameEnv,/FENYS_PUBLIC_MODE=1/);assert.match(pub.metagameEnv,/FENYS_PUBLIC_PORT=8443/);assert.match(pub.deployEnv,/MY_IP=203.0.113.10/);assert.match(pub.deployEnv,/BIND_HOST=127.0.0.1/);assert.match(pub.metagameEnv,/FENYS_TAILSCALE_IP=\r?$/m);
+});
+
+test('ativação Google LAN aceita apenas IPv4 local válido e oferece explicação útil',()=>{
+ const configured=validateNetwork({networkMode:'lan',address:'192.168.1.20:61000'},['192.168.1.20']);
+ assert.equal(configured.sv.address,'192.168.1.20:61000');
+ assert.throws(()=>validateNetwork({networkMode:'lan',address:'127.0.0.1:61000'},['127.0.0.1']),/não informe 127.0.0.1/);
+ assert.throws(()=>validateNetwork({networkMode:'lan',address:'192.168.1.21:61000'},['192.168.1.20']),/selecione o IPv4 deste computador/);
+ const renderer=fs.readFileSync('src/renderer.js','utf8'),html=fs.readFileSync('src/index.html','utf8'),preload=fs.readFileSync('src/preload.js','utf8');
+ assert.match(renderer,/\$\('google-network-address-fields'\)\.hidden=googleMode==='tailscale'/);
+ assert.match(renderer,/localAddresses\(\)/);
+ assert.match(preload,/network:localIPv4/);
+ assert.match(html,/id="google-lan-ip-suggestions"/);
 });

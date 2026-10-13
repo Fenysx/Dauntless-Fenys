@@ -7,7 +7,7 @@ const crypto=require('node:crypto');
 const os=require('node:os');
 const {spawn,execFile}=require('node:child_process');
 const {inspectInstallation,renderReport}=require('./fenys-host-doctor');
-const {parseEndpoint:parseServerAddress}=require('./fenys-network');
+const {parseEndpoint:parseServerAddress,lanIP}=require('./fenys-network');
 const {startRelay}=require('./fenys-public-relay');
 let publicRelay=null;
 const {requestApi,createInvite,registerPlayer}=require('./fenys-api');
@@ -440,16 +440,32 @@ app.whenReady().then(()=>{
    return {ok:true,server};
   }catch(e){return {ok:false,error:e.message};}finally{if(locked)busy=null;}
  });
+ ipcMain.handle('network:localIPv4',()=>{
+  const addresses=Object.values(os.networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal&&lanIP(x.address)).map(x=>x.address);
+  return {addresses:[...new Set(addresses)]};
+ });
  ipcMain.handle('system:doctor',async()=>{
   // Electron embeds its own Node runtime (often older than the host's Node.js).
   // Check the exact external executable used by launchService instead.
   const binary=process.platform==='win32'?'node.exe':'node';
   const nodeVersion=await new Promise(resolve=>execFile(binary,['--version'],{encoding:'utf8',timeout:4000,windowsHide:true},(error,stdout)=>resolve(error?'unavailable':String(stdout).trim().replace(/^v/,''))));
-  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false,nodeVersion});
+  const report=inspectInstallation({serverDir:load().repoPath,checkSourceLayout:false,nodeVersion,freeMemoryBytes:os.freemem()});
   let providerMessage;
-  try{providerMessage=await googleAuth.provider()?'Habilitado; login real ainda precisa de teste.':'Desativado: habilite o provedor Google no painel Auth do Supabase.';}
+  try{providerMessage=await googleAuth.provider()?'Provedor habilitado no Supabase.':'Provedor desativado no Supabase.';}
   catch{providerMessage='Não foi possível consultar o Google OAuth (confira a internet).';}
-  return {ok:true,errors:report.errors,warnings:report.warnings,report:renderReport(report)+'\n\nGoogle OAuth: '+providerMessage};
+  let hostMessage='Metagame offline. Inicie os serviços para verificar as rotas do host Google.';
+  if(await tcp(PORTS.metagame)){
+   try{
+    const caps=await googleHostCall('127.0.0.1:61000','status');
+    hostMessage=caps?.mode==='google'&&caps?.registered?
+      'Integração Google ativa e host registrado. Confira o último save antes de migrar.':
+      'Resposta recebida, mas host Google não está registrado. Confira a ativação do servidor.';
+   }catch{
+    hostMessage='Metagame está online, mas não confirmou /launcher/google/status. A integração Google não foi ativada neste servidor ou a versão local não contém as rotas. Não crie outro personagem.';
+   }
+  }
+  return {ok:true,errors:report.errors,warnings:report.warnings,
+   report:renderReport(report)+'\n\nLogin Google: '+providerMessage+'\nGoogle no servidor local: '+hostMessage};
  });
  ipcMain.handle('settings:get',()=>{
   const {adminKeyFile,publicKeyFile,publicCertFile,...safe}=load();

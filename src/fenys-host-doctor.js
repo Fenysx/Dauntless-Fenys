@@ -28,7 +28,8 @@ function validSigningKey(value, kind) {
 
 function inspectInstallation({root = path.resolve(__dirname, '..'), serverDir = path.join(root, 'runtime', 'server'),
   checkSourceLayout = true,
-  nodeVersion = process.versions.node, platform = process.platform, fileSystem = fs} = {}) {
+  nodeVersion = process.versions.node, platform = process.platform, fileSystem = fs,
+  freeMemoryBytes = null} = {}) {
   const findings = [];
   const record = (level, code, message) => findings.push({level, code, message});
   const exists = p => { try { return fileSystem.existsSync(p); } catch { return false; } };
@@ -87,6 +88,25 @@ function inspectInstallation({root = path.resolve(__dirname, '..'), serverDir = 
         record('error', 'GAME_BINARY', 'Configure GAMESERVER_BINARY_PATH com o executável do jogo 1.4.4 no host.');
       else if (!exists(env.GAMESERVER_BINARY_PATH))
         record('warning', 'GAME_BINARY', 'Executável de partida não encontrado no caminho configurado; confira GAMESERVER_BINARY_PATH neste sistema.');
+      else if (platform === 'win32') {
+        const nativeDir = path.dirname(env.GAMESERVER_BINARY_PATH);
+        for (const dll of ['dxgi.dll', 'UndauntedInternalServer.dll']) {
+          if (!exists(path.join(nativeDir, dll)))
+            record('error', 'GAME_DLL', 'Falta '+dll+' ao lado do executável nativo de partidas. Corrija a instalação antes de testar Ramsgate/caçadas.');
+        }
+        if (!/Dauntless-Win64-Shipping\.exe$/i.test(env.GAMESERVER_BINARY_PATH))
+          record('warning', 'GAME_BINARY_NAME', 'Confira se GAMESERVER_BINARY_PATH aponta para Dauntless-Win64-Shipping.exe na pasta Archon/Binaries/Win64.');
+      }
+      if (typeof freeMemoryBytes === 'number' && Number.isFinite(freeMemoryBytes) && freeMemoryBytes >= 0
+          && env.GAMESERVER_MEMORY_GUARD !== '0') {
+        const minFree = Number(env.GAMESERVER_MIN_FREE_MB || 3072);
+        const startup = Number(env.GAMESERVER_STARTUP_MB || 1536);
+        if (Number.isFinite(minFree) && Number.isFinite(startup) && minFree > 0 && startup > 0) {
+          const available = Math.round(freeMemoryBytes / 1048576);
+          if (available < minFree + startup)
+            record('warning', 'GAME_RAM', 'RAM livre atualmente: '+(available / 1024).toFixed(2)+' GB. A reserva padrão do servidor nativo requer aproximadamente '+((minFree + startup) / 1024).toFixed(2)+' GB antes de iniciar uma instância. Feche aplicativos pesados e confira os limites de memória.');
+        }
+      }
       if (env.DEPLOYSERVER_URL && service.code === 'DEPLOY')
         record('warning', 'DEPLOY_URL', 'DEPLOYSERVER_URL pertence à configuração do Metagame; confira se os arquivos .env não foram invertidos.');
     }

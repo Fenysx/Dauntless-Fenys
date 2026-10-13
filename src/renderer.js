@@ -44,7 +44,21 @@ async function playersRefresh(){
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
-  if(c.googleHost){$('google-network-mode').value=c.googleNetworkMode||'tailscale';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';$('google-network-address-fields').hidden=$('google-network-mode').value==='tailscale';$('google-public-fields').hidden=$('google-network-mode').value!=='public';}
+  if(c.googleHost){$('google-network-mode').value=c.googleNetworkMode||'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
+  const googleMode=$('google-network-mode').value;
+  $('google-network-address-fields').hidden=googleMode==='tailscale';
+  $('google-public-fields').hidden=googleMode!=='public';
+  $('google-lan-address-help').hidden=googleMode!=='lan';
+  if(googleMode==='lan'){
+   const suggestions=$('google-lan-ip-suggestions');
+   suggestions.replaceChildren();
+   const ips=await window.launcher.localAddresses();
+   for(const ip of ips.addresses||[]){
+    const o=document.createElement('option');o.value=ip+':61000';suggestions.append(o);
+   }
+   if(!c.googleHost&&!$('google-network-address').value.trim()&&ips.addresses?.length===1)
+    $('google-network-address').value=ips.addresses[0]+':61000';
+  }
   $('repo').textContent=c.repoPath;
   $('exe').textContent=c.launcherExe||'Não configurado';
   $('wine-settings').hidden=c.platform!=='linux';
@@ -124,7 +138,26 @@ $('register-submit').addEventListener('click',async()=>{
  finally{button.disabled=false;}
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
-window.launcher.onActivity(note);
+let lastNativeWarning=0,lastGoogleWarning=0;
+window.launcher.onActivity(message=>{
+ const line=String(message);
+ // Routine health polling happens every ten seconds. Keep the Activity panel useful.
+ if(/^metagame: \{"level":30/.test(line)&&
+    /"msg":"GET \/undaunted\/api\/(ServerStatus|GetUserInfo) gs=0"/.test(line))return;
+ note(line);
+ if(/Game server on port 8777 .*exited with code 3221225786/.test(line)){
+  if(Date.now()-lastNativeWarning>45000){
+   lastNativeWarning=Date.now();
+   note('DIAGNÓSTICO RAMSGATE: o processo nativo saiu com 0xC000013A (encerramento por controle/sinal do Windows) antes de ficar disponível. Em Configurações → Administração → Verificar instalação, confira DLLs, caminho do executável e RAM. O código não prova quem encerrou o processo.');
+  }
+ }
+ if(/Unstubbed route (GET \/launcher\/google\/status|POST \/launcher\/google\/(sync-now|host-invite))/.test(line)){
+  if(Date.now()-lastGoogleWarning>45000){
+   lastGoogleWarning=Date.now();
+   note('DIAGNÓSTICO GOOGLE: o Metagame local ainda não respondeu às rotas Google. A conta Google pode estar conectada no launcher, mas o host precisa ser integrado antes de vincular o personagem antigo.');
+  }
+ }
+});
 let tailscaleWorking=false,tailscalePolling=false;
 const tailscaleButtons=['tailscale-install','tailscale-connect','tailscale-background','tailscale-share','tailscale-refresh'];
 async function tailscaleRefresh(){
@@ -242,7 +275,7 @@ $('community-host-setup-open').addEventListener('click',openHostSettings);
 $('google-go-server').addEventListener('click',()=>{openHostSettings();note('Integre o servidor de origem antes de vincular seu personagem. Faça backup dos saves e mantenha todos fora do jogo.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{const button=$('google-refresh');button.disabled=true;button.textContent='Consultando Supabase…';$('google-state').textContent='Consultando personagem vinculado à conta Google…';try{const r=await window.launcher.googleRefresh();if(r?.ok){if(!r.signedIn)note('Entre com Google para consultar seu personagem.');else if(r.linked)note('Personagem encontrado na nuvem: '+(r.name||'sem nome informado')+'. Progresso revisão '+(r.revision||0)+'.');else note('Nenhum personagem vinculado a esta conta Google. Integre primeiro o servidor de origem para preservar seu personagem existente.');}return r;}finally{button.disabled=false;button.textContent='Conferir personagem na nuvem';}}));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
-$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';});
+$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';$('google-lan-address-help').hidden=mode!=='lan';if(mode==='lan')void settings();});
 for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');}catch(e){note(e.message);}});
 $('google-host-activate').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-mode').value==='tailscale'?$('connection-address').value:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()})));
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
