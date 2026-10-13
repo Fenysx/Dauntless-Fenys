@@ -51,7 +51,14 @@ test('troca de rede conserva configuração, módulos e cadastro se a compilaç�
   const config={...identity(),realm:crypto.randomUUID(),address:'100.64.1.2:61000'},file=path.join(moduleDir,'google-host.json');fs.writeFileSync(file,JSON.stringify(config));
   const oldModule=path.join(moduleDir,'fenys-google-host.js');fs.writeFileSync(oldModule,'// previous installed host');const before=fs.readFileSync(path.join(base,'.env'));
   let builds=0;const registrations=[];
-  const spawn=(_command,args)=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdin={end(){}};child.kill=()=>{};const build=args[0].endsWith('tsc');if(build)builds++;queueMicrotask(()=>child.emit('close',build&&builds===1&&failure==='build'?1:0));return child;};
+  const spawn=(_command,args)=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdin={end(){}};child.kill=()=>{};const build=args[0].endsWith('tsc');if(build)builds++;queueMicrotask(()=>{
+   const failed=build&&builds===1&&failure==='build';
+   if(build&&!failed){
+    const compiled=path.join(base,'dist','app.js');fs.mkdirSync(path.dirname(compiled),{recursive:true});
+    fs.writeFileSync(compiled,fs.readFileSync(path.join(base,'src','app.ts'),'utf8'));
+   }
+   child.emit('close',failed?1:0);
+  });return child;};
   const cloud=async(_operation,{envelope})=>{const c=JSON.parse(envelope.message);registrations.push(c.address);assert.ok(builds>0,'publish only after compilation');if(failure==='cloud'&&registrations.length===1)throw Error('network offline');return {registered:true};};
   const context={module:{exports:{}},__dirname:path.resolve('src'),process,Buffer,setTimeout,clearTimeout,require:n=>n==='node:child_process'?{spawn}:n==='node:os'?{networkInterfaces:()=>({lan:[{address:'192.168.2.20'}]})}:n==='./fenys-google-cloud'?{...require('../src/fenys-google-cloud'),cloud,availability:async()=>true}:n.startsWith('./')?require('../src/'+n.slice(2)):require(n)};
   vm.runInNewContext(fs.readFileSync('src/fenys-google-setup.js','utf8'),context);
