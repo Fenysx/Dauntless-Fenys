@@ -106,3 +106,20 @@ test('host aplica permissão da comunidade no backend e não permite contornar V
  assert.match(blocked.body.error,/VIP revogado/);
  assert.equal((await remote('google-two')).status,409);
 });
+
+test('seleção Google não cria personagem nem altera servidor sem consentimento explícito',async()=>{
+ let cloudLinked=false,hostCalls=0,settings={googleServer:'old.example:61000',googleSelected:false};
+ const auth={generation:0,state:()=>({signedIn:true}),token:async()=>'google-test'};
+ const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:v=>{settings=v;},
+  request:async op=>{assert.equal(op,'profile');return cloudLinked?{linked:true,name:'PrimeiroPersonagem',key:'UUK_TEST'}:{linked:false};},
+  hostRequest:async(_server,route)=>{hostCalls++;assert.equal(route,'join');cloudLinked=true;return {confirmed:true};}});
+ await assert.rejects(client.home('https://comunidade.example'),/Nenhum personagem vinculado/);
+ assert.equal(hostCalls,0,'sem autorização, não chama /join no servidor');
+ assert.equal(settings.googleServer,'old.example:61000','sem autorização, conserva servidor anterior');
+ assert.equal(settings.googleSelected,false);
+ const result=await client.home('https://comunidade.example',{allowCreateNew:true});
+ assert.equal(hostCalls,1);
+ assert.equal(result.linked,true);
+ assert.equal(settings.googleServer,'https://comunidade.example');
+ assert.equal(settings.googleSelected,true);
+});
