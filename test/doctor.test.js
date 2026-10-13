@@ -84,3 +84,33 @@ test('instalador Electron inclui diagnóstico e interface não expõe variáveis
  assert.match(html,/id="hostDoctorReport"/);
  assert.doesNotMatch(main.slice(main.indexOf("ipcMain.handle('system:doctor'"),main.indexOf("ipcMain.handle('settings:get'")),/METAGAME_API_KEY|AUTH_SIGNING_PRIVKEY_B64/);
 });
+
+test('diagnóstico nativo detecta DLLs ausentes e RAM livre insuficiente sem alterar saves',t=>{
+ const root=createHost(t,{metagameEnv:METAGAME,deployEnv:DEPLOY});
+ const binaryDir=path.join(root,'Dauntless','Archon','Binaries','Win64');
+ fs.mkdirSync(binaryDir,{recursive:true});
+ const executable=path.join(binaryDir,'Dauntless-Win64-Shipping.exe');
+ fs.writeFileSync(executable,'fake-test-binary');
+ const deploy=path.join(root,'runtime','server','UndauntedDeployServer','.env');
+ fs.writeFileSync(deploy,DEPLOY.replace('/private/bin/Dauntless.exe',executable));
+ let check=inspectInstallation({root,nodeVersion:'24.4.0',platform:'win32',freeMemoryBytes:3.25*1024**3});
+ assert.equal(check.findings.filter(f=>f.code==='GAME_DLL').length,2);
+ assert.ok(check.findings.some(f=>f.code==='GAME_RAM'));
+ assert.equal(check.status,'needs_configuration');
+ assert.doesNotMatch(renderReport(check),/abcdef123456/);
+ for(const filename of ['dxgi.dll','UndauntedInternalServer.dll'])fs.writeFileSync(path.join(binaryDir,filename),'test');
+ check=inspectInstallation({root,nodeVersion:'24.4.0',platform:'win32',freeMemoryBytes:8*1024**3});
+ assert.equal(check.errors,0);
+ assert.ok(!check.findings.some(f=>f.code==='GAME_DLL'));
+ assert.ok(!check.findings.some(f=>f.code==='GAME_RAM'));
+});
+test('Atividades explica saída nativa e host Google antigo sem esconder erros',()=>{
+ const renderer=fs.readFileSync(path.join(__dirname,'..','src','renderer.js'),'utf8');
+ assert.match(renderer,/3221225786/);
+ assert.match(renderer,/0xC000013A/);
+ assert.match(renderer,/Unstubbed route/);
+ assert.match(renderer,/DIAGNÓSTICO GOOGLE/);
+ const main=fs.readFileSync(path.join(__dirname,'..','src','main.js'),'utf8');
+ assert.match(main,/Google no servidor local:/);
+ assert.doesNotMatch(main,/login real ainda precisa de teste/);
+});
