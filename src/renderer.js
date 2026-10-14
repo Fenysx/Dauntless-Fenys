@@ -44,9 +44,9 @@ async function playersRefresh(){
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
-  if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=c.googleNetworkMode||'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
+  if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=['lan','public'].includes(c.googleNetworkMode)?c.googleNetworkMode:'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
   const googleMode=$('google-network-mode').value;
-  $('google-network-address-fields').hidden=googleMode==='tailscale';
+  $('google-network-address-fields').hidden=false;
   $('google-public-fields').hidden=googleMode!=='public';
   $('google-lan-address-help').hidden=googleMode!=='lan';
   if(googleMode==='lan'){
@@ -70,7 +70,6 @@ async function settings(){
      c.googleNetworkMode==='public'?'Host configurado para HTTPS público. Confira a conexão externa e os saves antes de publicar na comunidade.':
      'Seu host Google está configurado para '+(c.googleNetworkMode==='lan'?'rede local (LAN)':'rede privada antiga')+'. Para aparecer na comunidade, o administrador precisa configurar HTTPS público e IPv4 acessível para as partidas.';
   }
-  $('serverAddress').value=c.gameServer||'127.0.0.1:61000';
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
   $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
    if(!$('screen-host').hidden)void window.hostWizard?.refresh();
@@ -81,7 +80,7 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`)?.classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection'){void communityRefresh();void globalRefresh();}if(node.dataset.screen==='invites')void communityRefresh();if(node.dataset.screen==='host'){void settings();void window.hostWizard?.refresh();}});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection')void communityRefresh();if(node.dataset.screen==='invites')void communityRefresh();if(node.dataset.screen==='host'){void settings();void window.hostWizard?.refresh();}});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -100,13 +99,6 @@ $('hostDoctor').addEventListener('click',async()=>{
 $('exePick').addEventListener('click',async()=>{try{await window.launcher.pickLauncher();await settings();}catch(e){note(e.message);}});
 $('winePick').addEventListener('click',async()=>{try{await window.launcher.pickWine();await settings();}catch(e){note(e.message);}});
 $('winePrefixPick').addEventListener('click',async()=>{try{await window.launcher.pickWinePrefix();await settings();}catch(e){note(e.message);}});
-$('serverSave').addEventListener('click',async()=>{
- try{
-  const result=await window.launcher.setServer($('serverAddress').value);
-  note('Servidor configurado: '+result.server);
-  await settings();await refresh();
- }catch(e){note('Atenção: '+e.message);}
-});
 $('playerKeyPick').addEventListener('click',async()=>{
  try{
   const r=await window.launcher.pickPlayerKey();
@@ -116,27 +108,6 @@ $('playerKeyPick').addEventListener('click',async()=>{
 });
 $('adminKeyPick').addEventListener('click',async()=>{
  try{await window.launcher.pickAdminKey();await settings();void window.hostWizard?.refresh();}catch(e){note('Atenção: '+e.message);}
-});
-$('invite-create').addEventListener('click',async()=>{
- const button=$('invite-create');button.disabled=true;
- $('invite-result').value='';
- try{
-  const result=await window.launcher.createInvite($('invite-name').value);
-  if(!result.ok)throw new Error(result.error);
-  $('invite-result').value=result.code;
-  note('Convite de uso único criado. Envie o código em particular ao seu amigo.');
- }catch(e){note('Atenção: '+e.message);}
- finally{button.disabled=false;}
-});
-$('register-submit').addEventListener('click',async()=>{
- const button=$('register-submit');button.disabled=true;
- try{
-  const result=await window.launcher.register($('register-username').value,$('register-invite').value);
-  if(!result.ok)throw new Error(result.error);
-  $('register-invite').value='';
-  note('Conta '+result.username+' criada e chave salva neste computador. Agora configure o jogo e clique JOGAR.');
- }catch(e){note('Atenção: '+e.message);}
- finally{button.disabled=false;}
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 let lastNativeWarning=0,lastGoogleWarning=0;
@@ -159,104 +130,12 @@ window.launcher.onActivity(message=>{
   }
  }
 });
-let tailscaleWorking=false,tailscalePolling=false;
-const tailscaleButtons=['tailscale-install','tailscale-connect','tailscale-background','tailscale-share','tailscale-refresh'];
-async function tailscaleRefresh(){
- if(tailscalePolling||tailscaleWorking)return;tailscalePolling=true;
- try{
-  const r=await window.launcher.tailscaleStatus();if(!r.ok)throw Error(r.error);
-  $('tailscale-status').textContent=r.message;
-  $('tailscale-ip').textContent=r.connected?'IP deste PC: '+r.addresses.join(', ')+(r.background===true?' • Continua ligado em segundo plano.':r.background===false?' • Modo em segundo plano desativado.':''):'';
-  $('tailscale-install').disabled=r.installed;
-  $('tailscale-connect').disabled=!r.installed||r.connected||r.connecting===true;
-  $('tailscale-background').disabled=!r.connected||r.background===true;
-  $('tailscale-share').disabled=!r.connected;
-  if(r.connected)await connectionAddresses();
- }catch(e){$('tailscale-status').textContent=e.message;}
- finally{tailscalePolling=false;}
-}
-async function tailscaleAction(operation){
- if(tailscaleWorking)return;tailscaleWorking=true;
- for(const id of tailscaleButtons)$(id).disabled=true;
- const labels={tailscaleInstall:'Baixando o instalador oficial…',tailscaleConnect:'Conectando o Tailscale…',tailscaleBackground:'Aguarde a permissão do Windows para manter o Tailscale ligado…',tailscaleShare:'Abrindo o compartilhamento do PC…'};
- $('tailscale-status').textContent=labels[operation];
- try{const r=await window.launcher[operation]();if(!r.ok)throw Error(r.error);note(r.message);}
- catch(e){note('Atenção: '+e.message);}
- finally{tailscaleWorking=false;for(const id of tailscaleButtons)$(id).disabled=false;await tailscaleRefresh();}
-}
-$('tailscale-install').addEventListener('click',()=>void tailscaleAction('tailscaleInstall'));
-$('tailscale-connect').addEventListener('click',()=>void tailscaleAction('tailscaleConnect'));
-$('tailscale-background').addEventListener('click',()=>void tailscaleAction('tailscaleBackground'));
-$('tailscale-share').addEventListener('click',()=>void tailscaleAction('tailscaleShare'));
-$('tailscale-refresh').addEventListener('click',()=>void tailscaleRefresh());
-async function connectionAddresses(){
- const list=$('connection-address'),selected=list.value;list.replaceChildren();
- try{
-  const addresses=await window.launcher.connectionAddresses();
-  for(const ip of addresses){const option=document.createElement('option');option.value=ip+':61000';option.textContent=ip+':61000';list.append(option);}
-  if(addresses.some(ip=>ip+':61000'===selected))list.value=selected;
-  if(!addresses.length){const option=document.createElement('option');option.value='';option.textContent='Conecte o Tailscale neste PC';list.append(option);}
- }catch(e){note(e.message);}
-}
-$('connection-setup').addEventListener('click',async()=>{
- const button=$('connection-setup');button.disabled=true;
- try{const r=await window.launcher.setupConnection($('connection-address').value);if(!r.ok)throw Error(r.error);note('Conexão Tailscale configurada. Inicie os serviços e gere o código para seu amigo.');await settings();await refresh();}
- catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
-});
-$('connection-create').addEventListener('click',async()=>{
- const button=$('connection-create');button.disabled=true;$('connection-result').value='';
- try{const r=await window.launcher.createConnection($('connection-address').value,$('connection-name').value);if(!r.ok)throw Error(r.error);$('connection-result').value=r.code;note('Código criado. Envie ao usuário para conectar ao seu servidor.');}
- catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
-});
-$('connection-join').addEventListener('click',async()=>{
- const button=$('connection-join');button.disabled=true;
- try{
-  const code=$('connection-code').value.trim();
-  const name=$('connection-username').value.trim();
-  let createNew=false;
-  if(code.startsWith('DLU3.')){
-   const google=await window.launcher.googleState();
-   if(!google?.ok||!google.signedIn)throw Error('Entre com Google antes de aceitar um convite.');
-   if(!google.linked){
-    if(!/^[A-Za-z0-9_]{3,16}$/.test(name))throw Error('Escolha um nome de 3 a 16 letras, números ou _ para o primeiro personagem.');
-    if(!window.confirm('Você ainda não vinculou um personagem Google.\n\nSe já jogou, cancele e vincule o personagem antigo no servidor de origem.\n\nVocê confirma que este é seu PRIMEIRO personagem?'))return;
-    createNew=true;
-   }
-  }
-  const r=await window.launcher.joinConnection(code,name,createNew);if(!r.ok)throw Error(r.error);$('connection-code').value='';note('Servidor selecionado: '+r.server+'. Configure o executável do jogo e clique Jogar Agora.');await settings();await refresh();}
- catch(e){note('Atenção: '+e.message);}finally{button.disabled=false;}
-});
-$('connection-local').addEventListener('click',async()=>{
- try{const google=await window.launcher.googleState();if(google.ok&&google.signedIn&&google.hostEnabled){let createNew=false;if(!google.linked){if(!window.confirm('Nenhum personagem está vinculado ao Google.\n\nSe você já jogou Dauntless, clique em Cancelar e vincule seu personagem antigo primeiro.\n\nConfirma que é um jogador NOVO e deseja criar seu primeiro personagem?'))return;createNew=true;}let newName='';if(createNew){const choice=window.prompt('Nome do seu primeiro personagem (3 a 16 letras, números ou _):','');if(choice===null)return;newName=choice.trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Escolha um nome com 3 a 16 letras, números ou _.');}const result=await window.launcher.googleLocal(createNew,newName);if(!result.ok)throw Error(result.error||'Não foi possível selecionar o servidor local.');}else {const state=await window.launcher.globalState();if(state.global){const r=await window.launcher.globalHome();if(!r.ok)throw Error(r.error);}else await window.launcher.setServer('127.0.0.1:61000');}await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
+$('server-local-select').addEventListener('click',async()=>{
+ try{const google=await window.launcher.googleState();if(google.ok&&google.signedIn&&google.hostEnabled){let createNew=false;if(!google.linked){if(!window.confirm('Nenhum personagem está vinculado ao Google.\n\nSe você já jogou Dauntless, clique em Cancelar e vincule seu personagem antigo primeiro.\n\nConfirma que é um jogador NOVO e deseja criar seu primeiro personagem?'))return;createNew=true;}let newName='';if(createNew){const choice=window.prompt('Nome do seu primeiro personagem (3 a 16 letras, números ou _):','');if(choice===null)return;newName=choice.trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Escolha um nome com 3 a 16 letras, números ou _.');}const result=await window.launcher.googleLocal(createNew,newName);if(!result.ok)throw Error(result.error||'Não foi possível selecionar o servidor local.');}else await window.launcher.setServer('127.0.0.1:61000');await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
  catch(e){note(e.message);}
-});
-$('connection-copy').addEventListener('click',async()=>{
- try{if(!$('connection-result').value)throw Error('Gere um código primeiro.');await navigator.clipboard.writeText($('connection-result').value);note('Código copiado.');}catch(e){note(e.message);}
 });
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
-// Old Tailscale flow is hidden; do not poll or prompt players to install it.
-let globalWorking=false;
-async function globalRefresh(){
- try{const r=await window.launcher.globalState();if(!r.ok)throw Error(r.error);
-  $('global-state').textContent=r.global?'Conta global conectada a '+r.server+(r.pending?' • Confirmação pendente.':'.'):'Sua chave existente será usada para manter o mesmo personagem nos hosts integrados.';
-  if(r.localRole){$('global-role').value=r.localRole;$('global-role').disabled=true;}
-  $('global-authorization-state').textContent=r.authorizationSelected?'Autorização selecionada.':'Nenhuma autorização Supabase selecionada.';
-  $('global-authority-fields').hidden=$('global-role').value!=='authority';$('global-host-fields').hidden=$('global-role').value!=='host';
-  $('global-central-controls').hidden=true;
- }catch(e){$('global-state').textContent=e.message;}
-}
-async function globalOperation(fn){if(globalWorking)return;globalWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação global não concluída.');await globalRefresh();await settings();await refresh();return r;}catch(e){note('Atenção: '+e.message);}finally{globalWorking=false;}}
-$('global-role').addEventListener('change',()=>void globalRefresh());
-$('global-authorization-pick').addEventListener('click',()=>void globalOperation(()=>window.launcher.pickSupabaseAuthorization()));
-$('global-activate').addEventListener('click',()=>void globalOperation(async()=>{const r=await window.launcher.activateGlobal({address:$('connection-address').value,role:$('global-role').value,hostCode:$('global-host-code').value.trim()});if(r.ok)note('Rede global ativada. Personagem, nível, inventário, guildas, amizades e placares são compartilhados entre os hosts.');return r;}));
-$('global-host-invite').addEventListener('click',()=>void globalOperation(async()=>{const r=await window.launcher.createHostAuthorization();if(r.ok){$('global-host-result').value=r.code;note('Autorização de host gerada. Envie ao dono do outro servidor.');}return r;}));
-$('global-backup-refresh').addEventListener('click',()=>void globalOperation(()=>globalBackup(false)));
-$('global-backup-now').addEventListener('click',()=>void globalOperation(()=>globalBackup(true)));
-$('global-recover').addEventListener('click',()=>void globalOperation(()=>window.launcher.globalRecover()));
-async function globalBackup(force){const r=await window.launcher.globalBackup(force);if(r.ok)$('global-backup-state').textContent=(r.lastSuccess?'Última cópia confirmada: '+new Date(r.lastSuccess).toLocaleString('pt-BR')+'. ':'Nenhuma cópia confirmada ainda. ')+(r.dirty?'Há alterações pendentes. ':'')+(r.error||'')+(r.ready===false?' Aguarde a confirmação inicial do Supabase antes de jogar.':'');return r;}
-setInterval(()=>{if(!$('screen-connection').hidden&&!globalWorking)void globalRefresh();},10000);
-
 let googleWorking=false;
 async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;}catch(e){$('google-state').textContent=e.message;}}
 async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();void communityRefresh();return r;}catch(e){note(e.message);}finally{googleWorking=false;void window.hostWizard?.refresh();}}
@@ -264,7 +143,6 @@ $('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('
 $('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
 $('google-logout').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLogout()));
 $('google-link').addEventListener('click',()=>void googleOperation(()=>window.launcher.googleLink()));
-$('server-local-select').addEventListener('click',()=>$('connection-local').click());
 function openHostSettings(){
  setScreen('host');
  void settings();
@@ -274,13 +152,13 @@ $('community-host-setup-open').addEventListener('click',openHostSettings);
 $('google-go-server').addEventListener('click',()=>{openHostSettings();note('Integre o servidor de origem antes de vincular seu personagem. Faça backup dos saves e mantenha todos fora do jogo.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{const button=$('google-refresh');button.disabled=true;button.textContent='Consultando Supabase…';$('google-state').textContent='Consultando personagem vinculado à conta Google…';try{const r=await window.launcher.googleRefresh();if(r?.ok){if(!r.signedIn)note('Entre com Google para consultar seu personagem.');else if(r.linked)note('Personagem encontrado na nuvem: '+(r.name||'sem nome informado')+'. Progresso revisão '+(r.revision||0)+'.');else note('Nenhum personagem vinculado a esta conta Google. Integre primeiro o servidor de origem para preservar seu personagem existente.');}return r;}finally{button.disabled=false;button.textContent='Conferir personagem na nuvem';}}));
 $('google-authorization').addEventListener('click',()=>void googleOperation(()=>window.launcher.pickSupabaseAuthorization()));
-$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=mode==='tailscale';$('google-public-fields').hidden=mode!=='public';$('google-lan-address-help').hidden=mode!=='lan';if(mode==='lan')void settings();void window.hostWizard?.refresh();});
+$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=false;$('google-public-fields').hidden=mode!=='public';$('google-lan-address-help').hidden=mode!=='lan';if(mode==='lan')void settings();void window.hostWizard?.refresh();});
 for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');void window.hostWizard?.refresh();}catch(e){note(e.message);}});
 $('google-host-activate').addEventListener('click',()=>void googleOperation(async()=>{
  const preflight=await window.launcher.hostReadiness();
  if(!preflight?.ok||!preflight.servicesReady||!preflight.managedServices)throw Error('Inicie o servidor local pelo launcher antes de integrar.');
  if(preflight.googleActive&&!window.confirm('Mudar a rede exige reiniciar serviços. Faça backup, encerre todas as partidas e confirme que ninguém está jogando. Continuar?'))return {ok:true};
- const result=await window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-mode').value==='tailscale'?$('connection-address').value:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()});
+ const result=await window.launcher.googleActivate({networkMode:$('google-network-mode').value,address:$('google-network-address').value.trim(),gameAddress:$('google-game-address').value.trim(),hostCode:$('google-host-code').value.trim()});
  if(result?.ok)window.hostWizard.userEdited=false;
  return result;
 }));
@@ -326,7 +204,7 @@ async function communityRefresh(){
    const card=document.createElement('div');card.className='community-server';
    const body=document.createElement('div'),name=document.createElement('strong'),subtitle=document.createElement('p');
    name.textContent=server.name;
-   const policy={open:'Entrada livre',invite:'Somente convidados',vip:'Restrito / VIP'}[server.policy]||'Comunidade';
+   const policy={open:'Entrada livre',invite:'Somente convidados',vip:'Somente autorizados (legado)'}[server.policy]||'Comunidade';
    const selected=auth.server===server.address;
    subtitle.textContent=policy+' • '+(server.description||'Sem descrição')+' • '+(selected?'Selecionado neste launcher':'Disponibilidade verificada ao conectar');
    body.append(name,subtitle);card.append(body);
@@ -365,7 +243,7 @@ async function communityRefresh(){
    const card=document.createElement('div');card.className='community-server';
    const body=document.createElement('div'),name=document.createElement('strong'),hint=document.createElement('p');
    name.textContent=invitation.serverName||'Servidor da comunidade';
-   hint.textContent=(invitation.tier==='vip'?'Convite VIP':'Convite de jogador')+' • válido até '+new Date(invitation.expires_at).toLocaleDateString('pt-BR');
+   hint.textContent=(invitation.tier==='vip'?'Convite restrito anterior':'Convite de jogador')+' • válido até '+new Date(invitation.expires_at).toLocaleDateString('pt-BR');
    body.append(name,hint);
    const actions=document.createElement('div');actions.className='community-actions';
    for(const [label,decision] of [['Aceitar','accept'],['Recusar','decline']]){
@@ -408,7 +286,7 @@ $('community-publish').addEventListener('click',()=>void communityOperation(asyn
 $('community-invite-send').addEventListener('click',()=>void communityOperation(async()=>{
  const id=$('community-owner-server').value;if(!id)throw Error('Publique e escolha um servidor que você administra.');
  const target=$('community-invite-target').value.trim();if(!target)throw Error('Informe o e-mail Google ou nome de usuário.');
- const r=await window.launcher.communityInvite(id,target,$('community-invite-tier').value,Number($('community-invite-days').value));
+ const r=await window.launcher.communityInvite(id,target,'member',30);
  if(!r?.ok)throw Error(r?.error||'Convite não enviado.');
  $('community-admin-state').textContent='Convite enviado para '+r.recipient+'. Ele aparecerá no launcher quando o destinatário entrar com Google.';
  $('community-invite-target').value='';

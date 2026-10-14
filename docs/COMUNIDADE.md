@@ -8,11 +8,10 @@ A tela **Escolher servidor** oferece apenas **Servidor local** e **Servidores da
 |---|---|
 | Entrada livre | Qualquer conta Google válida pode selecionar o servidor |
 | Somente convidados | O dono envia convite por e-mail Google ou nome de usuário; o jogador aceita no sino 🔔 |
-| Restrito / VIP | O dono envia autorização VIP de 30/90/365 dias; não há cobrança automática |
 
 O sino consulta a API **fenys-community**, exibe convites pendentes e permite aceitar ou recusar. É possível cadastrar um nome de usuário único, com 3–20 caracteres, para ser encontrado sem expor e-mails no catálogo. Um jogador que ainda não escolheu nome pode receber convite pelo e-mail Google, inclusive antes do primeiro login no launcher.
 
-**Acesso VIP não é pagamento.** A permissão é concedida manualmente pelo administrador. Para cobrar assinatura com cartão, seria necessária integração futura com um processador de pagamento, webhooks autenticados e políticas de estorno/expiração; o launcher não deve armazenar cartões.
+O launcher novo não cria planos VIP ou cobranças. Convites novos são de membro comum; permissões antigas já registradas continuam reconhecidas no backend até que o proprietário decida migrá-las.
 
 ## Segurança e preservação
 
@@ -45,9 +44,9 @@ Publique \`supabase/functions/fenys-community/index.ts\` como **fenys-community*
 
 Os endereços do Supabase públicos usados pelo launcher devem apontar ao mesmo projeto dos hosts. Após publicar, \`GET /functions/v1/fenys-community\` responde \`{"service":"dlu-community","version":1}\`; operações protegidas sem token Google devem responder HTTP 401.
 
-Para adicionar novo host, cadastre-o pela integração \`fenys-global/players\` antes de publicá-lo no catálogo. As permissões VIP são específicas do servidor: a conta Google mantém o personagem entre hosts compatíveis, mas não adquire autorização VIP automaticamente em todos eles.
+Para adicionar novo host, cadastre-o pela integração \`fenys-global/players\` antes de publicá-lo no catálogo. A conta Google mantém o personagem entre hosts compatíveis, mas não concede acesso automático a servidores privados: cada servidor continua autorizando seus convidados.
 
-## Situação da 1.8.0-beta.1
+## Situação da versão beta
 
 O banco, a API e os controles estão implementados. Os testes unitários/CI validam componentes isolados; **não** substituem um teste de partida real em uma VPS externa. Não é um serviço de hosting comercial pronto, não inclui cobrança e não inclui relay UDP.
 
@@ -69,6 +68,6 @@ A aba **Escolher servidor** é a área do jogador e exibe duas opções: **Servi
 
 Administradores encontram as ferramentas em **Configurações → Hospedar um servidor — integração Google e comunidade** (ou **Escolher servidor → Configurar hospedagem**). O painel mantém três etapas: integrar o host Google de origem, publicar um host HTTPS público e convidar jogadores por e-mail Google/nome de usuário. O launcher indica se o host ainda está no modo LAN/rede privada, caso em que ele não pode ser publicado no catálogo da comunidade.
 
-As ferramentas legadas por código, rede antiga e recuperação de contas continuam mantidas no código para compatibilidade; não são o fluxo principal de novos jogadores.
+Os painéis de códigos antigos e de rede central foram retirados; **somente a recuperação de conta antiga continua visível** para permitir vincular ao Google um personagem previamente criado. Os leitores de saves antigos permanecem no backend.
 
 Se o catálogo mostrar "Nenhum servidor disponível", isso não significa que o login Google falhou. Consulte a saúde da API e confirme se algum servidor HTTPS já foi **publicado**. O Supabase não transforma um host LAN em servidor público automaticamente. Não publique TCP 61001 e não force a ativação pública com jogadores em partida.

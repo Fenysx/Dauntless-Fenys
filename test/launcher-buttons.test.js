@@ -10,9 +10,9 @@ const wizard=read('host-wizard-ui.js');
 const preload=read('preload.js');
 const main=read('main.js');
 
-test('todos os 64 botões fixos do launcher têm uma ação de clique declarada',()=>{
+test('todos os botões fixos do launcher atualizado têm uma ação de clique declarada',()=>{
  const buttons=[...html.matchAll(/<button\b[^>]*\bid=["']([^"']+)["']/g)].map(m=>m[1]);
- assert.equal(buttons.length,64,'Mudou o número de botões; atualize o teste com a nova interface.');
+ assert.equal(buttons.length,45,'Mudou o número de botões; atualize o teste com a nova interface.');
  assert.equal(new Set(buttons).size,buttons.length,'Existe um botão com ID repetido.');
  const dynamic=new Set(['start','start2','stop','stop2','restart','restart2','google-public-cert','google-public-key']);
  const source=renderer+'\n'+wizard;

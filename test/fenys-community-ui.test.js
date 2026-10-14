@@ -16,19 +16,21 @@ test('seleção de servidor contém apenas ações de jogador e abre hospedagem 
  for(const id of ['community-host-readiness','host-publish-form','host-invite-section','google-host-activate'])
   assert.ok(hosting.includes('id="'+id+'"'),'requisito de hospedagem não disponível: '+id);
  assert.ok(!settings.includes('id="community-publish"'),'não poluir preferências com publicação');
- assert.ok(settings.includes('id="legacy-network-settings"'),'configuração antiga permanece acessível no avançado');
+ assert.ok(!settings.includes('id="legacy-network-settings"'),'configuração manual antiga foi retirada');
+ assert.ok(settings.includes('id="legacy-account-settings"'),'recuperação de personagem antigo deve permanecer');
  assert.match(renderer,/function openHostSettings\(/);
  assert.match(renderer,/setScreen\('host'\)/);
  assert.match(renderer,/\$\('community-host-setup-open'\)\.addEventListener\('click',openHostSettings\)/);
 });
-test('IDs únicos e controles antigos continuam presentes sem Tailscale no fluxo comum',()=>{
+test('IDs únicos e somente fluxos novos permanecem na interface',()=>{
  const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
  assert.equal(ids.length,new Set(ids).size,'IDs duplicados');
  for(const id of ['screen-host','community-host-readiness','community-host-setup-open','community-publish',
-  'community-owner-server','connection-local','server-local-select','admin-server-settings']){
+  'community-owner-server','server-local-select','admin-server-settings']){
   assert.ok(ids.includes(id),'falta '+id);
  }
- assert.match(section('connection'),/id="tailscale-tools" hidden/);
+ assert.doesNotMatch(section('connection'),/id="tailscale-tools"|id="host-invite-tools"|id="legacy-code-tools"/);
+ assert.doesNotMatch(section('host'),/value="vip"|value="tailscale"/);
  assert.match(section('host'),/id="host-maintenance-tools"/);
  assert.ok(!section('settings').includes('A conexão exige Tailscale'));
 });
