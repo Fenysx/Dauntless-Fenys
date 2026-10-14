@@ -97,9 +97,6 @@
     $(id).addEventListener('input',()=>{wizard.userEdited=true;update();});
   }
   $('google-host-code').addEventListener('input',update);
-  $('community-invite-tier').addEventListener('change',()=>{
-    $('host-vip-days').hidden=$('community-invite-tier').value!=='vip';
-  });
   // Do not query legacy Google routes while the user is elsewhere in the launcher.
   setInterval(()=>{if(!loading&&!operating)void refresh();},45000);
 })();
