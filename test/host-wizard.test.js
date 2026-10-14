@@ -32,3 +32,8 @@ test('live host checks gate sensitive operations, not a stored setting alone',()
  assert.match(wizard,/\$\('host-invite-section'\)\.hidden=!canPublish\|\|!hasOwn/);
  assert.doesNotMatch(wizard,/\baccount\.key\b|service_role/);
 });
+
+test('Google host setup requires ownership of both live services, not just one',()=>{
+ const main=source('src/main.js');
+ assert.match(main,/managedServices:Boolean\(state\.metagame&&state\.deploy&&state\.owned\.includes\('metagame'\)&&state\.owned\.includes\('deploy'\)\)/);
+});
