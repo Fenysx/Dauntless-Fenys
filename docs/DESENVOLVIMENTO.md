@@ -1,5 +1,7 @@
 # Desenvolvimento e verificação
 
+Veja [o inventário de remoções](LIMPEZA-2026-10-14.md). O fluxo novo não oferece Tailscale, cadastro por chave ou VIP; o armazenamento legado continua preservado para recuperação.
+
 ## Onde alterar
 
 | Mudança | Arquivos principais |
@@ -8,12 +10,11 @@
 | IPC e integração com o sistema | `src/preload.js`, `src/main.js` |
 | Execução Windows/Wine | `src/fenys-game-runtime.js` |
 | Endereços, gateway e ponte pública | `src/fenys-network.js`, `src/fenys-public-gateway.js`, `src/fenys-public-relay.js` |
-| Tailscale | `src/fenys-tailscale.js` |
 | Login e sessão Google | `src/fenys-google-auth.js`, `src/fenys-google-player.js` |
 | Protocolo e persistência pessoal | `src/fenys-google-cloud.js`, `src/fenys-google-host.js` |
-| Instalação dos ajustes no Metagame | `src/fenys-server-setup.js`, `src/fenys-host-setup.js`, `src/fenys-google-setup.js` |
+| Instalação dos ajustes no Metagame | `src/fenys-host-setup.js`, `src/fenys-google-setup.js` |
 | Banco/API da nuvem | `supabase/google-players.sql`, `supabase/functions/fenys-global/players.ts` |
-| Rede global anterior | `src/fenys-cloud-*`, `src/fenys-supabase.js` |
+| Compatibilidade e recuperação de progresso da rede anterior | `src/fenys-cloud-*`, `src/fenys-direct-global.js`, `src/fenys-supabase.js` |
 | Regras nativas do backend | Base em `server/upstream/UndauntedMetagame/src`; desenvolva numa cópia e registre o patch |
 
 Os nomes internos `fenys-*` são identificadores históricos do código, não nomes de conta dos jogadores. O produto exibido é Dauntless Launcher Ultimate.
@@ -32,7 +33,7 @@ Na raiz:
 npm test
 ```
 
-A versão 1.7.0-beta.1 possui 78 testes unitários, incluindo transporte HTTPS/WSS, política de rotas públicas e restauração após falha na troca de rede. O workflow principal os executa em Windows e Ubuntu. Eles cobrem protocolos, convites, cancelamento/login, sessões, snapshots, proteção de arquivos, configuração e runtime do jogo.
+Os testes unitários incluem transporte HTTPS/WSS, política de rotas públicas e restauração após falha na troca de rede. O workflow principal os executa em Windows e Ubuntu. Eles cobrem protocolos, convites, cancelamento/login, sessões, snapshots, proteção de arquivos, configuração e runtime do jogo.
 
 Para testar a integração em um **checkout limpo**:
 
@@ -44,7 +45,6 @@ O comando copia a base incluída para `test-upstream`, instala as dependências 
 
 | Script | O que verifica |
 |---|---|
-| `integration-connection.cjs` | Conta e convite no Metagame real |
 | `integration-host.cjs` | Instalação do overlay e API do host real |
 | `integration-cloud.cjs` | Rede global antiga com dois hosts |
 | `integration-google.cjs` | Dois Metagames, identidade/broker isolados, UID e progresso entre hosts |
