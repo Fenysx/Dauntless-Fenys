@@ -21,4 +21,16 @@ async function verifyExistingCharacterSource({checkHost,checkAccount}={}){
  }
  return {userId:account.UserId,name:account.Username};
 }
-module.exports={verifyExistingCharacterSource};
+// Do not report a successful activation while the running Metagame still has
+// no Google routes or has not finished registering with the cloud.
+async function confirmGoogleRuntime({checkHost,expectedAddress,attempts=12,delay=()=>new Promise(r=>setTimeout(r,500))}={}){
+ if(typeof checkHost!=='function'||!Number.isSafeInteger(attempts)||attempts<1||attempts>30)
+  throw Error('Verificação de integração Google inválida.');
+ for(let i=0;i<attempts;i++){
+  let state;try{state=await checkHost();}catch{}
+  if(state?.mode==='google'&&state.registered===true&&state.address===expectedAddress)return true;
+  if(i<attempts-1)await delay();
+ }
+ throw Error('O Metagame reiniciou, mas não confirmou /launcher/google/status e o registro do host. A ativação não foi validada. Confira o diagnóstico; não vincule nem crie personagens até corrigir o servidor.');
+}
+module.exports={verifyExistingCharacterSource,confirmGoogleRuntime};
