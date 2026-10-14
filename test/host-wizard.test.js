@@ -28,7 +28,8 @@ test('live host checks gate sensitive operations, not a stored setting alone',()
  assert.match(main,/googleActive=googleReachable&&caps\.registered===true/);
  assert.match(preload,/hostReadiness:\(\)=>ipcRenderer\.invoke\('host:readiness'\)/);
  assert.match(wizard,/r\.servicesReady&&r\.managedServices&&r\.adminKeySelected&&authorization&&addressOK&&needsActivation/);
- assert.match(wizard,/r\.googleActive&&r\.networkMode==='public'&&r\.signedIn/);
+ assert.match(wizard,/r\.servicesReady&&r\.googleActive&&r\.networkMode==='public'&&r\.signedIn/);
+ assert.match(main,/assertGameClosed\(\);requirePublishingServices\(await status\(\)\);/);
  assert.match(wizard,/\$\('host-invite-section'\)\.hidden=!canPublish\|\|!hasOwn/);
  assert.doesNotMatch(wizard,/\baccount\.key\b|service_role/);
 });

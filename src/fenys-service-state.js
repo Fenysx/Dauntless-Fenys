@@ -22,4 +22,9 @@ async function verifyLegacyHostIdle(readEvents,checkMigratedAuthority){
   throw Error('Encerre as partidas antes de migrar o host.');
  return {legacyAuthorityMigrated:false};
 }
-module.exports={servicesOwnedByLauncher,verifyLegacyHostIdle};
+function requirePublishingServices(state){
+ if(!state?.metagame||!state?.deploy)
+  throw Error('Inicie Metagame e DeployServer antes de publicar o servidor. A API Google sozinha não comprova que a cidade e as caçadas funcionarão.');
+ return true;
+}
+module.exports={servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices};
