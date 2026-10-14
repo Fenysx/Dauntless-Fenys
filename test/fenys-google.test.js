@@ -49,6 +49,16 @@ async function network(t){
  const nativeFetch=fetch;t.mock.method(globalThis,'fetch',(url,...args)=>nativeFetch(String(url).replace(/100\.64\.2\.[12]/g,'127.0.0.1'),...args));
  return {nodes,invoke,users,records,setFail:()=>failAfterSave=true,rejectSync:userId=>rejectUser=userId,setCommunityPermission:fn=>permission=fn};
 }
+test('vínculo Google recusa chave de conta sem personagem e preserva a nuvem',async t=>{
+ const n=await network(t),a=n.nodes[0];
+ const uid='UID-'+crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');
+ a.db.prepare('INSERT INTO users VALUES(?,?,0,0)').run(uid,'NoCharacter');
+ a.db.prepare('INSERT INTO userapikeys VALUES(?,?)').run(uid,hash(key));
+ const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});
+ await assert.rejects(client.link(a.address,key),/ainda não possui personagem salvo/);
+ assert.equal(n.records.size,0);
+ assert.equal(a.db.prepare('SELECT count(*) n FROM characters WHERE userId=?').get(uid).n,0);
+});
 test('mesmo Google recupera personagem após apagar dados do PC e troca entre hosts com UID, nível e inventário preservados',async t=>{
  const n=await network(t),[a,b]=n.nodes,p=player(a.db,'PlayerOne');const auth={state:()=>({signedIn:true}),token:async()=> 'google-one'};let settings={};
  const client=()=>new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,request:n.invoke});let first=client();await first.link(a.address,p.key);
