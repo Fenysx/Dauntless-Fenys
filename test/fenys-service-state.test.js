@@ -30,3 +30,10 @@ test('migration tolerates transport error only for a confirmed migrated authorit
  await assert.rejects(verifyLegacyHostIdle(async()=>({}),async()=>({mode:'google'})),/confirmar se há jogadores/);
  assert.deepEqual(await verifyLegacyHostIdle(async()=>({onlineCount:0}),async()=>null),{legacyAuthorityMigrated:false});
 });
+
+test('publishing requires Metagame and DeployServer to be reachable',()=>{
+ const {requirePublishingServices}=require('../src/fenys-service-state');
+ assert.equal(requirePublishingServices({metagame:true,deploy:true}),true);
+ for(const s of [{metagame:false,deploy:true},{metagame:true,deploy:false},{metagame:false,deploy:false},null,{}])
+  assert.throws(()=>requirePublishingServices(s),/Metagame e DeployServer/);
+});
