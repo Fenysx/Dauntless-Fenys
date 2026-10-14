@@ -26,7 +26,7 @@ const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
 const {installGoogle}=require('./fenys-google-setup');
-const {servicesOwnedByLauncher,verifyLegacyHostIdle}=require('./fenys-service-state');
+const {servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
@@ -292,7 +292,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('community:decide',(_event,inviteId,decision)=>vpnReply(()=>communityCall('decide',{inviteId,decision})));
  ipcMain.handle('community:revoke',(_event,serverId,username)=>vpnReply(()=>communityCall('revoke',{serverId,username})));
  ipcMain.handle('community:publish',(_event,options)=>vpnReply(async()=>{
-  assertGameClosed();const c=load();
+  assertGameClosed();requirePublishingServices(await status());const c=load();
   if(!c.googleHost||c.googleNetworkMode!=='public')throw Error('Ative primeiro seu servidor Google no modo Público — HTTPS. Esse modo exige endereço público e portas de partida configuradas.');
   await localAdminKey(); // Ownership of local native host; a Google login alone is insufficient.
   const file=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
