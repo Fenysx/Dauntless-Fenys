@@ -4,7 +4,7 @@
 
 | Peça | Responsabilidade | Onde ler o código |
 |---|---|---|
-| Launcher Electron | Interface, serviços locais, Tailscale, login e execução do cliente | `src/main.js`, `preload.js`, `renderer.js`, `index.html` |
+| Launcher Electron | Interface, serviços locais, login Google e execução do cliente | `src/main.js`, `preload.js`, `renderer.js`, `index.html` |
 | Metagame | Regras de backend, contas, personagens, inventário, chat e fila de atividades | `server/upstream/UndauntedMetagame/src` |
 | DeployServer | Escolhe portas, inicia e supervisiona os executáveis que hospedam partidas | `server/upstream/UndauntedDeployServer/src` |
 | Processo do jogo + DLL | Executa cliente ou cidade/caçada; a DLL adapta o cliente 1.4.4 | `server/upstream/UndauntedInternalServer` e executável externo |
@@ -60,4 +60,4 @@ O host abre um listener HTTPS com certificado válido. Os serviços nativos mant
 
 ## Modos antigos
 
-`fenys-cloud-*` implementa a rede antiga com autoridade central; `fenys-direct-global.js`, `fenys-portable.js` e outros módulos preservam compatibilidade. O modo Google é ativado separadamente e não exige aquele PC central ligado. Não misture instruções dos modos nem apague bancos antigos antes de vincular e validar os personagens.
+`fenys-cloud-*` e `fenys-direct-global.js` pertencem à integração anterior de autoridade central. Seus leitores e caminhos de recuperação permanecem no backend para evitar perda de progresso prévio, mas os botões de configuração e criação de servidores antigos foram retirados da interface nova. O Google não exige aquele PC central ligado. Não apague bancos antigos antes de vincular e validar seus personagens. Veja [a limpeza do launcher](LIMPEZA-2026-10-14.md).
