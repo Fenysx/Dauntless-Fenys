@@ -26,7 +26,7 @@ const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
 const {installGoogle}=require('./fenys-google-setup');
-const {servicesOwnedByLauncher}=require('./fenys-service-state');
+const {servicesOwnedByLauncher,verifyLegacyHostIdle}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
@@ -337,7 +337,7 @@ app.whenReady().then(()=>{
  ipcMain.handle('google:activate',(_event,options)=>vpnReply(async()=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
   try{const live=await status();if(!servicesOwnedByLauncher(live))throw Error('Inicie Metagame e DeployServer pelo launcher antes de ativar Google. Encerre serviços externos com segurança.');if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();
-   if(c.cloudRole==='host'){try{const e=await cloudRequest('127.0.0.1:61000','events',{cursor:null});if(e.onlineCount)throw Error('Encerre as partidas antes de migrar o host.');}catch(e){const source=await googleHostCall(c.cloudAuthority,'status').catch(()=>null);if(source?.mode!=='google')throw e;}}
+   if(c.cloudRole==='host'){await verifyLegacyHostIdle(()=>cloudRequest('127.0.0.1:61000','events',{cursor:null}),()=>googleHostCall(c.cloudAuthority,'status'));}
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
    const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
