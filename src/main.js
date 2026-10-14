@@ -22,6 +22,7 @@ const {validateAuthorization}=require('./fenys-supabase');
 const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
+const {verifyExistingCharacterSource}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
@@ -276,7 +277,7 @@ app.whenReady().then(()=>{
  setInterval(()=>void monitorPlayers(),10000).unref();
  const vpnReply=async fn=>{try{return {ok:true,...await fn()};}catch(e){return {ok:false,error:e.message||'Não foi possível concluir a operação.'};}};
  const previousAccount=()=>{const c=load();if(globalAccount.hasKey())return {key:globalAccount.key(),server:globalAccount.state().authority||c.cloudAuthority||'127.0.0.1:61000'};const server=c.cloudRole==='host'?c.cloudAuthority:backendAddress(),file=c.accountFiles?.[server]||c.accountFiles?.[backendAddress()]||c.gameKeyFile||path.join(friendKitDir(),'account.key');return fs.existsSync(file)?{key:readKeyFile(file),server}:null;};
- const linkPrevious=async()=>{await googlePlayer.refresh();if(googlePlayer.profile.linked)return googlePlayer.state();const previous=previousAccount();if(!previous)throw Error('Nenhuma conta antiga encontrada. Use um convite para criar seu personagem com Google.');const caps=await googleHostCall(previous.server,'status').catch(()=>null);if(caps?.mode!=='google')throw Error('Ative a integração Google no servidor de origem antes de vincular seu personagem atual. Não crie outra conta por cima dele.');return googlePlayer.link(previous.server,previous.key);};
+ const linkPrevious=async()=>{await googlePlayer.refresh();if(googlePlayer.profile.linked)return googlePlayer.state();const previous=previousAccount();if(!previous)throw Error('A chave original do personagem não foi encontrada. Selecione sua conta existente em Configurações; não crie outro personagem.');await verifyExistingCharacterSource({checkHost:()=>googleHostCall(previous.server,'status'),checkAccount:()=>requestApi(previous.server,'/undaunted/api/GetUserInfo',{key:previous.key})});return googlePlayer.link(previous.server,previous.key);};
  ipcMain.handle('google:state',()=>vpnReply(async()=>{if(googleAuth.state().signedIn&&!googlePlayer.profile&&!googlePlayer.busy)await googlePlayer.refresh();return {...googlePlayer.state(),configured:await googleAuth.provider(),hostEnabled:!!load().googleHost};}));
  ipcMain.handle('google:login',()=>vpnReply(async()=>{assertGameClosed();if(!googleAuth.state().signedIn)await googleAuth.login();await googlePlayer.refresh();if(!googlePlayer.profile.linked&&previousAccount()){try{await linkPrevious();}catch(e){return {...googlePlayer.state(),notice:e.message};}}return googlePlayer.state();}));
  ipcMain.handle('google:cancel',()=>{googleAuth.dispose();return {ok:true,...googlePlayer.state()};});
@@ -339,7 +340,7 @@ app.whenReady().then(()=>{
   try{const live=await status();if(!servicesOwnedByLauncher(live))throw Error('Inicie Metagame e DeployServer pelo launcher antes de ativar Google. Encerre serviços externos com segurança.');if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();
    if(c.cloudRole==='host'){await verifyLegacyHostIdle(()=>cloudRequest('127.0.0.1:61000','events',{cursor:null}),()=>googleHostCall(c.cloudAuthority,'status'));}
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
-   const file=c.adminKeyFile||c.gameKeyFile||c.accountFiles?.['127.0.0.1:61000']||path.join(friendKitDir(),'account.key');const adminKey=fs.existsSync(file)?readKeyFile(file):await localAdminKey();
+   const adminKey=await localAdminKey(); // Always verify actual admin permission, never trust the first configured key file.
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
    let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
    c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
