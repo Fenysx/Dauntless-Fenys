@@ -30,3 +30,22 @@ test('chave incorreta ou resposta incompleta impedem vínculo silencioso',async(
   await assert.rejects(verifyExistingCharacterSource({checkHost,checkAccount:async()=>invalid}),/não confirmou a identidade/);
  }
 });
+
+test('ativação só conclui quando as rotas Google estão online e host registrado',async()=>{
+ const {confirmGoogleRuntime}=require('../src/fenys-google-link-guard');
+ let count=0;
+ const confirmed=await confirmGoogleRuntime({
+  expectedAddress:'192.168.1.20:61000',
+  checkHost:async()=>{count++;return count===1?{mode:'google',registered:false}:{mode:'google',registered:true,address:'192.168.1.20:61000'};},
+  attempts:3,delay:async()=>{}
+ });
+ assert.equal(confirmed,true);assert.equal(count,2);
+});
+test('ativação rejeita rota ausente, host não registrado ou endereço diferente',async()=>{
+ const {confirmGoogleRuntime}=require('../src/fenys-google-link-guard');
+ for(const checkHost of [async()=>{throw Error('Unstubbed route');},
+  async()=>({mode:'google',registered:false}),
+  async()=>({mode:'google',registered:true,address:'192.168.1.99:61000'})]){
+  await assert.rejects(confirmGoogleRuntime({checkHost,expectedAddress:'192.168.1.20:61000',attempts:2,delay:async()=>{}}),/não confirmou/);
+ }
+});
