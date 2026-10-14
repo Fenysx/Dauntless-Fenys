@@ -39,4 +39,6 @@ test('Google host setup requires ownership of both live services, not just one',
  assert.match(main,/managedServices:servicesOwnedByLauncher\(state\)/);
  assert.match(main,/const live=await status\(\);if\(!servicesOwnedByLauncher\(live\)\)throw Error\(/);
  assert.match(main,/verifyLegacyHostIdle\(\(\)=>cloudRequest\('127\.0\.0\.1:61000','events'/);
+ assert.match(main,/const adminKey=await localAdminKey\(\)/);
+ assert.match(main,/verifyExistingCharacterSource\(\{checkHost:/);
 });
