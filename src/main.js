@@ -22,7 +22,7 @@ const {validateAuthorization}=require('./fenys-supabase');
 const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
-const {verifyExistingCharacterSource}=require('./fenys-google-link-guard');
+const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
@@ -343,7 +343,7 @@ app.whenReady().then(()=>{
    const adminKey=await localAdminKey(); // Always verify actual admin permission, never trust the first configured key file.
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
    let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
-   c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
+   await confirmGoogleRuntime({checkHost:()=>googleHostCall('127.0.0.1:61000','status'),expectedAddress:result.address});c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
   }finally{busy=null;}
  }));
  ipcMain.handle('tailscale:status',()=>vpnReply(()=>tailscale.status()));
