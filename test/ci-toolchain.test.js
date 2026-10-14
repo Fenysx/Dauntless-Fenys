@@ -8,7 +8,7 @@ test('GitHub Actions builds and tests use Node.js 24',()=>{
  const root=path.resolve(__dirname,'..');
  const build=fs.readFileSync(path.join(root,'.github/workflows/build.yml'),'utf8');
  const checks=fs.readFileSync(path.join(root,'.github/workflows/test.yml'),'utf8');
- const pins=source=>[...source.matchAll(/node-version:\\s*['"]?(\\d+)['"]?/g)].map(x=>Number(x[1]));
+ const pins=source=>[...source.matchAll(/node-version: *['"]?([0-9]+)['"]?/g)].map(x=>Number(x[1]));
  assert.deepEqual(pins(build),[24,24]);
  assert.deepEqual(pins(checks),[24,24]);
 });
