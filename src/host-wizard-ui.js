@@ -22,7 +22,7 @@
     $('google-host-activate').disabled=!canActivate;
     $('host-check-services').classList.toggle('complete',r.servicesReady);
     $('host-check-google').classList.toggle('complete',r.googleActive);
-    const canPublish=r.googleActive&&r.networkMode==='public'&&r.signedIn;
+    const canPublish=r.servicesReady&&r.googleActive&&r.networkMode==='public'&&r.signedIn;
     $('host-check-public').classList.toggle('complete',canPublish);
     $('host-publish-form').hidden=!canPublish;
     $('community-publish').disabled=!canPublish;
