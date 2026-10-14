@@ -35,5 +35,7 @@ test('live host checks gate sensitive operations, not a stored setting alone',()
 
 test('Google host setup requires ownership of both live services, not just one',()=>{
  const main=source('src/main.js');
- assert.match(main,/managedServices:Boolean\(state\.metagame&&state\.deploy&&state\.owned\.includes\('metagame'\)&&state\.owned\.includes\('deploy'\)\)/);
+ assert.match(main,/managedServices:servicesOwnedByLauncher\(state\)/);
+ assert.match(main,/const live=await status\(\);if\(!servicesOwnedByLauncher\(live\)\)throw Error\(/);
+ assert.match(main,/verifyLegacyHostIdle\(\(\)=>cloudRequest\('127\.0\.0\.1:61000','events'/);
 });
