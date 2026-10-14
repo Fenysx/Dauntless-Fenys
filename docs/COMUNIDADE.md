@@ -68,6 +68,6 @@ A aba **Escolher servidor** é a área do jogador e exibe duas opções: **Servi
 
 Administradores encontram as ferramentas em **Configurações → Hospedar um servidor — integração Google e comunidade** (ou **Escolher servidor → Configurar hospedagem**). O painel mantém três etapas: integrar o host Google de origem, publicar um host HTTPS público e convidar jogadores por e-mail Google/nome de usuário. O launcher indica se o host ainda está no modo LAN/rede privada, caso em que ele não pode ser publicado no catálogo da comunidade.
 
-As ferramentas legadas por código, rede antiga e recuperação de contas continuam mantidas no código para compatibilidade; não são o fluxo principal de novos jogadores.
+Os painéis de códigos antigos e de rede central foram retirados; **somente a recuperação de conta antiga continua visível** para permitir vincular ao Google um personagem previamente criado. Os leitores de saves antigos permanecem no backend.
 
 Se o catálogo mostrar "Nenhum servidor disponível", isso não significa que o login Google falhou. Consulte a saúde da API e confirme se algum servidor HTTPS já foi **publicado**. O Supabase não transforma um host LAN em servidor público automaticamente. Não publique TCP 61001 e não force a ativação pública com jogadores em partida.
