@@ -95,7 +95,7 @@ O launcher pode rodar no PC do jogador enquanto Metagame, DeployServer e serviç
 
 ### Servidores da comunidade
 
-Cada host terá identidade e autorização próprias. A versão 1.8 beta adiciona catálogo Supabase, convites Google por e-mail/nome de usuário e autorizações VIP manuais, com verificação de permissão no host. Consulte [COMUNIDADE.md](COMUNIDADE.md). Ainda precisam de validação real de partidas fora da rede local. Cobrança de assinaturas e relay UDP não estão implementados.
+Cada host terá identidade e autorização próprias. A versão 1.8 beta adiciona catálogo Supabase, convites Google por e-mail/nome de usuário e autorizações por convite (novos acessos apenas como membro comum), com verificação de permissão no host. Consulte [COMUNIDADE.md](COMUNIDADE.md). Ainda precisam de validação real de partidas fora da rede local. Cobrança de assinaturas e relay UDP não estão implementados.
 
 ### Critérios de aceite antes de contratar hospedagem definitiva
 
