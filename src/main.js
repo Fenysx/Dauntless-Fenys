@@ -338,6 +338,29 @@ app.whenReady().then(()=>{
    return {...state,server:access.address};
   }finally{busy=null;}
  }));
+ ipcMain.handle('google:playerInvite',()=>vpnReply(async()=>{
+  if(busy)throw Error('Aguarde a operação atual.');
+  const c=load(),state=await status();
+  if(!state.metagame||!state.deploy)throw Error('Ligue Metagame e DeployServer em Hospedar servidor antes de convidar.');
+  const caps=await googleHostCall('127.0.0.1:61000','status');
+  if(caps?.mode!=='google'||caps.registered!==true)throw Error('Este servidor ainda não está integrado ao Google. Prepare o acesso Google no painel Hospedar servidor.');
+  const invitation=await googleHostCall('127.0.0.1:61000','invite',{},null,await localAdminKey());
+  if(typeof invitation?.code!=='string'||!invitation.code.startsWith('DLU3.'))throw Error('O servidor não retornou um convite de jogador válido.');
+  return {code:invitation.code,expiresAt:invitation.expiresAt,networkMode:c.googleNetworkMode||'lan',address:caps.address};
+ }));
+ ipcMain.handle('google:friendJoin',(_event,invite,name='',allowCreateNew=false)=>vpnReply(async()=>{
+  if(busy)throw Error('Aguarde a operação anterior.');
+  assertGameClosed();
+  if(!googleAuth.state().signedIn)throw Error('Entre com sua conta Google antes de usar o convite de seu amigo.');
+  busy=true;
+  try{
+   const code=String(invite||'').trim();
+   if(code.length>2048)throw Error('Convite muito longo.');
+   const result=await googlePlayer.connect(code,String(name||'').trim(),{allowCreateNew:allowCreateNew===true});
+   notify('Servidor do amigo selecionado e identidade Google confirmada. Confira a conexão e inicie o jogo.');
+   return {...result,server:load().googleServer};
+  }finally{busy=null;}
+ }));
  ipcMain.handle('google:hostInvite',()=>vpnReply(async()=>googleHostCall('127.0.0.1:61000','host-invite',{},null,await localAdminKey())));
  ipcMain.handle('google:sync',(_event,force)=>vpnReply(async()=>googleHostCall('127.0.0.1:61000',force?'sync-now':'sync-status',{},null,await localAdminKey())));
  const activateGoogleHost=async options=>{
