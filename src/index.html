@@ -20,7 +20,7 @@
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
       <button class="nav-item" data-screen="activity"><span>≡</span> Atividades</button>
     </nav>
-    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> DAUNTLESS LAUNCHER</div><p>Jogue sozinho ou entre com seus amigos. Administração só na aba Hospedar servidor.</p><div class="version">LANÇADOR COMUNITÁRIO</div></div>
+    <div class="side-bottom"><div class="side-bottom-title"><span class="pulse"></span> DAUNTLESS LAUNCHER</div><p>Jogue sozinho ou entre com seus amigos. Administração só na aba Hospedar servidor.</p><div class="version">LANÇADOR COMUNITÁRIO • v1.8.0-beta.8</div></div>
   </aside>
   <div class="main-area">
     <header class="topbar"><div class="breadcrumbs">LAUNCHER <span>/</span> <strong id="screen-label">VISÃO GERAL</strong></div><div class="topbar-actions"><button id="community-bell" class="btn btn-subtle community-bell" type="button" title="Convites recebidos" aria-label="Convites recebidos" hidden>🔔 <span id="community-bell-count">0</span></button><span class="tag">DAUNTLESS 1.4.4</span><span class="tag muted">COMUNIDADE INDEPENDENTE</span></div></header>
@@ -72,17 +72,17 @@
         
       </section>
       <section class="screen" id="screen-host" aria-label="Hospedar servidor" hidden>
-        <div class="page-title"><span class="kicker">MEU SERVIDOR</span><h1>Hospedar servidor</h1><p>Ligue o servidor aqui. Para receber amigos pela internet, prepare o acesso Google e escolha como compartilhar. Configurações técnicas aparecem somente quando necessárias.</p></div>
+        <div class="page-title"><span class="kicker">MEU SERVIDOR</span><h1>Hospedar servidor</h1><p>Um botão para ligar. A integração com amigos e o acesso público são opcionais.</p></div>
         <article class="panel hosting-status">
           <div class="panel-title"><h3>Estado do meu servidor</h3><button id="host-refresh" class="btn btn-outline" type="button">↻ Atualizar</button></div>
           <p id="host-overview" class="notice" role="status" aria-live="polite">Verificando os serviços…</p>
-          <div class="hosting-progress"><span id="host-check-services">Servidor</span><span id="host-check-google">Conta Google</span><span id="host-check-public">Compartilhamento</span></div>
-          <p id="host-next-step" class="hosting-guidance" role="status">Inicie pelo botão abaixo.</p>
+          <div class="hosting-progress" hidden><span id="host-check-services">Servidor</span><span id="host-check-google">Google</span><span id="host-check-public">Compartilhamento</span></div>
+          <p id="host-next-step" class="hosting-guidance" role="status" hidden>Comece iniciando o servidor.</p>
         </article>
         <article class="panel fenys-panel-gap hosting-step">
-          <span class="hosting-number">1 • MEU SERVIDOR</span><h3>Ligar e jogar</h3>
-          <p class="panel-description">Inicie Metagame e DeployServer neste PC. Outros computadores só entram depois da configuração de acesso.</p>
-          <div class="button-row"><button id="host-start" class="btn btn-red" type="button">▶ Iniciar meu servidor</button><button id="host-stop" class="btn btn-outline" type="button">■ Desligar</button></div>
+          <span class="hosting-number">SERVIDOR LOCAL</span><h3>Meu mundo</h3>
+          <p class="panel-description">Inicia o servidor que está instalado neste computador. Não exige Google, Supabase ou configurar rede.</p>
+          <div class="button-row"><button id="host-start" class="btn btn-red" type="button">▶ Ligar meu servidor</button><button id="host-play" class="btn btn-outline" type="button">Jogar agora</button><button id="host-stop" class="btn btn-subtle" type="button">Desligar</button></div>
           <p id="host-local-state" class="notice" role="status">Aguardando o servidor local.</p>
           <details class="hosting-advanced" id="admin-server-settings">
             <summary><strong>Diagnóstico e arquivos do servidor</strong></summary>
@@ -92,8 +92,9 @@
             <label>Pasta do Dauntless Revived</label><div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar pasta</button></div>
           </details>
         </article>
+        <details id="host-online-settings" class="panel fenys-panel-gap hosting-advanced"><summary><strong>Convidar amigos ou publicar um servidor</strong><span class="hosting-summary-hint"> • Configuração opcional</span></summary><p class="notice">O servidor básico funciona sem esta etapa. Jogadores em outras casas precisam de um acesso externo realmente funcional; Google e convites não substituem a conexão.</p>
         <article class="panel fenys-panel-gap hosting-step" id="host-google-section">
-          <span class="hosting-number">2 • JOGAR COM OUTRAS PESSOAS</span><h3>Convidar amigos ou abrir ao público</h3>
+          <span class="hosting-number">CONEXÃO ONLINE</span><h3>Jogar com amigos de outras casas</h3>
           <p class="panel-description">Seu amigo entra pelo Google e encontra o servidor na lista depois do convite. Não precisa receber chaves de administrador.</p>
           <label for="google-network-mode">Onde as pessoas vão jogar?</label>
           <select id="google-network-mode">
@@ -169,6 +170,7 @@
           <button id="host-network-reset" class="btn btn-outline" type="button">Limpar preferências antigas de conexão</button>
           <p id="host-network-reset-state" class="notice" role="status">Esta operação cria backup das preferências e preserva personagens, contas e chaves.</p>
           <input id="google-host-result" readonly placeholder="Código do novo host"><p id="google-sync-state" class="notice" role="status"></p>
+        </details>
         </details>
       </section>
       <section class="screen" id="screen-settings" aria-label="Configurações" hidden>
