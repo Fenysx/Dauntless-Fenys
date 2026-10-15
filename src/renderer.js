@@ -136,7 +136,28 @@ $('server-local-select').addEventListener('click',async()=>{
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
 let googleWorking=false;
-async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;$('google-link-help').hidden=!r.signedIn||r.linked;$('google-linked-help').hidden=!r.signedIn||!r.linked;}catch(e){$('google-state').textContent=e.message;}}
+let googleSaveStatusWorking=false;
+async function googleSaveStatus(linked){
+ const label=$('google-save-status');
+ label.hidden=!linked;
+ if(!linked||googleSaveStatusWorking)return;
+ googleSaveStatusWorking=true;
+ try{
+  const result=await window.launcher.googleProgressStatus();
+  if(!result?.ok)throw Error(result?.error||'Status do progresso indisponível.');
+  if(result.unavailable)label.textContent=result.message||'Escolha um servidor Google para sincronizar.';
+  else if(!result.active)label.textContent='Personagem vinculado à conta Google. A sincronização automática inicia ao entrar no servidor.';
+  else if(result.error)label.textContent='Save local preservado • nuvem pendente: '+result.error+' (reenvio automático).';
+  else if(result.pending||result.dirty)label.textContent='Progresso salvo localmente • enviando atualizações à nuvem…';
+  else if(result.lastConfirmedAt){
+   const confirmed=new Date(result.lastConfirmedAt).toLocaleString('pt-BR');
+   label.textContent='Progresso confirmado no Supabase • revisão '+result.revision+' • '+confirmed;
+  }else label.textContent='Personagem vinculado • aguardando confirmação do primeiro save desta sessão.';
+ }catch{
+  label.textContent='Sem confirmação ao vivo do save. Verifique a conexão com o servidor antes de trocar de PC.';
+ }finally{googleSaveStatusWorking=false;}
+}
+async function googleRefresh(){try{const r=await window.launcher.googleState();if(!r.ok)throw Error(r.error);$('google-state').textContent=!r.configured?'Google ainda não configurado no Supabase. O dono precisa cadastrar o cliente Google e autorizar o retorno do launcher.':r.signedIn?'Conta Google: '+r.email+'. '+(r.linked?'Personagem '+r.name+' vinculado • revisão '+r.revision+'.':'Vincule seu personagem atual ou conecte com um convite para criar um novo.'):'Entre com Google para recuperar seu personagem na nuvem.';$('google-login').hidden=r.signedIn;$('google-logout').hidden=!r.signedIn;$('google-link').hidden=!r.signedIn||r.linked;$('google-link-help').hidden=!r.signedIn||r.linked;$('google-linked-help').hidden=!r.signedIn||!r.linked;void googleSaveStatus(r.signedIn&&r.linked);}catch(e){$('google-state').textContent=e.message;}}
 async function googleOperation(fn){if(googleWorking)return;googleWorking=true;try{const r=await fn();if(!r?.ok)throw Error(r?.error||'Operação Google não confirmada.');if(r.notice)note(r.notice);await googleRefresh();await settings();void communityRefresh();return r;}catch(e){note(e.message);}finally{googleWorking=false;void window.hostWizard?.refresh();}}
 $('google-login').addEventListener('click',async()=>{if(googleWorking)return;$('google-login').disabled=true;$('google-cancel').hidden=false;try{await googleOperation(()=>window.launcher.googleLogin());}finally{$('google-login').disabled=false;$('google-cancel').hidden=true;}});
 $('google-cancel').addEventListener('click',async()=>{try{await window.launcher.googleCancel();note('Login Google cancelado.');}catch(e){note(e.message);}});
