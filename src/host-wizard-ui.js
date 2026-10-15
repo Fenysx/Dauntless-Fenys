@@ -146,7 +146,14 @@
     }catch(e){message('host-network-reset-state','Preferências mantidas: '+e.message);}
     finally{button.disabled=false;}
   });
-  $('host-start').addEventListener('click',async()=>{await action('start');await refresh();});
+  $('host-start').addEventListener('click',async()=>{
+    const result=await action('start');
+    await refresh();
+    if(!result?.ok){
+      $('host-local-state').textContent='Não foi possível ligar o servidor: '+(result?.error||'erro desconhecido')+'. Abra Diagnóstico e arquivos do servidor → Verificar instalação.';
+      $('admin-server-settings').open=true;
+    }
+  });
   $('host-play').addEventListener('click',()=>void action('play'));
   $('host-stop').addEventListener('click',async()=>{await action('stop');await refresh();});
   $('host-select-admin').addEventListener('click',async()=>{
