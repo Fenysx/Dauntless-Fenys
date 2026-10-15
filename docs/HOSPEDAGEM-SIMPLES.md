@@ -1,4 +1,4 @@
-# Hospedagem básica — Dauntless Launcher Ultimate 1.8.0-beta.8
+# Hospedagem básica — Dauntless Launcher Ultimate 1.8.0-beta.12
 
 ## Objetivo
 
@@ -23,17 +23,25 @@ Significa que **Metagame TCP 61000** e **DeployServer TCP 61001** responderam. *
 
 O launcher mostrará um aviso curto se houver pouca RAM livre; isso não bloqueia iniciar os serviços Node. Se Ramsgate falhar, feche aplicativos pesados e execute o diagnóstico avançado. O teste de um jogo real continua obrigatório.
 
+## Convidar um amigo diretamente (beta.12)
+
+Abra **Hospedar servidor → Convidar amigos ou publicar um servidor**. Se o Metagame e o DeployServer estiverem ativos, a integração Google do host validada e uma conta administradora confirmada, clique em **Gerar convite de jogador**. O código começa com `DLU3.` e é válido por aproximadamente 15 minutos.
+
+Seu amigo abre **Escolher servidor → Entrar no servidor de um amigo**, entra na conta Google, cola o código e clica em **Entrar usando convite**. O launcher só altera o servidor selecionado depois que o Google e o Metagame confirmarem a entrada, sem substituir silenciosamente um personagem existente.
+
+Para amigos no **mesmo Wi-Fi**, ative o modo LAN e confirme o IP privado do host e o firewall. Para amigos **em outra casa**, é preciso um endpoint HTTPS público e acesso UDP 8770–8777, normalmente via IPv4 público com redirecionamento de portas ou VPS. Supabase e Google cuidam da conta, não transportam partidas UDP. A geração do convite não comprova acesso externo; teste em dois computadores. Consulte [Jogar com amigos](JOGAR-COM-AMIGOS.md).
+
 ## Se quero convidar Ygor
 
 Abra a área opcional **Convidar amigos ou publicar um servidor**. A detecção de IP local já está implementada. O host Google precisa ser ativado no servidor de origem antes de vincular o personagem; em outra casa, além do Google, é necessária conectividade HTTPS e transporte UDP via endereço público encaminhado ou relay compatível. Um IP de saída detectado por STUN **não garante acesso externo**.
 
 Não publique TCP 61001, não envie ao amigo o arquivo privado `authorization.json` e não crie um personagem novo para contornar a ausência da rota `/launcher/google/status`.
 
-A versão beta.8 **não provisiona VPN/relay UDP automaticamente**. Essa infraestrutura e o teste com dois computadores continuam pendentes.
+A versão beta.12 **não provisiona VPN/relay UDP automaticamente**. Essa infraestrutura e o teste com dois computadores continuam pendentes.
 
 ## Identificar a versão realmente instalada
 
-Na barra lateral, o aplicativo novo mostra **VERSÃO INSTALADA • v1.8.0-beta.8**. Se ainda aparecer a interface com “PASSO 1 / PASSO 2 / PASSO 3”, o instalador atualizado ainda não substituiu o executável aberto no PC.
+Na barra lateral, o aplicativo novo mostra **VERSÃO INSTALADA • v1.8.0-beta.12**. Se ainda aparecer a interface com “PASSO 1 / PASSO 2 / PASSO 3”, o instalador atualizado ainda não substituiu o executável aberto no PC.
 
 ## Segurança de dados
 
