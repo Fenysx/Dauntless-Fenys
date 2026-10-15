@@ -356,7 +356,8 @@ app.whenReady().then(()=>{
  ipcMain.handle('network:localIPv4',()=>({addresses:localNetworks().map(x=>x.address)}));
  ipcMain.handle('network:diagnose',()=>vpnReply(async()=>{
   const report=await diagnose();
-  return {...report,services:await status()};
+  let services=null;try{services=await status();}catch{} // A configuracao legada pode estar invalida; a deteccao da rede continua disponivel.
+  return {...report,services};
  }));
  ipcMain.handle('network:reset-legacy',()=>vpnReply(async()=>{
   assertGameClosed();
