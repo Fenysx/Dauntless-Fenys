@@ -34,27 +34,29 @@
     $('google-host-invite').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-sync').disabled=!r.googleActive||!r.adminKeySelected;
     $('host-start').disabled=r.servicesReady;
+    $('host-stop').disabled=!r.servicesReady||!r.managedServices;
     $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora selecionada':'Selecionar conta administradora';
     message('host-overview',r.servicesReady?
-      'Metagame e DeployServer online (Ramsgate não verificada)'+(r.googleActive?' • Google ativo':' • Google pendente'):
-      'Servidor local desligado');
+      'Servidor local ligado • Metagame e DeployServer online • Ramsgate ainda não testada'+(r.googleActive?' • Google pronto':''):
+      'Servidor desligado');
     message('host-local-state',r.servicesReady?
       (r.managedServices?'Serviços básicos ativos pelo launcher. Teste Ramsgate e uma caçada para confirmar o servidor de jogo.':'Serviços abertos por outro programa. Para ativar a integração, encerre-os com segurança e reinicie pelo launcher.'):
       'Clique em Iniciar servidor para jogar neste PC.');
+    message('host-internet-help',mode==='lan'?'Este modo funciona no seu Wi-Fi. Um amigo em outra casa precisa de acesso HTTPS público e portas de jogo disponíveis.':'Para amigos pela internet, configure HTTPS e as portas de partida. O launcher não cria automaticamente um túnel ou VPS.');
     message('community-host-readiness',r.googleActive?'Integração Google confirmada pelo Metagame.':
       r.googleConfigured?'Há uma configuração Google salva, mas as rotas do servidor não responderam corretamente. Não vincule personagens até corrigir.':
       'Integração Google ainda não ativada neste servidor.');
     let next='';
-    if(!r.servicesReady)next='1. Inicie o servidor deste PC. Para jogar sozinho, não precisa de mais nada.';
-    else if(!r.managedServices)next='Os serviços estão abertos externamente. Feche-os de forma segura e inicie pelo launcher para continuar a configuração.';
+    if(!r.servicesReady)next='Ligue seu servidor no passo 1. Para jogar sozinho, não é necessário configurar a nuvem.';
+    else if(!r.managedServices)next='O servidor já está ligado por outro programa. Feche-o no programa original e inicie por este launcher para integrar Google.';
     else if(!r.googleActive||needsActivation){
       if(!r.adminKeySelected)next='2. Escolha a chave administradora original do servidor. Ela permanece no seu PC.';
       else if(!authorization)next='2. Autorização não encontrada. Clique em Selecionar autorização Supabase abaixo.';
       else if(!addressOK)next=mode==='lan'?(ips.length?'2. Escolha um endereço da lista de endereços locais disponíveis.':'2. Nenhum IPv4 local encontrado. Conecte este PC ao Wi-Fi e clique em Atualizar.'):'2. Informe o endereço HTTPS e IPv4 público e selecione os certificados.';
       else next='2. Com todos fora do jogo e backup conferido, ative a integração Google.';
     }else if(r.networkMode!=='public')next='Google funcionando na rede local. Para amigos de outras redes, configure Internet/HTTPS e IP público ou VPS.';
-    else if(!r.signedIn)next='3. Entre com Google na aba Conta Google e convites para publicar.';
-    else if(!hasOwn)next='3. Publique seu servidor. Depois aparecerá aqui a opção de convidar amigos.';
+    else if(!r.signedIn)next='Entre com Google na aba Conta Google e convites para compartilhar seu servidor.';
+    else if(!hasOwn)next='Salve o servidor na lista acima. Depois você poderá enviar convites Google.';
     else next='Seu servidor pode receber convites. Informe o e-mail Google ou usuário de um amigo.';
     message('host-next-step',next);
     message('host-activation-help',r.googleActive&&!needsActivation?'Integração ativa. Você não precisa reconfigurar.':next);
@@ -96,10 +98,11 @@
   }
   $('host-refresh').addEventListener('click',()=>void refresh());
   $('host-start').addEventListener('click',async()=>{await action('start');await refresh();});
-  $('host-check').addEventListener('click',()=>{$('admin-server-settings').open=true;$('hostDoctor').click();$('admin-server-settings').scrollIntoView({behavior:'smooth',block:'nearest'});});
-  $('host-select-admin').addEventListener('click',()=>$('adminKeyPick').click());
-  $('host-open-services').addEventListener('click',()=>{setScreen('services');void refresh();});
-  $('host-open-players').addEventListener('click',()=>{setScreen('players');void playersRefresh();});
+  $('host-stop').addEventListener('click',async()=>{await action('stop');await refresh();});
+  $('host-select-admin').addEventListener('click',async()=>{
+    try{const result=await window.launcher.pickAdminKey();if(result?.selected)message('adminKeyState','Chave original selecionada neste computador.');await settings();await refresh();}
+    catch(e){message('host-next-step','Não foi possível selecionar a conta administradora: '+e.message);}
+  });
   $('players-open').addEventListener('click',()=>{setScreen('players');void playersRefresh();});
   $('google-network-mode').addEventListener('change',()=>{wizard.userEdited=true;void refresh();});
   for(const id of ['google-network-address','google-game-address']){
