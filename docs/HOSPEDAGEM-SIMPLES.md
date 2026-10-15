@@ -1,59 +1,42 @@
-# Hospedagem simplificada — Dauntless Launcher Ultimate
+# Hospedagem básica — Dauntless Launcher Ultimate 1.8.0-beta.8
 
-Objetivo: **ligar um servidor**, **receber amigos** e **permitir que outros administradores publiquem servidores**, mantendo saves locais protegidos.
+## Objetivo
 
-**Beta.7:** o botão **Detectar e preencher minha rede automaticamente** identifica o IP LAN e consulta o IP de saída por STUN. No PC do convidado, **Entrar no jogo → Detectar conexão automaticamente** prepara a descoberta local e atualiza o catálogo Google. A detecção de IP não abre portas nem substitui o túnel/relay UDP; consulte [Conexão automática](CONEXAO-AUTOMATICA.md).
+**Ligar o servidor e jogar sem cadastro adicional nem ajustes de rede.** A conta Google, o Supabase e a publicação da comunidade são opcionais para esse uso.
 
-## 1. Jogar sozinho
+## Na tela Hospedar servidor
 
-Abra **Hospedar servidor → Ligar e jogar → Iniciar meu servidor**, ou selecione o servidor local em **Escolher servidor**.
+A tela principal mostra apenas:
 
-- Isso inicia somente Metagame e DeployServer. Não prova que o servidor nativo de Ramsgate/caçadas está funcionando: é preciso testar a partida.
-- Não é necessário habilitar Google nem publicar um servidor para jogar localmente.
-- Não recrie personagem, não substitua `account.key` e não apague `undaunted.db`.
+- Estado atual do Metagame e DeployServer
+- **Ligar meu servidor** — inicia os serviços locais pelo launcher; se já estiverem ligados, a tela informa isso
+- **Jogar agora** — abre o jogo usando o servidor selecionado no launcher
+- **Desligar** — encerra apenas processos que o próprio launcher iniciou
+- **Diagnóstico e arquivos do servidor** — fechado por padrão, para investigação de erros
+- **Convidar amigos ou publicar um servidor** — fechado por padrão, dedicado à integração Google e internet
 
-## 2. Convidar um amigo de outra casa (exemplo: Ygor)
+A tela **Visão geral** não mostra mais botões repetidos para iniciar/parar/reiniciar. A antiga **Central do servidor**, que duplicava os controles, foi removida. Use **Visão geral → Abrir meu servidor** para chegar à administração.
 
-Em **Hospedar servidor → Convidar amigos ou abrir ao público**:
+## O que significa “servidor ligado”?
 
-1. Primeiro ligue Metagame e DeployServer pelo launcher, e selecione **a conta administradora original** do servidor.
-2. Selecione **Amigos de outras casas / servidor público**. Um servidor em rede local não atende pessoas em outras casas. Este modo ainda requer domínio HTTPS/certificado válido, IPv4 acessível (ou VPS) e UDP 8770–8777 encaminhadas.
-3. Confirme o backup e, com todos fora do jogo, clique **Preparar acesso Google neste servidor**. A autorização Supabase existente é detectada automaticamente, quando possível, ou pode ser escolhida na configuração inicial. O botão só fica ativo depois das verificações obrigatórias.
-4. Confirme que a rota Google responde e que o host foi registrado; depois conecte o personagem original ao Google, sem criar personagem novo.
-5. Em **Compartilhar meu servidor**, escolha **Só quem eu convidar**, informe o nome e clique **Salvar servidor e compartilhar**.
-6. Em **Convidar amigo**, digite o e-mail Google/usuário do amigo e clique **Enviar convite**. Ele entra em **Conta Google e convites**, aceita a notificação e seleciona o servidor em **Escolher servidor**.
+Significa que **Metagame TCP 61000** e **DeployServer TCP 61001** responderam. **Não confirma** que o executável nativo de Ramsgate iniciou nas portas UDP de jogo, que uma caçada pode ser concluída, nem que outro computador consiga entrar.
 
-O convite gerencia autorização do jogador, **não substitui um endereço público funcional**. O launcher não instala VPN, configura o roteador ou contrata uma VPS sozinho. Não publique a porta TCP 61001.
+O launcher mostrará um aviso curto se houver pouca RAM livre; isso não bloqueia iniciar os serviços Node. Se Ramsgate falhar, feche aplicativos pesados e execute o diagnóstico avançado. O teste de um jogo real continua obrigatório.
 
-## 3. Criar um servidor público
+## Se quero convidar Ygor
 
-A pessoa que hospeda faz a mesma preparação do passo 2, mas em **Compartilhar meu servidor → Quem pode entrar?**, escolhe **Público — aparecer na lista**. O host deve estar realmente acessível pela internet.
+Abra a área opcional **Convidar amigos ou publicar um servidor**. A detecção de IP local já está implementada. O host Google precisa ser ativado no servidor de origem antes de vincular o personagem; em outra casa, além do Google, é necessária conectividade HTTPS e transporte UDP via endereço público encaminhado ou relay compatível. Um IP de saída detectado por STUN **não garante acesso externo**.
 
-Pessoas com infraestrutura própria podem hospedar no próprio PC/VPS. Administradores de novos hosts precisam de autorização de host, obtida via **Avançado → Gerar autorização para outro servidor** por uma autoridade Google existente; **não compartilhe o arquivo `authorization.json` original**.
+Não publique TCP 61001, não envie ao amigo o arquivo privado `authorization.json` e não crie um personagem novo para contornar a ausência da rota `/launcher/google/status`.
 
-A versão atual **não oferece uma VPS, relay UDP ou configuração HTTPS automática**. Portanto publicar um host público com apenas um clique ainda depende de um serviço de acesso externo que não faz parte deste projeto.
+A versão beta.8 **não provisiona VPN/relay UDP automaticamente**. Essa infraestrutura e o teste com dois computadores continuam pendentes.
 
-## O que aparece na nova tela
+## Identificar a versão realmente instalada
 
-- **1 • Meu servidor:** iniciar, desligar e conferir o estado real dos dois serviços.
-- **2 • Jogar com outras pessoas:** selecionar rede local ou internet, preparar Google, compartilhar para convidados ou público e convidar.
-- **Diagnóstico e arquivos:** recolhido; usar somente quando algo não funcionar.
-- **Avançado • Outros anfitriões e backups:** reservado a quem administra o host.
+Na barra lateral, o aplicativo novo mostra **VERSÃO INSTALADA • v1.8.0-beta.8**. Se ainda aparecer a interface com “PASSO 1 / PASSO 2 / PASSO 3”, o instalador atualizado ainda não substituiu o executável aberto no PC.
 
-A aba **Escolher servidor** é para jogadores: selecionar o servidor local ou escolher um servidor do catálogo. Eles não precisam ver certificados, chave de administrador ou configurações do Supabase.
+## Segurança de dados
 
-## Problemas comuns
+A atualização do launcher não deve apagar `undaunted.db`, `account.key`, chaves privadas, configurações da conta Google nem tokens. A opção **Limpar preferências antigas de conexão** fica na parte avançada; cria backup das configurações antes de modificar somente os campos antigos reconhecidos. A migração/sincronização do personagem é outro fluxo, e requer backup e validação explícita.
 
-| Mensagem | Significado |
-| --- | --- |
-| `Unstubbed route GET /launcher/google/status` | Metagame ativo, mas integração Google não instalada/ativa; não vincule o personagem |
-| Ativação Google desabilitada | Confira serviços iniciados pelo launcher, conta administradora original, autorização, IP e certificados conforme o modo |
-| ServerStatus funciona, mas Ramsgate falha | O jogo nativo ainda exige teste de porta 8777, DLLs, RAM e logs |
-| Servidor LAN não aparece na comunidade | Normal: a lista pública requer um host Google publicado e acessível externamente |
-| Convite aceito, mas não conecta | Investigue HTTPS público e portas UDP, não crie outro personagem |
-
-## Segurança
-
-Nunca envie tokens de sessão, `account.key`, chaves privadas, `.env`, `authorization.json` ou segredos de hospedagem. Mantenha backup verificável do banco e do personagem antes de ativar e sincronizar o host. A integração e as caçadas em dois computadores precisam ser testadas na prática.
-
-Diagnóstico avançado: [Ramsgate e Google](DIAGNOSTICO-RAMSGATE.md).
+Mais detalhes em [Conexão automática](CONEXAO-AUTOMATICA.md) e [Diagnóstico da Ramsgate](DIAGNOSTICO-RAMSGATE.md).
