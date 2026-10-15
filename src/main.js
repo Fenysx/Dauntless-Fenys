@@ -426,6 +426,11 @@ app.whenReady().then(()=>{
     googleActive=googleReachable&&caps.registered===true;
    }catch{} // A missing route means not ready, never success.
   }
+  let adminValidated=false,adminProblem='';
+  if(state.metagame){
+   try{await localAdminKey();adminValidated=true;}
+   catch(e){adminProblem=e.message;}
+  }
   const identityFile=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
   return {
    servicesReady:Boolean(state.metagame&&state.deploy),
@@ -436,7 +441,10 @@ app.whenReady().then(()=>{
    networkMode:c.googleNetworkMode||'lan',
    advertisedAddress:c.googleHostAddress||'',
    gameAddress:c.googleGameAddress||'',
-   adminKeySelected:Boolean(c.adminKeyFile&&fs.existsSync(c.adminKeyFile)),
+   adminKeySelected:adminValidated,
+   adminKeyValidated:adminValidated,
+   adminProblem,
+   googleHostDetected:googleReachable,
    authorizationSelected:Boolean(findAuthorizationFile(app.getPath('home'),c.supabaseAuthorizationFile)),
    identityPresent:fs.existsSync(identityFile),
    signedIn:Boolean(googleAuth.state().signedIn),
