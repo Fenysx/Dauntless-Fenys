@@ -68,18 +68,16 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-          pattern: Dauntless-Fenys-*
+          pattern: Dauntless-Fenys-Windows
           merge-multiple: true
           path: release-assets
 
-      - name: Conferir os tres instaladores
+      - name: Conferir o instalador Windows
         shell: bash
         run: |
           set -euo pipefail
           ls -lh release-assets/
           test "$(find release-assets -maxdepth 1 -name '*.exe' | wc -l)" -eq 1
-          test "$(find release-assets -maxdepth 1 -name '*.AppImage' | wc -l)" -eq 1
-          test "$(find release-assets -maxdepth 1 -name '*.deb' | wc -l)" -eq 1
 
       - name: Criar Release de testes no GitHub
         uses: softprops/action-gh-release@v2
@@ -92,8 +90,6 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release-assets/*.exe
-            release-assets/*.AppImage
-            release-assets/*.deb
           body: |
             ## Dauntless Launcher Ultimate — versão beta
             Launcher comunitário para Dauntless Revived.
