@@ -31,12 +31,18 @@
     $('host-invite-section').hidden=!canPublish||!hasOwn;
     $('community-invite-send').disabled=!canPublish||!hasOwn;
     $('community-revoke').disabled=!canPublish||!hasOwn;
+    $('host-player-invite-generate').disabled=!(r.servicesReady&&r.googleActive&&r.adminKeySelected);
+    if(!r.googleActive||!r.adminKeySelected)message('host-player-invite-status',
+      !r.servicesReady?'Ligue Metagame e DeployServer primeiro.':
+      !r.googleActive?'Ative a integração Google neste host para gerar convites de jogador.':
+      'Selecione a conta administradora original e confirme o acesso ao Metagame.');
     $('google-host-invite').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-sync').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-host-upgrade').disabled=!r.googleActive||!r.adminKeySelected||!r.managedServices;
     $('host-start').disabled=r.servicesReady;
     $('host-stop').disabled=!r.servicesReady||!r.managedServices;
-    $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora selecionada':'Selecionar conta administradora';
+    $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora validada':'Selecionar conta administradora';
+    message('adminKeyState',r.adminKeySelected?'Conta administradora confirmada pelo Metagame.':r.adminProblem||'Chave administradora não encontrada. Selecione a conta original.');
     message('host-overview',r.servicesReady?
       'Servidor ligado neste PC • serviços ativos'+(r.googleActive?' • contas Google conectadas':'')+'. Ramsgate e caçadas precisam de teste no jogo.':
       'Servidor desligado. Clique em Ligar meu servidor.');
@@ -60,6 +66,7 @@
     else if(!hasOwn)next='Salve o servidor na lista acima. Depois você poderá enviar convites Google.';
     else next='Seu servidor pode receber convites. Informe o e-mail Google ou usuário de um amigo.';
     message('host-next-step',next);
+    $('host-next-step').hidden=false;
     message('host-activation-help',r.googleActive&&!needsActivation?'Integração ativa. Você não precisa reconfigurar.':next);
     message('host-publish-explanation',canPublish?
       (hasOwn?'Seu servidor está publicado. Você pode atualizar as informações e convidar amigos.':'Agora você pode publicar seu servidor para convidados ou para a comunidade.'):
@@ -93,7 +100,7 @@
     }catch(e){
       state=null;message('host-overview','Não foi possível verificar este PC: '+e.message);
       message('host-next-step','Confira se o servidor está instalado e tente Atualizar.');
-      for(const id of ['google-host-activate','community-publish','community-invite-send','google-sync','google-host-invite'])$(id).disabled=true;
+      for(const id of ['google-host-activate','community-publish','community-invite-send','google-sync','google-host-invite','host-player-invite-generate'])$(id).disabled=true;
       $('host-publish-form').hidden=true;$('host-invite-section').hidden=true;
     }finally{loading=false;}
   }
