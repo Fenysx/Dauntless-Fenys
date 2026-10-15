@@ -20,7 +20,7 @@ test('interfaces Google e comunidade continuam conectadas a IPC seguros',()=>{
  for(const id of ['google-host-activate','community-publish','community-invite-send'])
   assert.match(renderer,new RegExp('\\$\\(\\x27'+id+'\\x27\\)\\.addEventListener\\(\\x27click'));
  assert.match(main,/requirePublishingServices\(await status\(\)\)/);
- assert.match(main,/caps\.hostKey!==config\.publicKey/);
+ assert.match(main,/status\.hostKey!==config\.publicKey/);
  assert.match(main,/if\(!servicesOwnedByLauncher\(live\)\)throw Error/);
 });
 test('scripts de interface continuam validos',()=>{
