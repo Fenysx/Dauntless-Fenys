@@ -468,6 +468,7 @@ app.whenReady().then(()=>{
   try{return {ok:true,data:await playerOverview()};}
   catch(e){return {ok:false,error:e.message};}
  });
+ ipcMain.handle('app:version',()=>app.getVersion());
  ipcMain.handle('server:status',()=>status());
  ipcMain.handle('server:start',()=>runLocked(startAll));
  ipcMain.handle('server:stop',()=>runLocked(stopOwned));
