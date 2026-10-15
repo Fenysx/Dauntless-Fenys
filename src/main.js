@@ -344,6 +344,12 @@ app.whenReady().then(()=>{
   if(!state.metagame||!state.deploy)throw Error('Ligue Metagame e DeployServer em Hospedar servidor antes de convidar.');
   const caps=await googleHostCall('127.0.0.1:61000','status');
   if(caps?.mode!=='google'||caps.registered!==true)throw Error('Este servidor ainda não está integrado ao Google. Prepare o acesso Google no painel Hospedar servidor.');
+  if((c.googleNetworkMode||'lan')==='lan'&&c.googleHostAddress){
+   let lanCaps;
+   try{lanCaps=await googleHostCall(c.googleHostAddress,'status');}
+   catch{throw Error('A API local Google responde em 127.0.0.1, mas não responde no endereço LAN '+c.googleHostAddress+'. Verifique Wi-Fi, firewall do Windows, IP configurado e o Metagame antes de convidar seu amigo.');}
+   if(lanCaps.hostKey!==caps.hostKey||lanCaps.registered!==true)throw Error('O endereço LAN não confirmou a identidade do host Google. Nenhum convite foi gerado.');
+  }
   const invitation=await googleHostCall('127.0.0.1:61000','invite',{},null,await localAdminKey());
   if(typeof invitation?.code!=='string'||!invitation.code.startsWith('DLU3.'))throw Error('O servidor não retornou um convite de jogador válido.');
   return {code:invitation.code,expiresAt:invitation.expiresAt,networkMode:c.googleNetworkMode||'lan',address:caps.address};
@@ -356,7 +362,12 @@ app.whenReady().then(()=>{
   try{
    const code=String(invite||'').trim();
    if(code.length>2048)throw Error('Convite muito longo.');
-   const result=await googlePlayer.connect(code,String(name||'').trim(),{allowCreateNew:allowCreateNew===true});
+   let result;
+   try{result=await googlePlayer.connect(code,String(name||'').trim(),{allowCreateNew:allowCreateNew===true});}
+   catch(e){
+    if(/fetch failed|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|timeout/i.test(String(e?.message||e)))throw Error('Não foi possível alcançar o servidor de seu amigo. Na mesma rede, confira IP e firewall. Em outra casa, é necessário HTTPS público e portas UDP de partida acessíveis. A conta e o personagem foram preservados.');
+    throw e;
+   }
    notify('Servidor do amigo selecionado e identidade Google confirmada. Confira a conexão e inicie o jogo.');
    return {...result,server:load().googleServer};
   }finally{busy=null;}
