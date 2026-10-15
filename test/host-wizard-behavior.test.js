@@ -46,3 +46,22 @@ test('nao ativa Google sem IPv4 local disponivel',async()=>{
  assert.equal(elt('google-host-activate').disabled,true);
  assert.match(elt('host-next-step').textContent,/Nenhum IPv4 local/);
 });
+
+test('o servidor basico pode ser iniciado sem Google, Supabase ou chave administrativa',async()=>{
+ const state={...ready,servicesReady:false,managedServices:false,adminKeySelected:false,authorizationSelected:false,googleActive:false};
+ const {elt,window}=makeHarness(state,['192.168.1.20']);
+ await window.hostWizard.refresh();
+ assert.equal(elt('host-start').disabled,false);
+ assert.equal(elt('google-host-activate').disabled,true);
+ assert.match(elt('host-overview').textContent,/Servidor desligado/);
+});
+test('o servidor basico ligado nao e tratado como erro quando Google ainda nao esta configurado',async()=>{
+ const state={...ready,googleActive:false,adminKeySelected:false,authorizationSelected:false};
+ const {elt,window}=makeHarness(state,['192.168.1.20']);
+ await window.hostWizard.refresh();
+ assert.equal(elt('host-start').disabled,true);
+ assert.equal(elt('host-stop').disabled,false);
+ assert.equal(elt('google-host-activate').disabled,true);
+ assert.match(elt('host-overview').textContent,/Servidor ligado neste PC/);
+ assert.doesNotMatch(elt('host-overview').textContent,/Google pendente|Supabase|autorizaç/i);
+});
