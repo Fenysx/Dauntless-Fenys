@@ -5,7 +5,7 @@ function makeHarness(readiness,addresses){
  const elements=new Map();
  const elt=id=>{
   if(!elements.has(id)){
-   const e={id,value:'',textContent:'',disabled:false,hidden:false,open:false,options:[],classList:{toggle(){}},events:{},addEventListener(name,fn){this.events[name]=fn;},replaceChildren(...children){this.options=children;},scrollIntoView(){}};
+   const e={id,value:'',textContent:'',disabled:false,hidden:false,open:false,options:[],classList:{toggle(){}},events:{},addEventListener(name,fn){this.events[name]=fn;},replaceChildren(...children){this.options=children;},append(...children){this.options.push(...children);},scrollIntoView(){}};
    if(id==='google-network-mode')e.value='lan';
    elements.set(id,e);
   }
