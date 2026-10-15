@@ -4,7 +4,8 @@ const controlIds=['play','refresh'];
 void window.launcher.appVersion().then(v=>{$('launcher-version').textContent='VERSÃO INSTALADA • v'+v;}).catch(()=>{$('launcher-version').textContent='VERSÃO NÃO IDENTIFICADA';});
 const screens={dashboard:'VISÃO GERAL',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',host:'HOSPEDAR SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
-function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
+function appendActivity(s){const text=String(s),el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
+function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;appendActivity(text);}
 function paint(s){
  for(const [key,element] of [['metagame','metagame'],['deploy','deploy']]){
   const online=Boolean(s[key]),node=$(element);
@@ -110,7 +111,11 @@ window.launcher.onActivity(message=>{
  // Routine health polling happens every ten seconds. Keep the Activity panel useful.
  if(/^metagame: \{"level":30/.test(line)&&
     /"msg":"GET \/undaunted\/api\/(ServerStatus|GetUserInfo) gs=0"/.test(line))return;
- note(line);
+ // Service trace belongs in Atividades, not in the prominent notification banner.
+ if(/^(metagame|deploy)( \(erro\))?: /.test(line)){
+  if(/POST \/heartbeat gs=1|Running Gameserver Watchdog!/.test(line))return;
+  appendActivity(line);
+ }else note(line);
  if(/Game server on port 8777 .*exited with code 3221225786/.test(line)){
   if(Date.now()-lastNativeWarning>45000){
    lastNativeWarning=Date.now();
