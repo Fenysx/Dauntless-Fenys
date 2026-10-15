@@ -150,6 +150,33 @@ $('server-local-select').addEventListener('click',async()=>{
  }catch(e){state.textContent='Seleção não concluída: '+e.message;note('Servidor local: '+e.message);}
  finally{button.disabled=false;}
 });
+$('friend-invite-join').addEventListener('click',async()=>{
+ const button=$('friend-invite-join'),state=$('friend-join-state');
+ if(button.disabled)return;
+ button.disabled=true;
+ try{
+  const code=$('friend-invite-code').value.trim();
+  if(!/^DLU3\.[\w-]{10,2040}$/.test(code))throw Error('Cole um convite de jogador válido que começa com DLU3.');
+  const google=await window.launcher.googleState();
+  if(!google?.ok||!google.signedIn)throw Error('Entre com Google em Conta Google e convites antes de entrar no servidor do amigo.');
+  let allowCreateNew=false,newName='';
+  if(!google.linked){
+   if(!window.confirm('Nenhum personagem está vinculado a esta conta Google.\n\nSe você já possui um personagem antigo, clique em Cancelar e vincule-o primeiro.\n\nSomente jogadores realmente NOVOS devem criar um personagem. Confirma que é novo?'))return;
+   allowCreateNew=true;
+   const name=window.prompt('Nome do primeiro personagem (3 a 16 letras, números ou _):','');
+   if(name===null)return;
+   newName=name.trim();
+   if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Nome inválido para o primeiro personagem.');
+  }
+  state.textContent='Verificando identidade e conectando ao servidor do amigo…';
+  const result=await window.launcher.googleFriendJoin(code,newName,allowCreateNew);
+  if(!result?.ok||!result.confirmed)throw Error(result?.error||'Servidor do amigo não confirmou sua entrada.');
+  $('friend-invite-code').value='';
+  state.textContent='Servidor do amigo selecionado. Seu personagem foi validado pelo Google. Clique em Jogar agora.';
+  await settings();await refresh();note('Servidor do amigo selecionado. Clique em Jogar agora.');
+ }catch(e){state.textContent='Não foi possível entrar: '+e.message;note('Convite do amigo: '+e.message);}
+ finally{button.disabled=false;}
+});
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
 let googleWorking=false;
@@ -213,6 +240,28 @@ $('google-host-activate').addEventListener('click',()=>void googleOperation(asyn
  if(result?.ok)window.hostWizard.userEdited=false;
  return result;
 }));
+$('host-player-invite-generate').addEventListener('click',async()=>{
+ const button=$('host-player-invite-generate'),status=$('host-player-invite-status');
+ if(button.disabled)return;
+ button.disabled=true;
+ $('host-player-invite-code').value='';
+ $('host-player-invite-copy').disabled=true;
+ try{
+  const r=await window.launcher.googlePlayerInvite();
+  if(!r?.ok||!r.code)throw Error(r?.error||'Não foi possível gerar um convite.');
+  $('host-player-invite-code').value=r.code;
+  $('host-player-invite-copy').disabled=false;
+  const expiration=Number.isFinite(r.expiresAt)?new Date(r.expiresAt).toLocaleTimeString('pt-BR'):'em aproximadamente 15 minutos';
+  status.textContent='Convite de jogador gerado • expira '+expiration+'. Compartilhe apenas com seu amigo. Isso não garante acesso pela internet sem HTTPS/UDP alcançáveis.';
+ }catch(e){status.textContent='Convite não gerado: '+e.message;note('Hospedagem: '+e.message);}
+ finally{button.disabled=false;}
+});
+$('host-player-invite-copy').addEventListener('click',async()=>{
+ const code=$('host-player-invite-code').value,status=$('host-player-invite-status');
+ if(!code){status.textContent='Gere um convite de jogador primeiro.';return;}
+ try{await navigator.clipboard.writeText(code);status.textContent='Convite de jogador copiado. Envie ao amigo por um canal privado; o código expira em 15 minutos.';}
+ catch{status.textContent='Não foi possível copiar automaticamente. Selecione o campo do código e use Ctrl+C.';$('host-player-invite-code').focus();$('host-player-invite-code').select();}
+});
 $('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok){$('google-host-result').value=r.code;$('google-host-code-copy-state').textContent='Código privado gerado. Copie apenas para o anfitrião autorizado.';}return r;}));
 $('google-host-code-copy').addEventListener('click',async()=>{
  const code=$('google-host-result').value;
