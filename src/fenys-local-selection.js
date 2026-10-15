@@ -17,7 +17,7 @@ async function selectLocalServer({load,save,assertGameClosed,isGoogleSignedIn,ch
   if(caps?.mode!=='google'||caps.registered!==true)throw Error('O servidor local ainda não confirmou a integração Google. Inicie o Metagame local em Hospedar servidor e confirme o status Google antes de transferir seu personagem. O servidor anterior continua selecionado.');
   await googleHome(LOCAL);
  }
- else if(globalState().global){
+ else if(!existing.googleSelected&&globalState().global){
   await globalHome(existing.cloudAuthority);
  }
  const config=load();
