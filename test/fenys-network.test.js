@@ -78,7 +78,7 @@ test('ativação Google LAN aceita apenas IPv4 local válido e oferece explicaç
  assert.throws(()=>validateNetwork({networkMode:'lan',address:'127.0.0.1:61000'},['127.0.0.1']),/não informe 127.0.0.1/);
  assert.throws(()=>validateNetwork({networkMode:'lan',address:'192.168.1.21:61000'},['192.168.1.20']),/selecione o IPv4 deste computador/);
  const renderer=fs.readFileSync('src/renderer.js','utf8'),html=fs.readFileSync('src/index.html','utf8'),preload=fs.readFileSync('src/preload.js','utf8');
- assert.match(renderer,/\$\('google-network-address-fields'\)\.hidden=googleMode==='tailscale'/);
+ assert.match(renderer,/\$\('google-network-address-fields'\)\.hidden=false/);
  assert.match(renderer,/localAddresses\(\)/);
  assert.match(preload,/network:localIPv4/);
  assert.match(html,/id="google-lan-ip-suggestions"/);
