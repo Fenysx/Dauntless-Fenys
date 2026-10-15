@@ -3,6 +3,8 @@ contextBridge.exposeInMainWorld('launcher',{
  networkCert:()=>ipcRenderer.invoke('network:cert'),
  networkKey:()=>ipcRenderer.invoke('network:key'),
  localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
+ networkDiagnose:()=>ipcRenderer.invoke('network:diagnose'),
+ networkResetLegacy:()=>ipcRenderer.invoke('network:reset-legacy'),
  hostReadiness:()=>ipcRenderer.invoke('host:readiness'),
  googleState:()=>ipcRenderer.invoke('google:state'),
  communityList:()=>ipcRenderer.invoke('community:list'),
