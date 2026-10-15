@@ -1,6 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
+void window.launcher.appVersion().then(v=>{$('launcher-version').textContent='VERSÃO INSTALADA • v'+v;}).catch(()=>{$('launcher-version').textContent='VERSÃO NÃO IDENTIFICADA';});
 const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',host:'HOSPEDAR SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
