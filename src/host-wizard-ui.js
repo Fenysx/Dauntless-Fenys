@@ -37,11 +37,11 @@
     $('host-stop').disabled=!r.servicesReady||!r.managedServices;
     $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora selecionada':'Selecionar conta administradora';
     message('host-overview',r.servicesReady?
-      'Servidor local ligado • Metagame e DeployServer online • Ramsgate ainda não testada'+(r.googleActive?' • Google pronto':''):
-      'Servidor desligado');
+      'Servidor ligado neste PC • serviços ativos'+(r.googleActive?' • contas Google conectadas':'')+'. Ramsgate e caçadas precisam de teste no jogo.':
+      'Servidor desligado. Clique em Ligar meu servidor.');
     message('host-local-state',r.servicesReady?
-      (r.managedServices?'Serviços básicos ativos pelo launcher. Teste Ramsgate e uma caçada para confirmar o servidor de jogo.':'Serviços abertos por outro programa. Para ativar a integração, encerre-os com segurança e reinicie pelo launcher.'):
-      'Clique em Iniciar servidor para jogar neste PC.');
+      (r.managedServices?'O servidor foi iniciado por este launcher. Você já pode abrir o jogo; confirme Ramsgate dentro do Dauntless.':'O servidor já está rodando por outro programa. Para encerrá-lo, utilize esse programa.'):
+      'O servidor local não foi iniciado.');
     message('host-internet-help',mode==='lan'?'Este modo funciona no seu Wi-Fi. Um amigo em outra casa precisa de acesso HTTPS público e portas de jogo disponíveis.':'Para amigos pela internet, configure HTTPS e as portas de partida. O launcher não cria automaticamente um túnel ou VPS.');
     message('community-host-readiness',r.googleActive?'Integração Google confirmada pelo Metagame.':
       r.googleConfigured?'Há uma configuração Google salva, mas as rotas do servidor não responderam corretamente. Não vincule personagens até corrigir.':
@@ -134,6 +134,7 @@
     finally{button.disabled=false;}
   });
   $('host-start').addEventListener('click',async()=>{await action('start');await refresh();});
+  $('host-play').addEventListener('click',()=>void action('play'));
   $('host-stop').addEventListener('click',async()=>{await action('stop');await refresh();});
   $('host-select-admin').addEventListener('click',async()=>{
     try{const result=await window.launcher.pickAdminKey();if(result?.selected)message('adminKeyState','Chave original selecionada neste computador.');await settings();await refresh();}
