@@ -139,7 +139,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
  if(autoStart){
   void register().then(()=>flush()).catch(()=>{});
   // Renew cloud session leases every 20 seconds; retry pending saves more frequently.
-  timer=setInterval(()=>void flush().catch(()=>{}),20000);timer.unref?.();
+  timer=setInterval(()=>{if(!transferring)void flush().catch(()=>{});},20000);timer.unref?.();
   fastTimer=setInterval(()=>{if(inFlight===0&&pendingRows(db))void flush().catch(()=>{});},2000);fastTimer.unref?.();
  }
  async function close(){
