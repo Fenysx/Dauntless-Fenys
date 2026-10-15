@@ -146,7 +146,7 @@ $('server-local-select').addEventListener('click',async()=>{
   await settings();
   await refresh();
   note(result.online?'Servidor local selecionado e Metagame acessível. Pode iniciar o jogo.':
-    'Servidor local selecionado. Metagame está desligado; use Hospedar servidor → Ligar servidor antes de jogar. A escolha do servidor não cria nem substitui personagem Google.');
+    'Servidor local selecionado. Metagame está desligado; use Hospedar servidor → Ligar meu servidor antes de jogar. A escolha do servidor não cria nem substitui personagem Google.');
  }catch(e){state.textContent='Seleção não concluída: '+e.message;note('Servidor local: '+e.message);}
  finally{button.disabled=false;}
 });
