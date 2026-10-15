@@ -26,3 +26,13 @@ test('interfaces Google e comunidade continuam conectadas a IPC seguros',()=>{
 test('scripts de interface continuam validos',()=>{
  for(const p of ['src/renderer.js','src/host-wizard-ui.js','src/preload.js','src/main.js'])assert.doesNotThrow(()=>new vm.Script(get(p),{filename:p}));
 });
+
+test('ligar servidor local usa backend existente sem depender de login Google',()=>{
+ const main=get('src/main.js');
+ assert.match(main,/ipcMain\.handle\('server:start',\(\)=>runLocked\(startAll\)\)/);
+ const start=main.split('async function startAll(){')[1].split('async function killOwned(')[0];
+ assert.doesNotMatch(start,/googleAuth|googlePlayer|installGoogle|supabaseAuthorizationFile/);
+ const html=get('src/index.html'),panel=html.split('id="screen-host"')[1].split('id="screen-settings"')[0];
+ assert.ok(panel.indexOf('id="host-start"')<panel.indexOf('id="host-online-settings"'));
+ assert.match(panel,/id="host-online-settings"/);
+});
