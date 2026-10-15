@@ -2,6 +2,7 @@
 // Each game host runs its native Metagame. Google owns the canonical player snapshot in Supabase.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {createHost}=require('./fenys-roaming-host');
+const {installChangeTracking,pendingRows}=require('./fenys-google-autosave');
 const {cloud,signed,encodeInvite}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
 const {lanRequest}=require('./fenys-network');
@@ -9,7 +10,10 @@ const {privateRequest,localRequest,hash}=require('./fenys-cloud-protocol');
 function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},validateToken=()=>null,communityAccess=(key,token)=>community('access',{hostKey:key},token),now=Date.now,autoStart=true}={}){
  const progress=createHost(db,{online,revoke,force:true});
  db.exec(`CREATE TABLE IF NOT EXISTS launcher_google_sessions(userId TEXT PRIMARY KEY,authId TEXT NOT NULL,session TEXT NOT NULL,revision INTEGER NOT NULL,leaseUntil INTEGER NOT NULL,active INTEGER NOT NULL,dirty INTEGER NOT NULL,changes INTEGER NOT NULL,pending TEXT,error TEXT); CREATE TABLE IF NOT EXISTS launcher_google_invites(secretHash TEXT PRIMARY KEY,expiresAt INTEGER NOT NULL,usedBy TEXT);`);
- let queue=Promise.resolve(),transferring=false,inFlight=0,registered=false,timer=null;
+ // Trigger rows survive crashes; the background worker only sends committed data.
+ installChangeTracking(db);
+ if(!db.prepare('PRAGMA table_info(launcher_google_sessions)').all().some(c=>c.name==='confirmedAt'))db.exec('ALTER TABLE launcher_google_sessions ADD COLUMN confirmedAt INTEGER NOT NULL DEFAULT 0');
+ let queue=Promise.resolve(),transferring=false,inFlight=0,registered=false,timer=null,fastTimer=null,scheduled=null,flushActive=null;
  const call=(operation,fields={},token)=>invoke(operation,{envelope:signed(config,operation,fields)},token);
  const account=key=>typeof key==='string'?db.prepare('SELECT u.* FROM users u JOIN userapikeys k ON u.userId=k.userId WHERE k.keyHash=?').get(hash(key)):null;
  const rows=()=>db.prepare('SELECT * FROM launcher_google_sessions WHERE active=1').all();
@@ -20,13 +24,40 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
   const renewed=await call('renew',{userId:row.userId,session:row.session});
   if(renewed.revision!==row.revision&&(!pending||renewed.commitId!==pending.commitId))throw Error('Existe outra revisão na nuvem. Os dados locais foram preservados.');
   if(!pending&&row.dirty){const snapshot=progress.capture(row.userId,config.publicKey,row.revision+1);pending={userId:row.userId,session:row.session,expectedRevision:row.revision,commitId:crypto.randomUUID(),snapshot,changes:row.changes};db.prepare('UPDATE launcher_google_sessions SET pending=? WHERE userId=?').run(JSON.stringify(pending),row.userId);}
-  if(pending){const r=await call('save',pending);if(r.commitId!==pending.commitId||r.revision!==pending.expectedRevision+1)throw Error('A nuvem não confirmou a revisão do personagem.');db.prepare('UPDATE launcher_google_sessions SET revision=?,pending=NULL,dirty=CASE WHEN changes=? THEN 0 ELSE 1 END WHERE userId=?').run(r.revision,pending.changes,row.userId);}
+  if(pending){const r=await call('save',pending);if(r.commitId!==pending.commitId||r.revision!==pending.expectedRevision+1)throw Error('A nuvem não confirmou a revisão do personagem.');db.prepare('UPDATE launcher_google_sessions SET revision=?,pending=NULL,confirmedAt=?,dirty=CASE WHEN changes=? THEN 0 ELSE 1 END WHERE userId=?').run(r.revision,now(),pending.changes,row.userId);}
   const lease=await call('renew',{userId:row.userId,session:row.session});const current=db.prepare('SELECT revision FROM launcher_google_sessions WHERE userId=?').get(row.userId);
   if(lease.revision!==current.revision)throw Error('Existe outra revisão na nuvem. Os dados locais foram preservados.');
   db.prepare('UPDATE launcher_google_sessions SET leaseUntil=?,error=NULL WHERE userId=?').run(Date.parse(lease.leaseUntil),row.userId);
  }
- function flush(){return enqueue(async()=>{if(!registered)await register();let failure;for(const row of rows())try{await save(row);}catch(e){db.prepare('UPDATE launcher_google_sessions SET leaseUntil=0,error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);failure??=e;}if(failure)throw failure;return {confirmed:true};});}
- function mark(){db.prepare('UPDATE launcher_google_sessions SET dirty=1,changes=changes+1 WHERE active=1').run();}
+ function flush(){
+  // Coalesce overlapping triggers, HTTP requests and retries into one network transaction.
+  if(flushActive)return flushActive;
+  const job=enqueue(async()=>{
+   if(!registered)await register();
+   let failure;
+   for(const row of rows())try{await save(row);}
+   catch(e){
+    // Keep the last verified lease until it expires naturally. Do not invalidate
+    // a session just because connectivity was briefly interrupted.
+    db.prepare('UPDATE launcher_google_sessions SET error=? WHERE userId=?').run(String(e.message).slice(0,220),row.userId);
+    failure??=e;
+   }
+   if(failure)throw failure;
+   return {confirmed:true};
+  });
+  flushActive=job;
+  void job.then(()=>{if(flushActive===job)flushActive=null;},()=>{if(flushActive===job)flushActive=null;});
+  return job;
+ }
+ function scheduleSave(){
+  if(scheduled||transferring)return;
+  scheduled=setTimeout(()=>{scheduled=null;if(inFlight===0&&pendingRows(db))void flush().catch(()=>{});},750);
+  scheduled.unref?.();
+ }
+ function mark(){
+  db.prepare('UPDATE launcher_google_sessions SET dirty=1,changes=changes+1 WHERE active=1').run();
+  scheduleSave();
+ }
  function identities(req){const ids=new Set(),me=account(req.headers['x-undaunted-user-api-key']);if(me)ids.add(me.userId);const bearer=req.headers.authorization;try{if(typeof bearer==='string'&&/^Bearer /i.test(bearer)){const token=validateToken(bearer.slice(7));if(token?.userId)ids.add(token.userId);}}catch{}
   for(const [k,v] of Object.entries(req.body||{}))if(/^(password|auth_password|exchange_code|key|uuk)$/i.test(k)&&typeof v==='string'){const user=account(v);if(user)ids.add(user.userId);}
   const text=req.url+' '+JSON.stringify(req.body||{});for(const row of db.prepare('SELECT userId FROM launcher_google_sessions').all())if(text.includes(row.userId))ids.add(row.userId);
@@ -38,7 +69,20 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
   if(!req.url.startsWith(prefix)){
    const admin=account(req.headers['x-undaunted-user-api-key']);const administrative=admin?.isAdmin&&/^\/undaunted\/api\/(GetUserInfo|ServerStatus|RegistrationStatus|DashboardAccounts|CreateInvite)(?:\?|$)/.test(req.url);
    if(!administrative){if(transferring){res.status(503).json({error:'Aguarde a confirmação do progresso.'});return;}for(const id of identities(req)){const s=db.prepare('SELECT * FROM launcher_google_sessions WHERE userId=?').get(id);if(s&&(!s.active||s.leaseUntil<=now())){res.status(409).json({error:'Reconecte com Google. O personagem está em outro servidor ou aguardando a nuvem.'});return;}}}
-   const before=db.prepare('SELECT total_changes() n').get().n;inFlight++;let ended=false;const original=res.end;res.end=function(...args){if(ended)return this;ended=true;const changed=db.prepare('SELECT total_changes() n').get().n>before;if(changed)mark();const finish=()=>{inFlight--;original.apply(this,args);};if(changed&&this.statusCode<400&&rows().length){void flush().then(finish).catch(()=>{inFlight--;this.end=original;if(!this.headersSent){this.statusCode=503;this.setHeader('content-type','application/json');this.removeHeader?.('content-length');original.call(this,JSON.stringify({error:'O progresso local foi preservado, mas o Supabase ainda não confirmou o save. Aguarde a reconexão.'}));}else this.destroy?.();});}else finish();return this;};next();return;
+   // Native writes to character/progression tables are tracked by SQLite triggers.
+   // Never hold the game's HTTP response hostage to an Internet upload: local
+   // commits finish immediately and the worker sends them asynchronously.
+   inFlight++;let ended=false;const original=res.end;
+   const settled=()=>{if(!ended){ended=true;inFlight=Math.max(0,inFlight-1);}};
+   res.end=function(...args){
+    if(ended)return this;
+    settled();this.end=original;
+    const result=original.apply(this,args);
+    if(pendingRows(db))scheduleSave();
+    return result;
+   };
+   res.once('close',settled);
+   next();return;
   }
   try{
    if(!privateRequest(req)&&!(process.env.FENYS_LAN_IP&&lanRequest(req))&&!req.dluPublic)throw Error('Use a conexão configurada pelo dono do servidor.');const route=req.url.slice(prefix.length);
@@ -47,7 +91,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
    const bearer=req.headers.authorization;const token=typeof bearer==='string'&&bearer.startsWith('Bearer ')?bearer.slice(7):null;
    if(['invite','host-invite','sync-status','sync-now'].includes(route)){
     if(!localRequest(req)||!account(req.headers['x-undaunted-user-api-key'])?.isAdmin)throw Error('Use a conta administradora local para configurar o servidor.');
-    if(route==='sync-status'){res.json({players:rows().map(s=>({userId:s.userId,revision:s.revision,dirty:!!s.dirty,error:s.error,ready:s.leaseUntil>now()}))});return;}
+    if(route==='sync-status'){res.json({players:rows().map(s=>({userId:s.userId,revision:s.revision,dirty:!!s.dirty,pending:!!s.pending,lastConfirmedAt:s.confirmedAt||null,error:s.error,ready:s.leaseUntil>now()}))});return;}
     if(route==='sync-now'){res.json(await flush());return;}
     if(!registered)await register();
     if(route==='host-invite'){const r=await call('host-invite');res.json({code:'DLUH3.'+Buffer.from(JSON.stringify(r)).toString('base64url'),expiresAt:Date.parse(r.expiresAt)});return;}
@@ -86,8 +130,19 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
    throw Error('Operação inválida.');
   }catch(e){res.status(409).json({error:e.message||'A nuvem não confirmou o acesso.'});}
  }
- if(autoStart){void register().then(()=>flush()).catch(()=>{});timer=setInterval(()=>void flush().catch(()=>{}),20000);timer.unref?.();}
- async function close(){if(timer)clearInterval(timer);await flush();for(const s of rows())await call('release',{userId:s.userId,session:s.session});}
+ if(autoStart){
+  void register().then(()=>flush()).catch(()=>{});
+  // Renew cloud session leases every 20 seconds; retry pending saves more frequently.
+  timer=setInterval(()=>void flush().catch(()=>{}),20000);timer.unref?.();
+  fastTimer=setInterval(()=>{if(inFlight===0&&pendingRows(db))void flush().catch(()=>{});},2000);fastTimer.unref?.();
+ }
+ async function close(){
+  if(timer)clearInterval(timer);
+  if(fastTimer)clearInterval(fastTimer);
+  if(scheduled)clearTimeout(scheduled);
+  await flush();
+  for(const s of rows())await call('release',{userId:s.userId,session:s.session});
+ }
  return {middleware,flush,close,progress,register,mark};
 }
 function start(db,options){if(process.env.FENYS_GOOGLE_MODE!=='1')return {middleware:(_req,_res,next)=>next()};const config=JSON.parse(fs.readFileSync(path.join(process.cwd(),'fenys/google-host.json'),'utf8'));return createGoogleHost(db,{...options,config});}
