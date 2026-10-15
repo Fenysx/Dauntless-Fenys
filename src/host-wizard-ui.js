@@ -97,6 +97,42 @@
     }finally{loading=false;}
   }
   $('host-refresh').addEventListener('click',()=>void refresh());
+  $('host-network-auto').addEventListener('click',async()=>{
+    const button=$('host-network-auto');
+    button.disabled=true;
+    message('host-network-state','Detectando rede local e IP de saída…');
+    try{
+      const report=await window.launcher.networkDiagnose();
+      if(!report?.ok)throw Error(report?.error||'Não foi possível consultar a rede.');
+      const mode=$('google-network-mode').value;
+      if(report.preferred&&mode==='lan'){
+        $('google-network-address').value=report.preferred+':61000';
+        wizard.userEdited=true;
+      }
+      if(report.publicIPv4&&mode==='public'){
+        $('google-game-address').value=report.publicIPv4;
+        wizard.userEdited=true;
+      }
+      message('host-network-state',report.preferred?'IP local encontrado automaticamente.'
+        +(report.publicIPv4?' IP público de saída identificado por STUN.':' IP de saída não identificado (STUN indisponível).')
+        +' Endereço de saída não prova acesso externo: partidas UDP e HTTPS ainda precisam funcionar.':
+        'Nenhum IPv4 LAN encontrado. Confira Wi-Fi ou cabo. Nenhuma configuração foi alterada.');
+      await refresh();
+    }catch(e){message('host-network-state','Falha ao detectar sua rede: '+e.message);}
+    finally{button.disabled=false;}
+  });
+  $('host-network-reset').addEventListener('click',async()=>{
+    if(!window.confirm('Limpar apenas as preferências antigas de rede? O launcher salvará um backup das configurações. Chaves, saves e conta Google serão preservados.'))return;
+    const button=$('host-network-reset');button.disabled=true;
+    try{
+      const r=await window.launcher.networkResetLegacy();
+      if(!r?.ok)throw Error(r?.error||'Não foi possível limpar as preferências.');
+      message('host-network-reset-state',r.message+(r.removed?.length?' Itens: '+r.removed.join(', '):''));
+      wizard.userEdited=false;
+      await settings();await refresh();
+    }catch(e){message('host-network-reset-state','Preferências mantidas: '+e.message);}
+    finally{button.disabled=false;}
+  });
   $('host-start').addEventListener('click',async()=>{await action('start');await refresh();});
   $('host-stop').addEventListener('click',async()=>{await action('stop');await refresh();});
   $('host-select-admin').addEventListener('click',async()=>{
