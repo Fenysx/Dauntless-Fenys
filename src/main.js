@@ -388,6 +388,8 @@ app.whenReady().then(()=>{
   const identityFile=path.join(c.repoPath,'UndauntedMetagame','fenys','google-host.json');
   return {
    servicesReady:Boolean(state.metagame&&state.deploy),
+   // Native Ramsgate/caçadas can need several GiB beyond the two Node services.
+   nativeMemoryWarning:os.freemem()<3.5*1024*1024*1024,
    managedServices:servicesOwnedByLauncher(state),
    googleActive,googleReachable,googleConfigured:Boolean(c.googleHost),
    networkMode:c.googleNetworkMode||'lan',
