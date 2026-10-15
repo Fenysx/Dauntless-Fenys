@@ -1,17 +1,15 @@
 'use strict';
 const $=id=>document.getElementById(id);
-const controlIds=['play','start','stop','restart','start2','stop2','restart2','refresh'];
+const controlIds=['play','refresh'];
 void window.launcher.appVersion().then(v=>{$('launcher-version').textContent='VERSÃO INSTALADA • v'+v;}).catch(()=>{$('launcher-version').textContent='VERSÃO NÃO IDENTIFICADA';});
-const screens={dashboard:'VISÃO GERAL',services:'CENTRAL DO SERVIDOR',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',host:'HOSPEDAR SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
+const screens={dashboard:'VISÃO GERAL',players:'JOGADORES ONLINE',invites:'CONTA GOOGLE E CONVITES',connection:'ESCOLHER SERVIDOR',host:'HOSPEDAR SERVIDOR',settings:'CONFIGURAÇÕES',activity:'ATIVIDADES'};
 let operating=false;
 function note(s){const text=String(s);$('feedback').textContent=text;$('global-feedback').textContent=text;$('global-feedback').hidden=false;const el=$('activity');el.textContent=`[${new Date().toLocaleTimeString('pt-BR')}] ${text}\n`+el.textContent;}
-function paint(s){for(const [key,primary,secondary] of [['metagame','metagame','metagame-service'],['deploy','deploy','deploy-service']]){const online=Boolean(s[key]);const el=$(primary);el.textContent=online?'Online':'Offline';el.className='metric-value '+(online?'online':'offline');const sub=$(secondary);sub.textContent=online?'Online':'Offline';sub.className='state'+(online?' on':'');}
- const owned=Array.isArray(s.owned)?s.owned:[];$('service-detail').textContent=owned.length?`Processos gerenciados nesta sessão: ${owned.join(', ')}.`:'Nenhum processo gerenciado nesta sessão. Serviços externos não podem ser desligados por este painel.';
- const canStop=owned.length>0;
- for(const id of ['stop','stop2','restart','restart2'])$(id).disabled=!canStop||operating;
- for(const id of ['start','start2'])$(id).disabled=operating;
- if(s.remote){
-  $('service-detail').textContent='Jogo conectado a '+s.server+'. Estes controles iniciam ou encerram somente os serviços deste PC.';
+function paint(s){
+ for(const [key,element] of [['metagame','metagame'],['deploy','deploy']]){
+  const online=Boolean(s[key]),node=$(element);
+  node.textContent=online?'Online':'Offline';
+  node.className='metric-value '+(online?'online':'offline');
  }
 }
 async function refresh(){try{paint(await window.launcher.status());}catch(e){note('Falha na verificação: '+e.message);}}
@@ -84,9 +82,7 @@ function setScreen(name){for(const [key,label] of Object.entries(screens)){const
 for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection')void communityRefresh();if(node.dataset.screen==='invites')void communityRefresh();if(node.dataset.screen==='host'){void settings();void communityRefresh();}});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
-for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
-for(const id of ['stop','stop2'])$(id).addEventListener('click',()=>action('stop'));
-for(const id of ['restart','restart2'])$(id).addEventListener('click',()=>action('restart'));
+$('dashboard-open-host').addEventListener('click',()=>{setScreen('host');void settings();});
 $('refresh').addEventListener('click',refresh);
 $('repoPick').addEventListener('click',async()=>{try{await window.launcher.pickRepo();await settings();}catch(e){note(e.message);}});
 $('host-check').addEventListener('click',async()=>{
