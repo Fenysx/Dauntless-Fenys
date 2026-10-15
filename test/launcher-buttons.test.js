@@ -12,7 +12,7 @@ const main=read('main.js');
 
 test('todos os botões fixos do launcher atualizado têm uma ação de clique declarada',()=>{
  const buttons=[...html.matchAll(/<button\b[^>]*\bid=["']([^"']+)["']/g)].map(m=>m[1]);
- assert.equal(buttons.length,41,'Mudou o número de botões; atualize o teste com a nova interface.');
+ assert.equal(buttons.length,42,'Mudou o número de botões; atualize o teste com a nova interface.');
  assert.equal(new Set(buttons).size,buttons.length,'Existe um botão com ID repetido.');
  const dynamic=new Set(['google-public-cert','google-public-key']);
  const source=renderer+'\n'+wizard;
