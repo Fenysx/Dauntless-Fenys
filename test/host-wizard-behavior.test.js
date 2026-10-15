@@ -38,7 +38,7 @@ test('nao ativa host com servicos externos mesmo com autorizacao valida',async()
  const {elt,window}=makeHarness({...ready,managedServices:false},['192.168.0.7']);
  await window.hostWizard.refresh();
  assert.equal(elt('google-host-activate').disabled,true);
- assert.match(elt('host-next-step').textContent,/serviços estão abertos externamente/);
+ assert.match(elt('host-next-step').textContent,/servidor já está ligado por outro programa/);
 });
 test('nao ativa Google sem IPv4 local disponivel',async()=>{
  const {elt,window}=makeHarness(ready,[]);
