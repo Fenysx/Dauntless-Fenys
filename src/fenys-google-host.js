@@ -51,7 +51,7 @@ function createGoogleHost(db,{config,invoke=cloud,online=()=>[],revoke=()=>{},va
  }
  function scheduleSave(){
   if(scheduled||transferring)return;
-  scheduled=setTimeout(()=>{scheduled=null;if(inFlight===0&&pendingRows(db))void flush().catch(()=>{});},750);
+  scheduled=setTimeout(()=>{scheduled=null;if(!transferring&&inFlight===0&&pendingRows(db))void flush().catch(()=>{});},750);
   scheduled.unref?.();
  }
  function mark(){
