@@ -33,6 +33,7 @@
     $('community-revoke').disabled=!canPublish||!hasOwn;
     $('google-host-invite').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-sync').disabled=!r.googleActive||!r.adminKeySelected;
+    $('google-host-upgrade').disabled=!r.googleActive||!r.adminKeySelected||!r.managedServices;
     $('host-start').disabled=r.servicesReady;
     $('host-stop').disabled=!r.servicesReady||!r.managedServices;
     $('host-select-admin').textContent=r.adminKeySelected?'✓ Conta administradora selecionada':'Selecionar conta administradora';
