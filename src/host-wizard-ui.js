@@ -39,9 +39,9 @@
     message('host-overview',r.servicesReady?
       'Servidor ligado neste PC • serviços ativos'+(r.googleActive?' • contas Google conectadas':'')+'. Ramsgate e caçadas precisam de teste no jogo.':
       'Servidor desligado. Clique em Ligar meu servidor.');
-    message('host-local-state',r.servicesReady?
-      (r.managedServices?'O servidor foi iniciado por este launcher. Você já pode abrir o jogo; confirme Ramsgate dentro do Dauntless.':'O servidor já está rodando por outro programa. Para encerrá-lo, utilize esse programa.'):
-      'O servidor local não foi iniciado.');
+    message('host-local-state',(r.servicesReady?
+      (r.managedServices?'O servidor foi iniciado por este launcher. Abra o jogo para testar Ramsgate e caçadas.':'O servidor já está rodando por outro programa. Para encerrá-lo, utilize esse programa.'):
+      'O servidor local não foi iniciado.')+(r.nativeMemoryWarning?' Atenção: memória livre baixa para abrir a cidade do jogo. Feche aplicativos pesados.':''));
     message('host-internet-help',mode==='lan'?'Este modo funciona no seu Wi-Fi. Um amigo em outra casa precisa de acesso HTTPS público e portas de jogo disponíveis.':'Para amigos pela internet, configure HTTPS e as portas de partida. O launcher não cria automaticamente um túnel ou VPS.');
     message('community-host-readiness',r.googleActive?'Integração Google confirmada pelo Metagame.':
       r.googleConfigured?'Há uma configuração Google salva, mas as rotas do servidor não responderam corretamente. Não vincule personagens até corrigir.':
