@@ -12,21 +12,17 @@ const main=read('main.js');
 
 test('todos os botões fixos do launcher atualizado têm uma ação de clique declarada',()=>{
  const buttons=[...html.matchAll(/<button\b[^>]*\bid=["']([^"']+)["']/g)].map(m=>m[1]);
- assert.equal(buttons.length,45,'Mudou o número de botões; atualize o teste com a nova interface.');
+ assert.equal(buttons.length,40,'Mudou o número de botões; atualize o teste com a nova interface.');
  assert.equal(new Set(buttons).size,buttons.length,'Existe um botão com ID repetido.');
- const dynamic=new Set(['start','start2','stop','stop2','restart','restart2','google-public-cert','google-public-key']);
+ const dynamic=new Set(['google-public-cert','google-public-key']);
  const source=renderer+'\n'+wizard;
  for(const id of buttons){
   if(dynamic.has(id))continue;
   const expression=new RegExp("\\$\\(['\"]"+id+"['\"]\\)\\.addEventListener\\(['\"]click['\"]");
   assert.match(source,expression,'Botão sem evento de clique: '+id);
  }
- for(const group of ["['start','start2']","['stop','stop2']","['restart','restart2']"]){
-  assert.ok(renderer.includes(group),'Ações duplicadas de iniciar/parar/reiniciar sem ligação: '+group);
- }
- assert.match(renderer,/for\(const id of \['start','start2'\]\)\$\(id\)\.addEventListener\('click'/);
- assert.match(renderer,/for\(const id of \['stop','stop2'\]\)\$\(id\)\.addEventListener\('click'/);
- assert.match(renderer,/for\(const id of \['restart','restart2'\]\)\$\(id\)\.addEventListener\('click'/);
+ assert.ok(!html.includes('id="screen-services"'),'Central duplicada deve ser removida.');
+ assert.ok(html.includes('id="dashboard-open-host"'),'Dashboard deve levar ao host único.');
  assert.match(renderer,/for\(const \[id,fn\] of \[\['google-public-cert','networkCert'\],\['google-public-key','networkKey'\]\]\)\$\(id\)\.addEventListener\('click'/);
  assert.match(renderer,/querySelectorAll\('\[data-screen\]'\)/,'A navegação principal deve estar conectada.');
  assert.match(renderer,/button.addEventListener\('click'/,'Botões dinâmicos de comunidade devem ter handlers.');
