@@ -80,7 +80,7 @@ async function action(type){if(operating)return; if((type==='stop'||type==='rest
  const labels={play:'Preparando abertura do jogo…',start:'Iniciando serviços…',stop:'Encerrando serviços locais…',restart:'Reiniciando serviços…'};note(labels[type]);
  try{const result=await window.launcher[type]();if(!result.ok)throw new Error(result.error||'Operação não concluída');paint(result.status);note(({play:'Launcher do jogo aberto.',start:'Serviços iniciados ou já disponíveis.',stop:'Processos gerenciados encerrados.',restart:'Serviços reiniciados.'})[type]);}catch(e){note('Atenção: '+e.message);}finally{operating=false;for(const id of controlIds)$(id).disabled=false;await refresh();}}
 function setScreen(name){for(const [key,label] of Object.entries(screens)){const selected=key===name;const section=$('screen-'+key);section.hidden=!selected;section.classList.toggle('active',selected);document.querySelector(`[data-screen="${key}"]`)?.classList.toggle('active',selected);}$('screen-label').textContent=screens[name]||name;}
-for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection')void communityRefresh();if(node.dataset.screen==='invites')void communityRefresh();if(node.dataset.screen==='host')void settings();});
+for(const node of document.querySelectorAll('[data-screen]'))node.addEventListener('click',()=>{setScreen(node.dataset.screen);if(node.dataset.screen==='players')void playersRefresh();if(node.dataset.screen==='connection')void communityRefresh();if(node.dataset.screen==='invites')void communityRefresh();if(node.dataset.screen==='host'){void settings();void communityRefresh();}});
 $('playersRefresh').addEventListener('click',playersRefresh);
 $('play').addEventListener('click',()=>action('play'));
 for(const id of ['start','start2'])$(id).addEventListener('click',()=>action('start'));
@@ -88,8 +88,8 @@ for(const id of ['stop','stop2'])$(id).addEventListener('click',()=>action('stop
 for(const id of ['restart','restart2'])$(id).addEventListener('click',()=>action('restart'));
 $('refresh').addEventListener('click',refresh);
 $('repoPick').addEventListener('click',async()=>{try{await window.launcher.pickRepo();await settings();}catch(e){note(e.message);}});
-$('hostDoctor').addEventListener('click',async()=>{
- const button=$('hostDoctor');button.disabled=true;
+$('host-check').addEventListener('click',async()=>{
+ const button=$('host-check');button.disabled=true;
  const output=$('hostDoctorReport');output.hidden=false;output.textContent='Conferindo os arquivos locais e o estado do Google…';
  try{const result=await window.launcher.hostDoctor();if(!result?.ok)throw Error(result?.error||'Diagnóstico indisponível.');
   output.textContent=result.report;note('Diagnóstico: '+result.errors+' erro(s) e '+result.warnings+' aviso(s). Consulte o relatório na aba Hospedar servidor.');}
@@ -105,9 +105,6 @@ $('playerKeyPick').addEventListener('click',async()=>{
   if(r.selected)note('Conta existente vinculada: '+r.username);
   await settings();
  }catch(e){note('Atenção: '+e.message);}
-});
-$('adminKeyPick').addEventListener('click',async()=>{
- try{await window.launcher.pickAdminKey();await settings();void window.hostWizard?.refresh();}catch(e){note('Atenção: '+e.message);}
 });
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 let lastNativeWarning=0,lastGoogleWarning=0;
@@ -236,7 +233,7 @@ async function communityRefresh(){
    },server.hasAccess?'btn-red':'btn-outline');
    button.disabled=!server.hasAccess;card.append(button);list.append(card);
   }
-  if(!servers.length)communityEmpty(list,'Ainda não há servidores disponíveis. Servidores de amigos aparecerão depois de aceitar um convite Google. Se você hospeda, use Configurações → Hospedar servidor.');
+  if(!servers.length)communityEmpty(list,'Ainda não há servidores públicos disponíveis. Os servidores privados aparecerão após aceitar um convite Google. Para criar o seu, abra Hospedar servidor.');
   const own=$('community-owner-server'),old=own.value;own.replaceChildren();
   const mine=servers.filter(s=>s.owned);
   for(const server of mine){const option=document.createElement('option');option.value=server.id;option.textContent=server.name;own.append(option);}
