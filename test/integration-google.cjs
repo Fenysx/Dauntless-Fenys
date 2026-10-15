@@ -27,7 +27,15 @@ async function main(){
   const [a,b]=nodes,original=seed(a.db);let settings={};const auth={state:()=>({signedIn:true}),token:async()=>service.token};const client=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,request:service.invoke});await client.link(a.address,original.key);await client.home(a.address);
   const token=node=>jwt.sign({userId:original.userId,epoch:node.db.prepare('SELECT epoch FROM authepochs WHERE userId=?').get(original.userId)?.epoch||0},signing.privateKey,{algorithm:'RS256',expiresIn:'5m',issuer:'undaunted-metagame',audience:'undaunted-metagame'});
   async function game(node,method,body){const r=await fetch(origin(node.address)+'/character',{method,headers:{'content-type':'application/json',authorization:'Bearer '+token(node)},body:body?JSON.stringify(body):undefined});const raw=await r.text();assert.equal(r.status,200,raw);return JSON.parse(raw);}
-  await game(a,'POST',{characterId:original.characterId,data:'{"Level":37,"XP":3700}',updateVersion:2});assert.equal(JSON.parse(service.players.get(service.authId).snapshot.tables.characters[0].data).Level,37);
+  await game(a,'POST',{characterId:original.characterId,data:'{"Level":37,"XP":3700}',updateVersion:2});
+  // Autosave runs off the response path; wait for the cloud's signed revision.
+  let uploaded=false;
+  for(let attempt=0;attempt<100;attempt++){
+   const row=service.players.get(service.authId);
+   if(row?.snapshot?.tables?.characters?.length&&JSON.parse(row.snapshot.tables.characters[0].data).Level===37){uploaded=true;break;}
+   await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  assert.equal(uploaded,true,'Automatic cloud save was not confirmed within 10 seconds.');
   // Losing all launcher settings/keys only leaves the Google identity, then restores from cloud.
   settings={};const restored=new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,request:service.invoke});await restored.refresh();assert.equal(restored.state().userId,original.userId);assert.equal(await restored.credential(),original.key);
   // Seed a separate host administrator solely for generating the invitation.
