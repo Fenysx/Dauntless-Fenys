@@ -81,7 +81,7 @@
         </article>
         <article class="panel fenys-panel-gap hosting-step">
           <span class="hosting-number">1 • MEU SERVIDOR</span><h3>Ligar e jogar</h3>
-          <p class="panel-description">Inicie o Metagame e o DeployServer neste computador. Só você e quem estiver na mesma rede podem usar a conexão local.</p>
+          <p class="panel-description">Inicie Metagame e DeployServer neste PC. Outros computadores só entram depois da configuração de acesso.</p>
           <div class="button-row"><button id="host-start" class="btn btn-red" type="button">▶ Iniciar meu servidor</button><button id="host-stop" class="btn btn-outline" type="button">■ Desligar</button></div>
           <p id="host-local-state" class="notice" role="status">Aguardando o servidor local.</p>
           <details class="hosting-advanced" id="admin-server-settings">
@@ -103,7 +103,7 @@
           <button id="host-network-auto" class="btn btn-red" type="button">Detectar e preencher minha rede automaticamente</button>
           <p id="host-network-state" class="notice" role="status" aria-live="polite">Clique para identificar o IP local e tentar descobrir o IP público. O programa não abre portas automaticamente.</p>
           <p id="host-internet-help" class="notice">Se você hospedar pela internet, o jogo precisará de um endereço acessível e transporte UDP. Detectar o IP não substitui essa conexão.</p>
-          <p id="community-host-readiness" class="notice" role="status">Verificando contas Google…</p>
+          <p id="community-host-readiness" class="notice" role="status" hidden>Verificando contas Google…</p>
           <div class="form-preview hosting-form">
             <button id="host-select-admin" class="btn btn-outline" type="button">Selecionar conta administradora original</button>
             <span id="adminKeyState" class="notice">Não selecionada</span>
@@ -131,7 +131,7 @@
             </details>
             <button id="google-host-activate" class="btn btn-red" type="button" disabled>Preparar acesso Google neste servidor</button>
           </div>
-          <p id="host-activation-help" class="hosting-guidance" role="status">Para usar convites e progresso Google, integre o servidor primeiro.</p>
+          <p id="host-activation-help" class="hosting-guidance" role="status" hidden>Para usar convites e progresso Google, integre o servidor primeiro.</p>
           <hr class="hosting-divider">
           <div id="host-community-section">
             <h3>Compartilhar meu servidor</h3>
