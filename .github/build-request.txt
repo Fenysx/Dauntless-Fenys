@@ -1,0 +1,2 @@
+Solicitacao de build Windows para o Dauntless Launcher Ultimate.
+Commit das alteracoes: ccedb384.
