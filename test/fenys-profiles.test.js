@@ -71,7 +71,8 @@ test('todos os controles do renderer existem no HTML',()=>{
  const missing=[...new Set(refs)].filter(id=>!ids.has(id));
  assert.deepEqual(missing,[]);
  assert.doesNotMatch(html,/data-auth-mode|id="login-pass"|id="profile-switch"/);
- assert.match(html,/id="connection-join"/);
+ assert.match(html,/id="server-local-select"/);
+ assert.match(html,/id="community-list-refresh"/);
  assert.match(html,/id="start"/);
 });
 test('controles locais abrem sem login; convites ainda usam a chave admin no Metagame',()=>{
