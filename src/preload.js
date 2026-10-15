@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('launcher',{
  googleLogout:()=>ipcRenderer.invoke('google:logout'),
  googleLink:()=>ipcRenderer.invoke('google:link'),
  googleRefresh:()=>ipcRenderer.invoke('google:refresh'),
+ googleProgressStatus:()=>ipcRenderer.invoke('google:progressStatus'),
  googleActivate:options=>ipcRenderer.invoke('google:activate',options),
  googleHostInvite:()=>ipcRenderer.invoke('google:hostInvite'),
  googleSync:force=>ipcRenderer.invoke('google:sync',force),
