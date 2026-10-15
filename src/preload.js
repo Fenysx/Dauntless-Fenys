@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('launcher',{
  setServer:address=>ipcRenderer.invoke('settings:setServer',address),
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
+ appVersion:()=>ipcRenderer.invoke('app:version'),
  status:()=>ipcRenderer.invoke('server:status'),
  players:()=>ipcRenderer.invoke('players:online'),
  start:()=>ipcRenderer.invoke('server:start'),
