@@ -175,7 +175,13 @@ $('google-host-activate').addEventListener('click',()=>void googleOperation(asyn
  if(result?.ok)window.hostWizard.userEdited=false;
  return result;
 }));
-$('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok)$('google-host-result').value=r.code;return r;}));
+$('google-host-invite').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleHostInvite();if(r.ok){$('google-host-result').value=r.code;$('google-host-code-copy-state').textContent='Código privado gerado. Copie apenas para o anfitrião autorizado.';}return r;}));
+$('google-host-code-copy').addEventListener('click',async()=>{
+ const code=$('google-host-result').value;
+ if(!code){$('google-host-code-copy-state').textContent='Gere primeiro uma autorização para outro servidor.';return;}
+ try{await navigator.clipboard.writeText(code);$('google-host-code-copy-state').textContent='Código copiado. Compartilhe somente com o anfitrião autorizado.';}
+ catch{$('google-host-code-copy-state').textContent='Não foi possível copiar automaticamente. Verifique as permissões de área de transferência.';}
+});
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
 
