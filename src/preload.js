@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('launcher',{
  googleActivate:options=>ipcRenderer.invoke('google:activate',options),
  googleUpgrade:()=>ipcRenderer.invoke('google:upgrade'),
  googleHostInvite:()=>ipcRenderer.invoke('google:hostInvite'),
+ googlePlayerInvite:()=>ipcRenderer.invoke('google:playerInvite'),
+ googleFriendJoin:(code,name='',allowCreateNew=false)=>ipcRenderer.invoke('google:friendJoin',code,name,allowCreateNew),
  googleSync:force=>ipcRenderer.invoke('google:sync',force),
  pickSupabaseAuthorization:()=>ipcRenderer.invoke('google:authorization'),
  getSettings:()=>ipcRenderer.invoke('settings:get'),
