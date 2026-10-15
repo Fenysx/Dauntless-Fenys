@@ -8,9 +8,9 @@ const section=id=>{
  assert.ok(start>=0&&end>start,'seção '+id+' não encontrada');
  return html.slice(start,end);
 };
-test('seleção de servidor contém apenas ações de jogador e abre hospedagem dedicada',()=>{
+test('seleção de servidor exibe somente jogador; hospedagem permanece em área própria',()=>{
  const playing=section('connection'),settings=section('settings'),hosting=section('host');
- for(const id of ['server-local-select','community-catalog','community-server-list','community-host-setup-open'])
+ for(const id of ['server-local-select','community-catalog','community-server-list','guest-network-auto'])
   assert.ok(playing.includes('id="'+id+'"'),'falta '+id);
  assert.ok(!playing.includes('id="google-host-activate"'),'não exibir host Google na seleção de servidor');
  for(const id of ['community-host-readiness','host-publish-form','host-invite-section','google-host-activate'])
@@ -20,12 +20,14 @@ test('seleção de servidor contém apenas ações de jogador e abre hospedagem 
  assert.ok(settings.includes('id="legacy-account-settings"'),'recuperação de personagem antigo deve permanecer');
  assert.match(renderer,/function openHostSettings\(/);
  assert.match(renderer,/setScreen\('host'\)/);
- assert.match(renderer,/\$\('community-host-setup-open'\)\.addEventListener\('click',openHostSettings\)/);
+ assert.doesNotMatch(playing,/id="community-host-setup-open"/);
+ assert.match(renderer,/\$\('dashboard-open-host'\)\.addEventListener\('click'/);
+ assert.ok(html.includes('id="host-start"')&&html.includes('id="host-play"')&&html.includes('id="host-stop"'));
 });
 test('IDs únicos e somente fluxos novos permanecem na interface',()=>{
  const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
  assert.equal(ids.length,new Set(ids).size,'IDs duplicados');
- for(const id of ['screen-host','community-host-readiness','community-host-setup-open','community-publish',
+ for(const id of ['screen-host','community-host-readiness','dashboard-open-host','community-publish',
   'community-owner-server','server-local-select','admin-server-settings']){
   assert.ok(ids.includes(id),'falta '+id);
  }
