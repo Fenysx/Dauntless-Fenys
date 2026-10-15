@@ -182,7 +182,7 @@ $('google-host-code-copy').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(code);$('google-host-code-copy-state').textContent='Código copiado. Compartilhe somente com o anfitrião autorizado.';}
  catch{$('google-host-code-copy-state').textContent='Não foi possível copiar automaticamente. Verifique as permissões de área de transferência.';}
 });
-$('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Saves confirmados no Supabase.';return r;}));
+$('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Sincronização respondida pelo servidor. Antes de trocar de PC, confirme que seu personagem e itens foram restaurados corretamente em um teste.';return r;}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
 
 // Community directory, invitation notifications and access management.
