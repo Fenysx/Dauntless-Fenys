@@ -19,7 +19,7 @@ test('instala triggers para TODAS as tabelas de progresso, inclusive writes sem 
  assert.equal(installChangeTracking(db),Object.keys(TABLES).length*3);
  assert.equal(installChangeTracking(db),Object.keys(TABLES).length*3);
  db.prepare('UPDATE characters SET data=? WHERE userId=?').run('{"Level":11}',userId);
- assert.deepEqual(db.prepare('SELECT dirty,changes FROM launcher_google_sessions WHERE userId=?').get(userId),{dirty:1,changes:1});
+ assert.deepEqual({...db.prepare('SELECT dirty,changes FROM launcher_google_sessions WHERE userId=?').get(userId)},{dirty:1,changes:1});
  assert.equal(pendingRows(db),1);
 });
 test('alteracoes no inventario marcam apenas o usuario dono',t=>{
