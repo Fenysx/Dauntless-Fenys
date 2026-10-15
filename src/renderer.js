@@ -204,6 +204,12 @@ $('google-host-code-copy').addEventListener('click',async()=>{
  catch{$('google-host-code-copy-state').textContent='Não foi possível copiar automaticamente. Verifique as permissões de área de transferência.';}
 });
 $('google-sync').addEventListener('click',()=>void googleOperation(async()=>{const r=await window.launcher.googleSync(true);if(r.ok)$('google-sync-state').textContent='Sincronização respondida pelo servidor. Antes de trocar de PC, confirme que seu personagem e itens foram restaurados corretamente em um teste.';return r;}));
+$('google-host-upgrade').addEventListener('click',()=>void googleOperation(async()=>{
+ if(!window.confirm('Atualizar o salvamento automático requer fechar o jogo, deixar todos os jogadores desconectados e reiniciar o Metagame. Confirme seu backup de undaunted.db antes de continuar. Deseja atualizar agora?'))return {ok:true};
+ const result=await window.launcher.googleUpgrade();
+ if(result?.ok)$('google-sync-state').textContent='Módulos de salvamento automático atualizados no Metagame. Confira o indicador na conta Google.';
+ return result;
+}));
 void googleRefresh();setInterval(()=>{if(!googleWorking&&(!$('screen-invites').hidden||!$('screen-connection').hidden))void googleRefresh();},20000);
 
 // Community directory, invitation notifications and access management.
