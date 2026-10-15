@@ -1,73 +1,38 @@
 name: Dauntless Fenys - Instaladores
 
+# Builds sao manuais para economizar a franquia gratuita do GitHub Actions.
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
 
 permissions:
   contents: read
+
+concurrency:
+  group: dauntless-installer-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   windows:
     name: Instalador Windows
     runs-on: windows-latest
-
+    timeout-minutes: 30
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
-
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
-
       - name: Instalar dependencias
         run: npm ci
-
       - name: Gerar instalador Windows
         run: npm run build:win
-
       - name: Salvar instalador
         uses: actions/upload-artifact@v4
         with:
           name: Dauntless-Fenys-Windows
           path: release/*.exe
           if-no-files-found: error
-
-  linux:
-    name: Instaladores Linux
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Baixar codigo
-        uses: actions/checkout@v4
-
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-
-      - name: Instalar dependencias
-        run: npm ci
-
-      - name: Gerar instaladores Linux
-        run: npm run build:linux
-
-      - name: Salvar instaladores
-        uses: actions/upload-artifact@v4
-        with:
-          name: Dauntless-Fenys-Linux
-          path: |
-            release/*.AppImage
-            release/*.deb
-          if-no-files-found: error
-
+          retention-days: 1
+          compression-level: 0
