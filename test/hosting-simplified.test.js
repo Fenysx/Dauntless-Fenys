@@ -5,7 +5,7 @@ const get=p=>fs.readFileSync(path.join(root,p),'utf8');
 test('hospedagem possui duas etapas e nenhum botao duplicado de diagnostico ou administrador',()=>{
  const html=get('src/index.html');
  const panel=html.split('id="screen-host"')[1].split('id="screen-settings"')[0];
- for(const text of ['1 • MEU SERVIDOR','2 • JOGAR COM OUTRAS PESSOAS','host-start','host-stop','google-host-activate','host-publish-form','host-invite-section'])
+ for(const text of ['SERVIDOR LOCAL','CONEXÃO ONLINE','host-start','host-play','host-stop','host-online-settings','google-host-activate','host-publish-form','host-invite-section'])
   assert.ok(panel.includes(text),text);
  assert.doesNotMatch(panel,/id="adminKeyPick"|id="hostDoctor"|id="host-open-services"|id="host-open-players"/);
  assert.equal((panel.match(/id="host-check"/g)||[]).length,1);
