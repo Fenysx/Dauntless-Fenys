@@ -280,6 +280,14 @@ app.whenReady().then(()=>{
  ipcMain.handle('google:logout',()=>vpnReply(async()=>{assertGameClosed();return googlePlayer.signOut();}));
  ipcMain.handle('google:link',()=>vpnReply(async()=>{assertGameClosed();return linkPrevious();}));
  ipcMain.handle('google:refresh',()=>vpnReply(()=>googlePlayer.refresh()));
+ ipcMain.handle('google:progressStatus',()=>vpnReply(async()=>{
+  if(!googleAuth.state().signedIn)return {linked:false,active:false};
+  const profile=await googlePlayer.refresh();
+  if(!profile.linked)return {linked:false,active:false};
+  const c=load(),server=c.googleSelected&&c.googleServer?c.googleServer:c.googleHost?'127.0.0.1:61000':null;
+  if(!server)return {linked:true,active:false,unavailable:true,message:'Escolha um servidor Google para consultar o save em tempo real.'};
+  return googleHostCall(server,'progress-status',{},await googleAuth.token());
+ }));
  // Community directory: only Google JWTs are sent to Supabase (never service_role).
  const communityCall=async(operation,fields={})=>community(operation,fields,await googleAuth.token());
  ipcMain.handle('community:list',()=>vpnReply(()=>communityCall('list')));
