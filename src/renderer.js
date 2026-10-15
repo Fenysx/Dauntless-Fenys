@@ -145,7 +145,6 @@ function openHostSettings(){
  void settings();
  void window.hostWizard?.refresh();
 }
-$('community-host-setup-open').addEventListener('click',openHostSettings);
 $('google-go-server').addEventListener('click',()=>{openHostSettings();note('Integre o servidor de origem antes de vincular seu personagem. Faça backup dos saves e mantenha todos fora do jogo.');});
 $('google-refresh').addEventListener('click',()=>void googleOperation(async()=>{const button=$('google-refresh');button.disabled=true;button.textContent='Consultando Supabase…';$('google-state').textContent='Consultando personagem vinculado à conta Google…';try{const r=await window.launcher.googleRefresh();if(r?.ok){if(!r.signedIn)note('Entre com Google para consultar seu personagem.');else if(r.linked)note('Personagem encontrado na nuvem: '+(r.name||'sem nome informado')+'. Progresso revisão '+(r.revision||0)+'.');else note('Nenhum personagem vinculado a esta conta Google. Integre primeiro o servidor de origem para preservar seu personagem existente.');}return r;}finally{button.disabled=false;button.textContent='Conferir personagem na nuvem';}}));
 $('google-authorization').addEventListener('click',()=>void googleOperation(async()=>{
@@ -283,6 +282,20 @@ async function communityOperation(fn,refresh=true){
 }
 $('community-bell').addEventListener('click',()=>{setScreen('invites');$('community-notifications').scrollIntoView({behavior:'smooth',block:'center'});void communityRefresh();});
 $('community-list-refresh').addEventListener('click',()=>void communityRefresh());
+$('guest-network-auto').addEventListener('click',async()=>{
+ const button=$('guest-network-auto');
+ button.disabled=true;
+ $('guest-network-state').textContent='Detectando a rede deste computador…';
+ try{
+  const report=await window.launcher.networkDiagnose();
+  if(!report?.ok)throw Error(report?.error||'Diagnóstico da rede não disponível.');
+  $('guest-network-state').textContent=(report.preferred?'Rede local detectada automaticamente. ':'Nenhuma rede local encontrada. ')
+   +(report.publicIPv4?'Saída para a internet identificada via STUN. ':'O teste STUN não respondeu. ')
+   +'Para entrar no servidor de outra pessoa, use Google e o catálogo; não precisa digitar endereço IP.';
+  await communityRefresh();
+ }catch(e){$('guest-network-state').textContent='Não foi possível detectar a rede: '+e.message;}
+ finally{button.disabled=false;}
+});
 $('community-inbox-refresh').addEventListener('click',()=>void communityRefresh());
 $('community-username-save').addEventListener('click',()=>void communityOperation(async()=>{
  const r=await window.launcher.communityUsername($('community-username').value.trim());
