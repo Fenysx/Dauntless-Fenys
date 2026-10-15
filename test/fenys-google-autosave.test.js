@@ -9,7 +9,7 @@ function setup(t){
  db.exec('CREATE TABLE launcher_google_sessions(userId TEXT PRIMARY KEY, active INTEGER NOT NULL,dirty INTEGER NOT NULL,changes INTEGER NOT NULL,pending TEXT)');
  const userId='UID-11111111-1111-4111-8111-111111111111';
  db.prepare('INSERT INTO users (userId,name,notes,isAdmin) VALUES (?, ?,0,0)').run(userId,'SaveTest');
- db.prepare('INSERT INTO characters (characterId,userId,createdAt,updatedAt,name,version,data) VALUES(?,?,?, ?, ?,?,?)')
+ db.prepare('INSERT INTO characters (characterId,userId,createdDate,lastModifiedDate,name,updateVersion,data) VALUES(?,?,?, ?, ?,?,?)')
   .run('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',userId,'2026-10-15','2026-10-15','SaveTest',1,'{"Level":10}');
  db.prepare('INSERT INTO launcher_google_sessions VALUES(?,1,0,0,NULL)').run(userId);
  return {db,userId};
@@ -28,7 +28,7 @@ test('alteracoes no inventario marcam apenas o usuario dono',t=>{
  db.prepare('INSERT INTO launcher_google_sessions VALUES(?,1,0,0,NULL)').run(second);
  installChangeTracking(db);
  const character='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
- db.prepare('INSERT INTO inventories (characterId,items,stackedItems) VALUES(?,?,?)').run(character,'[]','[]');
+ db.prepare('INSERT INTO inventories (characterId,instancedItems,stackedItems) VALUES(?,?,?)').run(character,'[]','[]');
  db.prepare('UPDATE inventories SET stackedItems=? WHERE characterId=?').run('[{"item":"Rams","amount":5}]',character);
  assert.equal(db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(userId).dirty,1);
  assert.equal(db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(second).dirty,0);
