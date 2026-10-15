@@ -17,6 +17,7 @@
         && /^\d{1,3}(?:\.\d{1,3}){3}$/.test($('google-game-address').value.trim())
         && r.publicCertSelected && r.publicKeySelected:false;
     const authorization=r.authorizationSelected||r.identityPresent||/^DLUH3\.[\w-]+$/.test($('google-host-code').value.trim());
+    message('host-authorization-state',r.googleActive?'Integração Google já ativa.':r.identityPresent?'Identidade do host encontrada neste PC.':r.authorizationSelected?'✓ Autorização Supabase válida encontrada neste PC.':'Autorização ainda não selecionada. O launcher procurará um arquivo válido automaticamente.');
     const needsActivation=!r.googleActive||r.networkMode!==mode||r.advertisedAddress!==addr||(mode==='public'&&r.gameAddress!==$('google-game-address').value.trim());
     const canActivate=r.servicesReady&&r.managedServices&&r.adminKeySelected&&authorization&&addressOK&&needsActivation;
     $('google-host-activate').disabled=!canActivate;
@@ -48,8 +49,8 @@
     else if(!r.managedServices)next='Os serviços estão abertos externamente. Feche-os de forma segura e inicie pelo launcher para continuar a configuração.';
     else if(!r.googleActive||needsActivation){
       if(!r.adminKeySelected)next='2. Escolha a chave administradora original do servidor. Ela permanece no seu PC.';
-      else if(!authorization)next='2. Abra Autorização inicial do servidor e selecione a autorização Supabase ou um código válido de outro host.';
-      else if(!addressOK)next=mode==='lan'?'2. Escolha um endereço local sugerido neste computador.':'2. Informe o endereço HTTPS e IPv4 público e selecione os certificados.';
+      else if(!authorization)next='2. Autorização não encontrada. Clique em Selecionar autorização Supabase abaixo.';
+      else if(!addressOK)next=mode==='lan'?(ips.length?'2. Escolha um endereço da lista de endereços locais disponíveis.':'2. Nenhum IPv4 local encontrado. Conecte este PC ao Wi-Fi e clique em Atualizar.'):'2. Informe o endereço HTTPS e IPv4 público e selecione os certificados.';
       else next='2. Com todos fora do jogo e backup conferido, ative a integração Google.';
     }else if(r.networkMode!=='public')next='Google funcionando na rede local. Para amigos de outras redes, configure Internet/HTTPS e IP público ou VPS.';
     else if(!r.signedIn)next='3. Entre com Google na aba Conta Google e convites para publicar.';
@@ -62,7 +63,7 @@
       !r.googleActive?'Este passo fica disponível após confirmar a integração Google no servidor.':
       r.networkMode!=='public'?'Seu servidor está em rede local. Para entrar pela internet, é necessário HTTPS válido, IPv4 público ou VPS, e portas UDP 8770–8777.':
       'Entre com sua conta Google para publicar.');
-    $('host-authorization-tools').open=!r.googleActive&&r.servicesReady&&r.adminKeySelected&&!authorization;
+    if(!r.googleActive&&r.servicesReady&&r.adminKeySelected&&!authorization)$('host-authorization-tools').open=true;
   }
   async function refresh(){
     if(loading||$('screen-host').hidden)return;
@@ -71,11 +72,19 @@
       const result=await window.launcher.hostReadiness();
       if(!result?.ok)throw Error(result?.error||'Não foi possível verificar o host.');
       state=result;
-      if($('google-network-mode').value==='lan'&&!$('google-network-address').value.trim()){
-        const suggestions=await window.launcher.localAddresses();
-        if(suggestions.addresses?.length){
-          $('google-network-address').value=suggestions.addresses[0]+':61000';
-        }
+      if($('google-network-mode').value==='lan'){
+        // Populate the options before checking addressOK. Multiple adapters must not leave activation stuck.
+        try{
+          const suggestions=await window.launcher.localAddresses();
+          const values=[...new Set((suggestions.addresses||[]).map(ip=>ip+':61000'))];
+          const choices=$('google-lan-ip-suggestions');
+          choices.replaceChildren();
+          for(const value of values){const option=document.createElement('option');option.value=value;choices.append(option);}
+          if(values.length&&!values.includes($('google-network-address').value.trim())){
+            $('google-network-address').value=values[0];
+          }
+          $('google-network-address-fields').hidden=false;
+        }catch(e){message('host-next-step','Não foi possível consultar os IPs locais: '+e.message);}
       }
       update();
     }catch(e){
