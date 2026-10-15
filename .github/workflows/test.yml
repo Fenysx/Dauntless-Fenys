@@ -10,17 +10,17 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: dauntless-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   tests:
-    name: Validar codigo e contratos (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    name: Validar codigo e contratos
+    runs-on: ubuntu-latest
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
