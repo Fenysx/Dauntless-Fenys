@@ -1,54 +1,57 @@
-# Hospedar sem complicação — Dauntless Launcher Ultimate
+# Hospedagem simplificada — Dauntless Launcher Ultimate
 
-O launcher agora separa **Jogar** de **Hospedar servidor**. Não é necessário entender Supabase, Tailscale ou certificados para iniciar o jogo **localmente**.
+Objetivo: **ligar um servidor**, **receber amigos** e **permitir que outros administradores publiquem servidores**, mantendo saves locais protegidos.
 
-## Quero apenas jogar neste PC
+## 1. Jogar sozinho
 
-1. Abra **Escolher servidor → Servidor local**.
-2. Na **Visão geral**, clique em **Iniciar serviços** (se necessário), depois **Jogar agora**.
-3. A conta Google não é obrigatória para jogar no modo local antigo. **Não crie novo personagem** para tentar corrigir uma conexão.
+Abra **Hospedar servidor → Ligar e jogar → Iniciar meu servidor**, ou selecione o servidor local em **Escolher servidor**.
 
-## Quero hospedar para outras pessoas
+- Isso inicia somente Metagame e DeployServer. Não prova que o servidor nativo de Ramsgate/caçadas está funcionando: é preciso testar a partida.
+- Não é necessário habilitar Google nem publicar um servidor para jogar localmente.
+- Não recrie personagem, não substitua `account.key` e não apague `undaunted.db`.
 
-Abra **Hospedar servidor** e siga os três passos mostrados na tela.
+## 2. Convidar um amigo de outra casa (exemplo: Ygor)
 
-**1. Preparar este PC**
+Em **Hospedar servidor → Convidar amigos ou abrir ao público**:
 
-- Clique em **Iniciar servidor**. O Metagame e o DeployServer precisam responder localmente.
-- Para vincular o progresso Google, selecione a **chave administradora original** do host, apenas neste PC. A chave nunca deve ser enviada ao GitHub ou aos amigos.
-- **Verificar instalação** é somente leitura, e analisa a configuração, RAM e DLLs. Metagame e DeployServer online **não comprovam** que Ramsgate abriu a porta UDP 8777 ou que uma caçada terminou.
+1. Primeiro ligue Metagame e DeployServer pelo launcher, e selecione **a conta administradora original** do servidor.
+2. Selecione **Amigos de outras casas / servidor público**. Um servidor em rede local não atende pessoas em outras casas. Este modo ainda requer domínio HTTPS/certificado válido, IPv4 acessível (ou VPS) e UDP 8770–8777 encaminhadas.
+3. Confirme o backup e, com todos fora do jogo, clique **Preparar acesso Google neste servidor**. A autorização Supabase existente é detectada automaticamente, quando possível, ou pode ser escolhida na configuração inicial. O botão só fica ativo depois das verificações obrigatórias.
+4. Confirme que a rota Google responde e que o host foi registrado; depois conecte o personagem original ao Google, sem criar personagem novo.
+5. Em **Compartilhar meu servidor**, escolha **Só quem eu convidar**, informe o nome e clique **Salvar servidor e compartilhar**.
+6. Em **Convidar amigo**, digite o e-mail Google/usuário do amigo e clique **Enviar convite**. Ele entra em **Conta Google e convites**, aceita a notificação e seleciona o servidor em **Escolher servidor**.
 
-**2. Integrar personagens ao Google (antes de transferir saves)**
+O convite gerencia autorização do jogador, **não substitui um endereço público funcional**. O launcher não instala VPN, configura o roteador ou contrata uma VPS sozinho. Não publique a porta TCP 61001.
 
-- Comece em **Neste PC / rede local**. O launcher sugere automaticamente um dos IPv4 LAN válidos.
-- Selecione a **autorização Supabase** original na seção recolhida *Autorização inicial do servidor* ou o código autorizado recebido de outro host. Não recrie o projeto nem as credenciais de criptografia se elas já existem.
-- Deixe todos fora do jogo, confira os backups e só então clique **Ativar integração Google neste servidor**.
-- O assistente consulta a resposta real de `/launcher/google/status`: uma configuração gravada em disco não basta. Se aparecer *integração pendente*, **não vincule o personagem**. Se a rota estiver ausente (`Unstubbed route`), confira a instalação/compilação do Metagame e o diagnóstico. 
-- Depois de confirmar a integração no **servidor de origem**, vincule o personagem **antigo**, mantendo seu `account.key` e seu banco de dados intactos. Só teste o novo host após um backup e vínculo confirmado.
+## 3. Criar um servidor público
 
-**3. Publicar para amigos de outras redes**
+A pessoa que hospeda faz a mesma preparação do passo 2, mas em **Compartilhar meu servidor → Quem pode entrar?**, escolhe **Público — aparecer na lista**. O host deve estar realmente acessível pela internet.
 
-- Uma LAN só funciona na mesma rede: **não aparece no catálogo público**.
-- Se os amigos estiverem fora da sua rede, configure **Internet / HTTPS** com um domínio e certificado válido, um **IPv4 público alcançável ou VPS** e as portas **UDP 8770–8777** encaminhadas. A administração TCP **61001 não deve ser exposta**.
-- Se estiver sob CGNAT sem acesso de entrada, a opção mais simples poderá ser hospedar em **VPS**. O launcher **não cria uma VPS ou configura o roteador automaticamente**.
-- Após a integração Google estar **ativa**, o host ter modo **HTTPS público** e o dono estar **conectado ao Google**, o botão **Publicar meu servidor** fica visível. Convites aparecem somente após o servidor ser publicado e confirmado na lista de servidores próprios.
-- Na aba **Conta Google e convites**, os jogadores entram com Google e aceitam seus convites. O mesmo progresso entre servidores ainda exige validação com dois PCs e restaurar um save de teste.
+Pessoas com infraestrutura própria podem hospedar no próprio PC/VPS. Administradores de novos hosts precisam de autorização de host, obtida via **Avançado → Gerar autorização para outro servidor** por uma autoridade Google existente; **não compartilhe o arquivo `authorization.json` original**.
 
-## Mensagens comuns
+A versão atual **não oferece uma VPS, relay UDP ou configuração HTTPS automática**. Portanto publicar um host público com apenas um clique ainda depende de um serviço de acesso externo que não faz parte deste projeto.
 
-| Mensagem | O que significa |
-|---|---|
-| `Unstubbed route GET /launcher/google/status` | O Metagame local não expõe a rota Google; **não está pronto para integração** |
-| `POST /launcher/google/sync-now` falha | Não force o backup cloud: primeiro conclua a ativação do host |
-| `Game server on port 8777 exited before listening` | O processo nativo caiu antes de aceitar jogadores; verifique RAM, DLLs e logs. Não conclua que é Google/Supabase |
-| "Ative primeiro o servidor Google no modo Público" | O host ainda não confirmou conexão HTTPS pública; a publicação fica indisponível até isso estar pronto |
-| "Nome de usuário inválido" | Use nome de 3 a 20 letras, números ou `_`, ou um endereço de e-mail Google válido |
+## O que aparece na nova tela
+
+- **1 • Meu servidor:** iniciar, desligar e conferir o estado real dos dois serviços.
+- **2 • Jogar com outras pessoas:** selecionar rede local ou internet, preparar Google, compartilhar para convidados ou público e convidar.
+- **Diagnóstico e arquivos:** recolhido; usar somente quando algo não funcionar.
+- **Avançado • Outros anfitriões e backups:** reservado a quem administra o host.
+
+A aba **Escolher servidor** é para jogadores: selecionar o servidor local ou escolher um servidor do catálogo. Eles não precisam ver certificados, chave de administrador ou configurações do Supabase.
+
+## Problemas comuns
+
+| Mensagem | Significado |
+| --- | --- |
+| `Unstubbed route GET /launcher/google/status` | Metagame ativo, mas integração Google não instalada/ativa; não vincule o personagem |
+| Ativação Google desabilitada | Confira serviços iniciados pelo launcher, conta administradora original, autorização, IP e certificados conforme o modo |
+| ServerStatus funciona, mas Ramsgate falha | O jogo nativo ainda exige teste de porta 8777, DLLs, RAM e logs |
+| Servidor LAN não aparece na comunidade | Normal: a lista pública requer um host Google publicado e acessível externamente |
+| Convite aceito, mas não conecta | Investigue HTTPS público e portas UDP, não crie outro personagem |
 
 ## Segurança
 
-- Nunca substitua silenciosamente `account.key`, saves ou as chaves do administrador.
-- Não exponha `.env`, `rclone.conf`, chaves privadas, certificados privados e tokens.
-- Faça um backup verificado e um teste de restauração antes de modificar qualquer integração de personagem.
-- O assistente mostra estados verificados, **não configura acesso de internet automaticamente** nem comprova multiplayer real até o teste fora da LAN.
+Nunca envie tokens de sessão, `account.key`, chaves privadas, `.env`, `authorization.json` ou segredos de hospedagem. Mantenha backup verificável do banco e do personagem antes de ativar e sincronizar o host. A integração e as caçadas em dois computadores precisam ser testadas na prática.
 
-Diagnóstico aprofundado: [Ramsgate e Google](DIAGNOSTICO-RAMSGATE.md).
+Diagnóstico avançado: [Ramsgate e Google](DIAGNOSTICO-RAMSGATE.md).
