@@ -153,7 +153,18 @@ $('google-authorization').addEventListener('click',()=>void googleOperation(asyn
  if(result?.ok&&result.selected)note(result.automatic?'Autorização Supabase encontrada automaticamente neste PC.':'Autorização Supabase selecionada e validada.');
  return result;
 }));
-$('google-network-mode').addEventListener('change',()=>{const mode=$('google-network-mode').value;$('google-network-address-fields').hidden=false;$('google-public-fields').hidden=mode!=='public';$('google-lan-address-help').hidden=mode!=='lan';if(mode==='lan')void settings();void window.hostWizard?.refresh();});
+$('google-network-mode').addEventListener('change',()=>{
+ const mode=$('google-network-mode').value;
+ $('google-network-address-fields').hidden=false;
+ $('google-public-fields').hidden=mode!=='public';
+ $('google-lan-address-help').hidden=mode!=='lan';
+ $('google-network-address').placeholder=mode==='public'?'https://servidor.exemplo.com':'192.168.1.20:61000';
+ // Never carry a LAN endpoint into public mode, or an HTTPS endpoint into LAN mode.
+ const current=$('google-network-address').value.trim();
+ if((mode==='public'&&!current.startsWith('https://'))||(mode==='lan'&&current.startsWith('https://')))$('google-network-address').value='';
+ if(mode==='lan')void settings();
+ void window.hostWizard?.refresh();
+});
 for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');void window.hostWizard?.refresh();}catch(e){note(e.message);}});
 $('google-host-activate').addEventListener('click',()=>void googleOperation(async()=>{
  const preflight=await window.launcher.hostReadiness();
