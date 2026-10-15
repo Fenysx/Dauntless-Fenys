@@ -20,6 +20,7 @@ const {localNetworks,diagnose,resetConnectionPreferences}=require('./fenys-conne
 const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
+const {selectLocalServer}=require('./fenys-local-selection');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
@@ -452,6 +453,15 @@ app.whenReady().then(()=>{
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
   return {...safe,platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
+ ipcMain.handle('server:selectLocal',()=>vpnReply(()=>selectLocalServer({
+  load,save,assertGameClosed,
+  isGoogleSignedIn:()=>googleAuth.state().signedIn,
+  checkGoogleHost:()=>googleHostCall('127.0.0.1:61000','status'),
+  googleHome:address=>googlePlayer.home(address),
+  globalState:()=>globalAccount.state(),
+  globalHome:authority=>globalAccount.home(authority),
+  localOnline:()=>tcp(PORTS.metagame)
+ })));
  ipcMain.handle('settings:setServer',async(_event,value)=>{
   assertGameClosed();
   if(load().googleSelected){if(!parseServerAddress(value).local)throw Error('Use um código Google para trocar de servidor.');await googlePlayer.home('127.0.0.1:61000');return {server:backendAddress(),remote:false};}
