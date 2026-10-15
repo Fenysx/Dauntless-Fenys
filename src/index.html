@@ -60,6 +60,14 @@
         <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Para jogar usando o servidor que está instalado neste computador. Não precisa de internet pública para jogar sozinho.</p><p id="server-local-state" class="notice" role="status" aria-live="polite">Verificando servidor selecionado…</p></article>
         
         
+        <article class="panel fenys-panel-gap" id="friend-code-section">
+          <div class="panel-title"><h3>Entrar no servidor de um amigo</h3></div>
+          <p class="panel-description">Peça ao anfitrião um código temporário de jogador DLU3. Entre com sua conta Google antes de conectar. Na mesma rede, use o Wi-Fi; pela internet, o anfitrião precisa ter HTTPS e portas de partida acessíveis.</p>
+          <label for="friend-invite-code">Código do convite de jogador</label>
+          <input id="friend-invite-code" type="password" maxlength="2048" autocomplete="off" placeholder="DLU3.••••••" spellcheck="false">
+          <button id="friend-invite-join" class="btn btn-red" type="button">Entrar usando convite</button>
+          <p id="friend-join-state" class="notice" role="status" aria-live="polite">Ainda não conectado por convite.</p>
+        </article>
         <article class="panel fenys-panel-gap" id="community-catalog">
           <div class="panel-title"><h3>Servidores da comunidade</h3><button id="community-list-refresh" class="btn btn-outline" type="button">Atualizar lista</button></div>
           <p class="panel-description">Entre com Google e escolha um servidor. Os privados aparecem depois que você aceita um convite no sino 🔔. Não é preciso instalar rede virtual.</p>
@@ -134,6 +142,15 @@
           </div>
           <p id="host-activation-help" class="hosting-guidance" role="status" hidden>Para usar convites e progresso Google, integre o servidor primeiro.</p>
           <hr class="hosting-divider">
+          <article class="panel fenys-panel-gap" id="host-player-invite-section">
+            <h3>Convidar um amigo diretamente</h3>
+            <p class="panel-description">Após preparar o Google neste servidor, gere um código temporário de <strong>jogador</strong> (não é chave de administrador). Seu amigo cola na tela Escolher servidor. Validade de 15 minutos; use apenas com pessoas de confiança.</p>
+            <button id="host-player-invite-generate" class="btn btn-red" type="button" disabled>Gerar convite de jogador</button>
+            <label for="host-player-invite-code">Convite temporário para seu amigo</label>
+            <input id="host-player-invite-code" type="password" readonly autocomplete="off" placeholder="Gere um convite primeiro" spellcheck="false">
+            <button id="host-player-invite-copy" class="btn btn-outline" type="button" disabled>Copiar convite</button>
+            <p id="host-player-invite-status" class="notice" role="status" aria-live="polite">É necessário Metagame ativo, Google integrado e conta administradora válida.</p>
+          </article>
           <div id="host-community-section">
             <h3>Compartilhar meu servidor</h3>
             <p id="host-publish-explanation" class="panel-description">Este recurso estará disponível quando o servidor Google estiver ativo e acessível pela internet.</p>
