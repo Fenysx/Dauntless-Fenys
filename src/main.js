@@ -339,7 +339,7 @@ app.whenReady().then(()=>{
  }));
  ipcMain.handle('google:hostInvite',()=>vpnReply(async()=>googleHostCall('127.0.0.1:61000','host-invite',{},null,await localAdminKey())));
  ipcMain.handle('google:sync',(_event,force)=>vpnReply(async()=>googleHostCall('127.0.0.1:61000',force?'sync-now':'sync-status',{},null,await localAdminKey())));
- ipcMain.handle('google:activate',(_event,options)=>vpnReply(async()=>{
+ const activateGoogleHost=async options=>{
   if(busy)throw Error('Aguarde a operação atual.');assertGameClosed();busy=true;
   try{const live=await status();if(!servicesOwnedByLauncher(live))throw Error('Inicie Metagame e DeployServer pelo launcher antes de ativar Google. Encerre serviços externos com segurança.');if(!await googleAuth.provider())throw Error('Configure o provedor Google no Supabase antes de ativar este servidor. Os serviços atuais continuam disponíveis.');const c=load();
    if(c.cloudRole==='host'){await verifyLegacyHostIdle(()=>cloudRequest('127.0.0.1:61000','events',{cursor:null}),()=>googleHostCall(c.cloudAuthority,'status'));}
@@ -349,6 +349,15 @@ app.whenReady().then(()=>{
    let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:findAuthorizationFile(app.getPath('home'),c.supabaseAuthorizationFile),adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
    await confirmGoogleRuntime({checkHost:()=>googleHostCall('127.0.0.1:61000','status'),expectedAddress:result.address});c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
   }finally{busy=null;}
+ };
+ ipcMain.handle('google:activate',(_event,options)=>vpnReply(()=>activateGoogleHost(options)));
+ ipcMain.handle('google:upgrade',()=>vpnReply(async()=>{
+  const c=load();
+  if(!c.googleHost||!c.googleHostAddress||!c.googleNetworkMode)throw Error('Configure a integração Google neste servidor antes de atualizar os saves.');
+  const live=await googleHostCall('127.0.0.1:61000','status');
+  if(live.mode!=='google'||live.registered!==true||live.address!==c.googleHostAddress)throw Error('O host Google não foi confirmado. Verifique a instalação antes de atualizar.');
+  const upgraded=await activateGoogleHost({address:c.googleHostAddress,networkMode:c.googleNetworkMode,gameAddress:c.googleGameAddress||''});
+  return {...upgraded,notice:'Sincronização automática atualizada no servidor. Progresso existente preservado.'};
  }));
  for(const [channel,field,title] of [['network:cert','publicCertFile','Selecionar certificado HTTPS (PEM / fullchain)'],['network:key','publicKeyFile','Selecionar chave privada HTTPS (PEM)']])ipcMain.handle(channel,async()=>{assertGameClosed();const r=await dialog.showOpenDialog(win,{title,properties:['openFile']});if(r.canceled)return false;const c=load();c[field]=r.filePaths[0];save(c);return true;});
  ipcMain.handle('google:authorization',()=>vpnReply(async()=>{
