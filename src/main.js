@@ -15,6 +15,7 @@ const {ProfileVault}=require('./fenys-profiles');
 const {DirectGlobal}=require('./fenys-direct-global');
 const {call:cloudRequest}=require('./fenys-cloud-protocol');
 const {validateAuthorization}=require('./fenys-supabase');
+const {findAuthorizationFile}=require('./fenys-authorization-discovery');
 const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
@@ -336,12 +337,18 @@ app.whenReady().then(()=>{
    else{const info=await requestApi('127.0.0.1:61000','/undaunted/api/ServerStatus',{key:await localAdminKey()});if(info.limited||info.players?.length)throw Error('Mantenha todos fora do jogo antes de configurar.');}
    const adminKey=await localAdminKey(); // Always verify actual admin permission, never trust the first configured key file.
    await stopOwned();if(await tcp(PORTS.metagame)||await tcp(PORTS.deploy))throw Error('Encerre os serviços externos antes de configurar.');
-   let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:c.supabaseAuthorizationFile,adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
+   let result;try{result=await installGoogle(c.repoPath,{address:options?.address,hostCode:String(options?.hostCode||'').trim(),authorizationFile:findAuthorizationFile(app.getPath('home'),c.supabaseAuthorizationFile),adminKey,networkMode:options?.networkMode,gameAddress:options?.gameAddress,certFile:c.publicCertFile,keyFile:c.publicKeyFile});}finally{await startAll();}
    await confirmGoogleRuntime({checkHost:()=>googleHostCall('127.0.0.1:61000','status'),expectedAddress:result.address});c.googleHost=true;c.googleGameAddress=options?.gameAddress||'';c.googleNetworkMode=result.networkMode;c.cloudRole=null;c.googleHostAddress=result.address;save(c);notify('Servidor integrado ao progresso Google no Supabase. Vincule os personagens existentes antes da primeira troca.');return result;
   }finally{busy=null;}
  }));
  for(const [channel,field,title] of [['network:cert','publicCertFile','Selecionar certificado HTTPS (PEM / fullchain)'],['network:key','publicKeyFile','Selecionar chave privada HTTPS (PEM)']])ipcMain.handle(channel,async()=>{assertGameClosed();const r=await dialog.showOpenDialog(win,{title,properties:['openFile']});if(r.canceled)return false;const c=load();c[field]=r.filePaths[0];save(c);return true;});
  ipcMain.handle('google:authorization',()=>vpnReply(async()=>{
+  const previous=load();
+  const detected=findAuthorizationFile(app.getPath('home'),previous.supabaseAuthorizationFile);
+  if(detected&&(!previous.supabaseAuthorizationFile||!fs.existsSync(previous.supabaseAuthorizationFile))){
+   previous.supabaseAuthorizationFile=detected;save(previous);
+   return {selected:true,automatic:true};
+  }
   const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
   if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
  }));
@@ -370,7 +377,7 @@ app.whenReady().then(()=>{
    advertisedAddress:c.googleHostAddress||'',
    gameAddress:c.googleGameAddress||'',
    adminKeySelected:Boolean(c.adminKeyFile&&fs.existsSync(c.adminKeyFile)),
-   authorizationSelected:Boolean(c.supabaseAuthorizationFile&&fs.existsSync(c.supabaseAuthorizationFile)),
+   authorizationSelected:Boolean(findAuthorizationFile(app.getPath('home'),c.supabaseAuthorizationFile)),
    identityPresent:fs.existsSync(identityFile),
    signedIn:Boolean(googleAuth.state().signedIn),
    publicCertSelected:Boolean(c.publicCertFile&&fs.existsSync(c.publicCertFile)),
