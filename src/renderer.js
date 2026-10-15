@@ -12,6 +12,11 @@ function paint(s){
   node.textContent=online?'Online':'Offline';
   node.className='metric-value '+(online?'online':'offline');
  }
+ const local=$('server-local-state');
+ if(local&&typeof s.server==='string'){
+  const selected=/^(?:127\\.0\\.0\\.1|localhost):61000$/.test(s.server);
+  local.textContent=selected?(s.metagame?'Servidor local selecionado • Metagame online.':'Servidor local selecionado • Metagame desligado. Ligue o servidor para jogar.'):'Outro servidor selecionado. Clique acima para usar este computador.';
+ }
 }
 async function refresh(){try{paint(await window.launcher.status());}catch(e){note('Falha na verificação: '+e.message);}}
 let playersWorking=false;
@@ -130,8 +135,20 @@ window.launcher.onActivity(message=>{
  }
 });
 $('server-local-select').addEventListener('click',async()=>{
- try{const google=await window.launcher.googleState();if(google.ok&&google.signedIn&&google.hostEnabled){let createNew=false;if(!google.linked){if(!window.confirm('Nenhum personagem está vinculado ao Google.\n\nSe você já jogou Dauntless, clique em Cancelar e vincule seu personagem antigo primeiro.\n\nConfirma que é um jogador NOVO e deseja criar seu primeiro personagem?'))return;createNew=true;}let newName='';if(createNew){const choice=window.prompt('Nome do seu primeiro personagem (3 a 16 letras, números ou _):','');if(choice===null)return;newName=choice.trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(newName))throw Error('Escolha um nome com 3 a 16 letras, números ou _.');}const result=await window.launcher.googleLocal(createNew,newName);if(!result.ok)throw Error(result.error||'Não foi possível selecionar o servidor local.');}else await window.launcher.setServer('127.0.0.1:61000');await settings();await refresh();note('Servidor principal selecionado. Os controles locais continuam disponíveis sem login.');}
- catch(e){note(e.message);}
+ const button=$('server-local-select');
+ if(button.disabled)return;
+ button.disabled=true;
+ const state=$('server-local-state');
+ state.textContent='Selecionando este computador…';
+ try{
+  const result=await window.launcher.selectLocal();
+  if(!result?.ok||!result.selected)throw Error(result?.error||'Não foi possível selecionar o servidor local.');
+  await settings();
+  await refresh();
+  note(result.online?'Servidor local selecionado e Metagame acessível. Pode iniciar o jogo.':
+    'Servidor local selecionado. Metagame está desligado; use Hospedar servidor → Ligar servidor antes de jogar. A escolha do servidor não cria nem substitui personagem Google.');
+ }catch(e){state.textContent='Seleção não concluída: '+e.message;note('Servidor local: '+e.message);}
+ finally{button.disabled=false;}
 });
 settings();refresh();setInterval(()=>{if(!operating)void refresh();},10000);
 setInterval(()=>{if(!operating&&document.getElementById('screen-players').hidden===false)void playersRefresh();},30000);
