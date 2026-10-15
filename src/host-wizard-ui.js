@@ -96,6 +96,11 @@
       $('host-publish-form').hidden=true;$('host-invite-section').hidden=true;
     }finally{loading=false;}
   }
+  const remoteOptions=$('host-online-settings');
+  remoteOptions.addEventListener('toggle',()=>{
+    $('host-activation-help').hidden=!remoteOptions.open;
+    if(remoteOptions.open)void refresh();
+  });
   $('host-refresh').addEventListener('click',()=>void refresh());
   $('host-network-auto').addEventListener('click',async()=>{
     const button=$('host-network-auto');
