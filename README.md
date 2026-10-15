@@ -4,6 +4,8 @@ Projeto comunitário para jogar **Dauntless 1.4.4** em servidores compatíveis c
 
 **Comece pelo [tutorial de instalação](docs/INSTALACAO.md).** Para entender as peças antes de instalar, leia a [arquitetura e os fluxos](docs/ARQUITETURA.md).
 
+> **Repositório público:** arquivos `senha/`, `*.key`, `client_secret*.json`, `.env` e autorizações do Google/Supabase devem ficar exclusivamente no PC, fora do Git. Consulte o [guia de proteção de credenciais](docs/SEGURANCA-CREDENCIAIS.md). O CI verifica nomes de arquivos sensíveis rastreados.
+
 ## Onde está cada coisa
 
 | Local | Conteúdo |
