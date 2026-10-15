@@ -2,6 +2,8 @@
 
 Objetivo: **ligar um servidor**, **receber amigos** e **permitir que outros administradores publiquem servidores**, mantendo saves locais protegidos.
 
+**Beta.7:** o botão **Detectar e preencher minha rede automaticamente** identifica o IP LAN e consulta o IP de saída por STUN. No PC do convidado, **Entrar no jogo → Detectar conexão automaticamente** prepara a descoberta local e atualiza o catálogo Google. A detecção de IP não abre portas nem substitui o túnel/relay UDP; consulte [Conexão automática](CONEXAO-AUTOMATICA.md).
+
 ## 1. Jogar sozinho
 
 Abra **Hospedar servidor → Ligar e jogar → Iniciar meu servidor**, ou selecione o servidor local em **Escolher servidor**.
