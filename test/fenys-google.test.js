@@ -8,6 +8,14 @@ const {createGoogleHost}=require('../src/fenys-google-host');
 const {identity,hash,verify}=require('../src/fenys-cloud-protocol');
 const {hostCall,decodeInvite,signed}=require('../src/fenys-google-cloud');
 const json=(b,status=200)=>new Response(JSON.stringify(b),{status,headers:{'content-type':'application/json'}});
+async function waitFor(predicate,description,timeout=6000){
+ const deadline=Date.now()+timeout;
+ while(Date.now()<deadline){
+  if(predicate())return;
+  await new Promise(resolve=>setTimeout(resolve,25));
+ }
+ assert.fail('Tempo esgotado aguardando '+description);
+}
 function temporary(t){const p=fs.mkdtempSync(path.join(os.tmpdir(),'launcher-google-'));t.after(()=>fs.rmSync(p,{recursive:true,force:true}));return p;}
 test('Google PKCE usa navegador, recusa callback estranho e não expõe tokens à interface',async t=>{
  const directory=temporary(t),uid=crypto.randomUUID();let exchanged=false,opened;
@@ -64,7 +72,13 @@ test('mesmo Google recupera personagem após apagar dados do PC e troca entre ho
  const client=()=>new GooglePlayer({auth,settings:()=>settings,saveSettings:c=>settings=c,request:n.invoke});let first=client();await first.link(a.address,p.key);
  const invite=async node=>(await hostCall(node.address,'invite',{},null,node.admin.key)).code;
  await first.connect(await invite(a),'PlayerOne');const key=await first.credential();assert.equal(key,p.key);
- const r=await fetch('http://'+a.address+'/test/save',{method:'POST',headers:{'content-type':'application/json','x-undaunted-user-api-key':key},body:'{"level":32}'});assert.equal(r.status,200);assert.equal(JSON.parse(n.records.get(n.users.get('google-one')).snapshot.tables.characters[0].data).Level,32);
+ const r=await fetch('http://'+a.address+'/test/save',{method:'POST',headers:{'content-type':'application/json','x-undaunted-user-api-key':key},body:'{"level":32}'});
+ assert.equal(r.status,200,'o jogo confirma a gravacao local sem aguardar a internet');
+ await waitFor(()=>{
+  const snapshot=n.records.get(n.users.get('google-one'))?.snapshot;
+  return snapshot?.tables?.characters?.[0]&&JSON.parse(snapshot.tables.characters[0].data).Level===32;
+ },'upload automatico do nivel 32');
+ assert.equal(JSON.parse(n.records.get(n.users.get('google-one')).snapshot.tables.characters[0].data).Level,32);
  settings={};first=client();await first.refresh();assert.equal(first.state().userId,p.userId);assert.equal(await first.credential(),key);await first.connect(await invite(b));
  const copy=b.db.prepare('SELECT * FROM characters WHERE userId=?').get(p.userId);assert.equal(copy.characterId,p.cid);assert.equal(JSON.parse(copy.data).Level,32);assert.equal(b.db.prepare('SELECT stackedItems FROM inventories WHERE characterId=?').get(p.cid).stackedItems,'{"rams":1000}');
  const stale=await fetch('http://'+a.address+'/test/save',{method:'POST',headers:{'content-type':'application/json','x-undaunted-user-api-key':key},body:'{"level":1}'});assert.equal(stale.status,409);assert.equal(JSON.parse(n.records.get(n.users.get('google-one')).snapshot.tables.characters[0].data).Level,32);
@@ -72,7 +86,21 @@ test('mesmo Google recupera personagem após apagar dados do PC e troca entre ho
 });
 test('resposta perdida do Supabase conserva outbox e recupera sem repetir revisão nem apagar save',async t=>{
  const n=await network(t),a=n.nodes[0],p=player(a.db,'PlayerRecovery');const client=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});await client.link(a.address,p.key);const invite=(await hostCall(a.address,'invite',{},null,a.admin.key)).code;await client.connect(invite);n.setFail();
- const response=await fetch('http://'+a.address+'/test/save',{method:'POST',headers:{'content-type':'application/json','x-undaunted-user-api-key':p.key},body:'{"level":41}'});assert.equal(response.status,503);const version=n.records.get(n.users.get('google-one')).revision;assert.ok(a.db.prepare('SELECT pending FROM launcher_google_sessions WHERE userId=?').get(p.userId).pending);await a.host.flush();assert.equal(n.records.get(n.users.get('google-one')).revision,version);assert.equal(a.db.prepare('SELECT dirty FROM launcher_google_sessions WHERE userId=?').get(p.userId).dirty,0);assert.equal(JSON.parse(n.records.get(n.users.get('google-one')).snapshot.tables.characters[0].data).Level,41);
+ const response=await fetch('http://'+a.address+'/test/save',{method:'POST',headers:{'content-type':'application/json','x-undaunted-user-api-key':p.key},body:'{"level":41}'});
+ assert.equal(response.status,200,'o jogo confirma a gravacao local mesmo quando o upload falha');
+ assert.equal(JSON.parse(a.db.prepare('SELECT data FROM characters WHERE userId=?').get(p.userId).data).Level,41);
+ await waitFor(()=>{
+  const row=a.db.prepare('SELECT pending,error,dirty FROM launcher_google_sessions WHERE userId=?').get(p.userId);
+  return !!row?.pending&&!!row?.error&&row.dirty===1;
+ },'registro duravel do envio pendente e da falha da nuvem');
+ const version=n.records.get(n.users.get('google-one')).revision;
+ assert.equal(JSON.parse(n.records.get(n.users.get('google-one')).snapshot.tables.characters[0].data).Level,41);
+ await a.host.flush();
+ assert.equal(n.records.get(n.users.get('google-one')).revision,version,'retry idempotente nao pode duplicar a revisao');
+ const saved=a.db.prepare('SELECT dirty,pending,error FROM launcher_google_sessions WHERE userId=?').get(p.userId);
+ assert.equal(saved.dirty,0);
+ assert.equal(saved.pending,null);
+ assert.equal(saved.error,null);
 });
 
 test('falha de rede ao renovar Google conserva a sessão para tentar novamente',async t=>{const auth=new GoogleAuth({directory:temporary(t),fetchImpl:async()=>{throw Error('network offline');}});auth.write({access_token:'expired',refresh_token:'recoverable',expires_at:0,user:{id:crypto.randomUUID(),email:'user@example.test'}});await assert.rejects(auth.token(),/offline/);assert.equal(auth.state().signedIn,true);assert.equal(auth.read().refresh_token,'recoverable');});
