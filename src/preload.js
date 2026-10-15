@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('launcher',{
  pickWine:()=>ipcRenderer.invoke('settings:pickWine'),
  pickWinePrefix:()=>ipcRenderer.invoke('settings:pickWinePrefix'),
  setServer:address=>ipcRenderer.invoke('settings:setServer',address),
+ selectLocal:()=>ipcRenderer.invoke('server:selectLocal'),
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
  appVersion:()=>ipcRenderer.invoke('app:version'),
