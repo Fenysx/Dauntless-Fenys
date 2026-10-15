@@ -16,6 +16,7 @@ const {DirectGlobal}=require('./fenys-direct-global');
 const {call:cloudRequest}=require('./fenys-cloud-protocol');
 const {validateAuthorization}=require('./fenys-supabase');
 const {findAuthorizationFile}=require('./fenys-authorization-discovery');
+const {localNetworks,diagnose,resetConnectionPreferences}=require('./fenys-connection-preflight');
 const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
@@ -352,10 +353,25 @@ app.whenReady().then(()=>{
   const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
   if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
  }));
- ipcMain.handle('network:localIPv4',()=>{
-  const addresses=Object.values(os.networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal&&lanIP(x.address)).map(x=>x.address);
-  return {addresses:[...new Set(addresses)]};
- });
+ ipcMain.handle('network:localIPv4',()=>({addresses:localNetworks().map(x=>x.address)}));
+ ipcMain.handle('network:diagnose',()=>vpnReply(async()=>{
+  const report=await diagnose();
+  return {...report,services:await status()};
+ }));
+ ipcMain.handle('network:reset-legacy',()=>vpnReply(async()=>{
+  assertGameClosed();
+  if(busy)throw Error('Aguarde a operação atual terminar antes de limpar preferências.');
+  const file=configFile(),current=load();
+  const hostIdentity=path.join(current.repoPath,'UndauntedMetagame','fenys','google-host.json');
+  const {config,removed}=resetConnectionPreferences(current,{hasActiveGoogleHost:!!current.googleHost||fs.existsSync(hostIdentity)});
+  if(!removed.length)return {removed:[],message:'Sem preferências antigas para limpar. Google e contas preservados.'};
+  if(fs.existsSync(file)){
+   const backup=file+'.network-backup-'+Date.now();
+   fs.copyFileSync(file,backup,fs.constants.COPYFILE_EXCL);
+  }
+  save(config);
+  return {removed,message:'Preferências antigas de rede corrigidas. Contas, saves e credenciais foram preservados.'};
+ }));
  // Read-only host setup state. Saved settings alone never prove Google integration:
  // older Metagame builds can respond with "Unstubbed route" for /launcher/google/status.
  ipcMain.handle('host:readiness',()=>vpnReply(async()=>{
