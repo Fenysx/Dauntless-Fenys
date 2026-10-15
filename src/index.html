@@ -55,7 +55,8 @@
         
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
-        <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Escolher servidor</h1><p>Jogue no seu computador ou entre em servidores da comunidade com sua conta Google.</p></div>
+        <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Entrar no jogo</h1><p>Nenhum IP ou porta para digitar. Entre com Google, aceite um convite e escolha o servidor na lista.</p></div>
+        <article class="panel"><div class="panel-title"><h3>Preparar este computador</h3><button id="guest-network-auto" class="btn btn-red" type="button">Detectar conexão automaticamente</button></div><p id="guest-network-state" class="notice" role="status" aria-live="polite">O launcher identifica sua rede quando solicitado; não muda seu roteador.</p></article>
         <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Para jogar usando o servidor que está instalado neste computador. Não precisa de internet pública para jogar sozinho.</p></article>
         
         
@@ -65,10 +66,7 @@
           <p id="community-catalog-state" class="notice" role="status">Entre com Google para carregar a comunidade.</p>
           <div id="community-server-list" class="community-list"></div>
         </article>
-        <article class="panel fenys-panel-gap">
-          <div class="panel-title"><h3>Quer criar um servidor?</h3><button id="community-host-setup-open" class="btn btn-outline" type="button">Hospedar servidor →</button></div>
-          <p class="panel-description">Inicie seu servidor em um botão. Convites Google e publicação ficam na mesma tela, após configurar o acesso externo.</p>
-        </article>
+
         
         
         
@@ -102,11 +100,14 @@
             <option value="lan">Somente neste PC / mesma rede Wi-Fi</option>
             <option value="public">Amigos de outras casas / servidor público</option>
           </select>
-          <p id="host-internet-help" class="notice">Para jogar em outra casa, será preciso disponibilizar o servidor na internet; convites sozinhos não abrem conexão.</p>
+          <button id="host-network-auto" class="btn btn-red" type="button">Detectar e preencher minha rede automaticamente</button>
+          <p id="host-network-state" class="notice" role="status" aria-live="polite">Clique para identificar o IP local e tentar descobrir o IP público. O programa não abre portas automaticamente.</p>
+          <p id="host-internet-help" class="notice">Se você hospedar pela internet, o jogo precisará de um endereço acessível e transporte UDP. Detectar o IP não substitui essa conexão.</p>
           <p id="community-host-readiness" class="notice" role="status">Verificando contas Google…</p>
           <div class="form-preview hosting-form">
             <button id="host-select-admin" class="btn btn-outline" type="button">Selecionar conta administradora original</button>
             <span id="adminKeyState" class="notice">Não selecionada</span>
+            <details class="hosting-advanced" id="host-network-details"><summary>Endereços e configuração de rede (avançado)</summary>
             <div id="google-network-address-fields" hidden>
               <label for="google-network-address">Endereço do servidor</label>
               <input id="google-network-address" maxlength="260" list="google-lan-ip-suggestions" placeholder="192.168.1.20:61000">
@@ -119,6 +120,7 @@
               <button id="google-public-cert" class="btn btn-outline" type="button">Selecionar certificado HTTPS</button>
               <button id="google-public-key" class="btn btn-outline" type="button">Selecionar chave HTTPS</button>
             </div>
+            </details>
             <p id="host-authorization-state" class="notice" role="status" aria-live="polite">Procurando autorização Supabase neste PC…</p>
             <details class="hosting-advanced" id="host-authorization-tools">
               <summary>Autorização do host (configuração inicial)</summary>
@@ -164,6 +166,8 @@
           <p class="notice">Autorize outro administrador a hospedar usando o próprio PC. Nunca entregue sua autorização privada original.</p>
           <button id="google-host-invite" class="btn btn-outline" type="button" disabled>Gerar autorização para outro servidor</button>
           <button id="google-sync" class="btn btn-outline" type="button" disabled>Confirmar saves na nuvem</button>
+          <button id="host-network-reset" class="btn btn-outline" type="button">Limpar preferências antigas de conexão</button>
+          <p id="host-network-reset-state" class="notice" role="status">Esta operação cria backup das preferências e preserva personagens, contas e chaves.</p>
           <input id="google-host-result" readonly placeholder="Código do novo host"><p id="google-sync-state" class="notice" role="status"></p>
         </details>
       </section>
