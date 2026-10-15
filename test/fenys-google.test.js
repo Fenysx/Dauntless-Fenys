@@ -57,6 +57,26 @@ async function network(t){
  const nativeFetch=fetch;t.mock.method(globalThis,'fetch',(url,...args)=>nativeFetch(String(url).replace(/100\.64\.2\.[12]/g,'127.0.0.1'),...args));
  return {nodes,invoke,users,records,setFail:()=>failAfterSave=true,rejectSync:userId=>rejectUser=userId,setCommunityPermission:fn=>permission=fn};
 }
+test('convite direto de jogador conecta duas contas Google sem catalogo nem chave admin compartilhada',async t=>{
+ const n=await network(t),host=n.nodes[0],original=player(host.db,'OwnerPlayer');
+ const owner=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-one'},settings:()=>({}),saveSettings(){},request:n.invoke});
+ await owner.link(host.address,original.key);
+ const invite=await hostCall(host.address,'invite',{},null,host.admin.key);
+ assert.match(invite.code,/^DLU3\./);
+ let friendSettings={};
+ const friend=new GooglePlayer({auth:{state:()=>({signedIn:true}),token:async()=> 'google-two'},settings:()=>friendSettings,saveSettings:v=>{friendSettings=v;},request:n.invoke});
+ await assert.rejects(friend.connect(invite.code),/criação do primeiro personagem/);
+ assert.equal(n.records.size,1,'nunca criar personagem implicitamente');
+ const joined=await friend.connect(invite.code,'FriendPlayer',{allowCreateNew:true});
+ assert.equal(joined.confirmed,true);
+ assert.equal(friendSettings.googleServer,host.address);
+ assert.equal(friendSettings.googleSelected,true);
+ const record=n.records.get(n.users.get('google-two'));
+ assert.equal(record.name,'FriendPlayer');
+ assert.notEqual(record.userId,original.userId);
+ assert.equal(host.db.prepare('SELECT isAdmin FROM users WHERE userId=?').get(record.userId).isAdmin,0);
+ assert.equal(n.records.get(n.users.get('google-one')).userId,original.userId,'personagem do dono foi preservado');
+});
 test('vínculo Google recusa chave de conta sem personagem e preserva a nuvem',async t=>{
  const n=await network(t),a=n.nodes[0];
  const uid='UID-'+crypto.randomUUID(),key='UUK_'+crypto.randomBytes(24).toString('hex');
