@@ -151,6 +151,20 @@ $('server-local-select').addEventListener('click',async()=>{
  }catch(e){state.textContent='Seleção não concluída: '+e.message;note('Servidor local: '+e.message);}
  finally{button.disabled=false;}
 });
+$('tailscale-friend-test').addEventListener('click',async()=>{
+ const button=$('tailscale-friend-test'),out=$('tailscale-friend-test-state');
+ if(button.disabled)return;
+ button.disabled=true;
+ out.textContent='Testando Tailscale, porta 61000 e integração Google…';
+ try{
+  const result=await window.launcher.tailscaleProbeHost($('tailscale-friend-address').value.trim());
+  if(!result?.ok)throw Error(result?.error||'Falha ao consultar o servidor Tailscale.');
+  out.textContent=result.message;
+  if(result.googleReady)note('Conexão privada com a API do host confirmada. A partida UDP ainda precisa ser testada.');
+ }catch(e){
+  out.textContent='Não foi possível concluir o teste: '+e.message;
+ }finally{button.disabled=false;}
+});
 $('friend-invite-join').addEventListener('click',async()=>{
  const button=$('friend-invite-join'),state=$('friend-join-state');
  if(button.disabled)return;
