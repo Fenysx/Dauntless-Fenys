@@ -100,6 +100,26 @@
             <label>Pasta do Dauntless Revived</label><div class="path"><span id="repo">—</span><button id="repoPick" class="btn btn-outline">Selecionar pasta</button></div>
           </details>
         </article>
+        <article class="panel fenys-panel-gap hosting-step" id="host-tailscale-section">
+          <span class="hosting-number">SERVIDOR PRIVADO • TAILSCALE</span>
+          <h3>Jogar com amigos de outras casas</h3>
+          <p class="panel-description">Sem abrir portas no roteador. Os dois computadores precisam estar conectados ao Tailscale; o amigo aceita o compartilhamento deste PC. O Google continua responsável pelo personagem, não pela VPN.</p>
+          <div class="button-row">
+            <button id="tailscale-refresh" class="btn btn-outline" type="button">Verificar Tailscale</button>
+            <button id="tailscale-start" class="btn btn-red" type="button">▶ Iniciar host privado</button>
+          </div>
+          <p id="tailscale-state" class="notice" role="status" aria-live="polite">Verificando se o Tailscale está conectado…</p>
+          <label for="tailscale-host-address">Endereço privado do seu host</label>
+          <input id="tailscale-host-address" readonly placeholder="Conecte o Tailscale para mostrar o IP 100.x.y.z:61000">
+          <div class="button-row">
+            <button id="tailscale-open-download" class="btn btn-outline" type="button">Instalar / abrir Tailscale</button>
+            <button id="tailscale-open-share" class="btn btn-outline" type="button">Compartilhar PC no Tailscale</button>
+          </div>
+          <label for="tailscale-share-link">Link de compartilhamento do dispositivo (opcional)</label>
+          <input id="tailscale-share-link" type="url" autocomplete="off" maxlength="1000" placeholder="Cole o link gerado no painel do Tailscale">
+          <button id="tailscale-copy-info" class="btn btn-outline" type="button">Copiar instruções para o amigo</button>
+          <p id="tailscale-guide" class="notice" role="status">Depois de iniciar, abra Convidar amigos ou publicar um servidor, escolha Tailscale e prepare o Google uma única vez. Em seguida, gere o código de jogador DLU3.</p>
+        </article>
         <details id="host-online-settings" class="panel fenys-panel-gap hosting-advanced"><summary><strong>Convidar amigos ou publicar um servidor</strong><span class="hosting-summary-hint"> • Configuração opcional</span></summary><p class="notice">O servidor básico funciona sem esta etapa. Jogadores em outras casas precisam de um acesso externo realmente funcional; Google e convites não substituem a conexão.</p>
         <article class="panel fenys-panel-gap hosting-step" id="host-google-section">
           <span class="hosting-number">CONEXÃO ONLINE</span><h3>Jogar com amigos de outras casas</h3>
@@ -107,6 +127,7 @@
           <label for="google-network-mode">Onde as pessoas vão jogar?</label>
           <select id="google-network-mode">
             <option value="lan">Somente neste PC / mesma rede Wi-Fi</option>
+            <option value="tailscale">Amigos em outra casa (Tailscale privado, sem abrir portas)</option>
             <option value="public">Amigos de outras casas / servidor público</option>
           </select>
           <button id="host-network-auto" class="btn btn-red" type="button">Detectar e preencher minha rede automaticamente</button>
@@ -122,6 +143,7 @@
               <input id="google-network-address" maxlength="260" list="google-lan-ip-suggestions" placeholder="192.168.1.20:61000">
               <datalist id="google-lan-ip-suggestions"></datalist>
               <p id="google-lan-address-help" class="notice">Endereço local do próprio computador; o launcher sugere o IP.</p>
+              <p id="google-tailscale-address-help" class="notice" hidden>IP do Tailscale deste computador, geralmente 100.x.y.z:61000. O launcher detecta automaticamente após conectar sua VPN.</p>
             </div>
             <div id="google-public-fields" hidden>
               <p class="notice"><strong>Conexão pela internet:</strong> é necessário endereço HTTPS válido, IP público ou VPS e portas UDP 8770–8777 acessíveis. Ainda não existe hospedagem pública automática com um clique. Nunca abra a porta de administração TCP 61001.</p>
