@@ -97,3 +97,30 @@ service-account*.json
 /release/
 **/fenys-backups/
 **/fenys/
+
+# SEGREDOS: manter somente no computador, fora do repositorio publico
+# Ignore in any directory (including manually copied Google OAuth credentials).
+senha/
+**/senha/
+client_secret*.json
+**/client_secret*.json
+client_secrets*.json
+**/client_secrets*.json
+authorization.json
+**/authorization.json
+supabase-authorization.json
+**/supabase-authorization.json
+google-host.json
+**/google-host.json
+*service-role*.json
+*service_role*.json
+**/.env
+**/.env.*
+!**/.env.example
+*.p8
+*.pkcs8
+*.jks
+*.keystore
+*.mobileprovision
+*.credentials.json
+*credentials*.private.json
