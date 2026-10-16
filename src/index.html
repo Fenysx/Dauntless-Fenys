@@ -235,12 +235,12 @@
             <p class="notice">Guarde seu backup fora do GitHub e não envie a key a outras pessoas. Ela pode permitir acesso ao personagem. Para vincular a mesma conta ao Google, valide o servidor de origem primeiro.</p>
           </div><div class="settings-group" id="game-installer-section">
             <div class="panel-title"><div><span class="kicker">ARQUIVOS DO JOGO</span><h3>Instalação e reparo • 1.4.4</h3></div></div>
-            <p class="panel-description">Baixe arquivos por uma fonte autorizada da comunidade ou use uma instalação já existente. Os arquivos recebidos serão conferidos pelo SHA-256 informado no manifesto; os binários críticos também têm hashes fixados no launcher.</p>
-            <label for="game-install-url">URL do manifesto de arquivos do host (HTTPS ou endereço Tailscale)</label>
-            <input id="game-install-url" type="url" maxlength="1000" autocomplete="off" spellcheck="false" placeholder="https://servidor-exemplo/manifest.json">
-            <label for="game-install-key">Key de download do Discord do host (se exigida)</label>
-            <input id="game-install-key" type="password" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="Cole a key apenas durante a instalação">
-            <p class="notice">A key não é enviada ao GitHub nem salva nas configurações. O host precisa disponibilizar um manifesto compatível (versão 1.4.4, caminho, tamanho e SHA-256 de cada arquivo).</p>
+            <p class="panel-description">Baixe o Dauntless Revived 1.4.4 do servidor de arquivos da comunidade (porta 61002 pelo Tailscale) ou use sua instalação existente. O manifesto original com 410 arquivos está fixado no nosso launcher.</p>
+            <label for="game-install-url">Endereço do manifesto do servidor de arquivos (Tailscale ou HTTPS)</label>
+            <input id="game-install-url" type="url" maxlength="1000" autocomplete="off" spellcheck="false" placeholder="http://100.101.102.103:61002/content/v1/manifest">
+            <label for="game-install-key">Key pessoal da conta do servidor original (não o convite)</label>
+            <input id="game-install-key" type="password" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="Key pessoal de conta gerada após entrar no servidor">
+            <p class="notice">O convite do Discord permite entrar ou registrar, mas não substitui a key pessoal de conta para baixar. A key só é enviada à API de conteúdo do host durante o download, não é salva no launcher.</p>
             <div class="path"><span id="game-install-folder">Pasta de instalação não selecionada</span><button id="game-install-choose" class="btn btn-outline" type="button">Escolher pasta</button></div>
             <div class="button-row"><button id="game-install-download" class="btn btn-red" type="button">↓ Baixar / reparar arquivos</button><button id="game-install-verify" class="btn btn-outline" type="button">✓ Verificar jogo instalado</button></div>
             <p id="game-install-status" class="notice" role="status" aria-live="polite">Pronto para configurar a fonte de download.</p>
