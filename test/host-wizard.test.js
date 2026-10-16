@@ -42,3 +42,19 @@ test('Google host setup requires ownership of both live services, not just one',
  assert.match(main,/const adminKey=await localAdminKey\(\)/);
  assert.match(main,/verifyExistingCharacterSource\(\{checkHost:/);
 });
+
+test('host privado Tailscale tem status real, inicio protegido e UI conectada',()=>{
+ const html=source('src/index.html'),wizard=source('src/host-wizard-ui.js'),main=source('src/main.js'),preload=source('src/preload.js');
+ for(const id of ['host-tailscale-section','tailscale-refresh','tailscale-start','tailscale-host-address','tailscale-open-share','tailscale-copy-info']){
+  assert.ok(html.includes('id="'+id+'"'),'controle Tailscale ausente: '+id);
+ }
+ assert.ok(html.includes('<option value="tailscale">'),'modo privado precisa aparecer na escolha de rede');
+ for(const channel of ['tailscale:status','tailscale:start','tailscale:open']){
+  assert.ok(main.includes("ipcMain.handle('"+channel+"'"),'IPC do host ausente: '+channel);
+  assert.ok(preload.includes("ipcRenderer.invoke('"+channel+"'"),'preload sem '+channel);
+ }
+ assert.match(main,/if\(!vpn\.connected\|\|!vpn\.address\)throw Error\(vpn\.message\)/,'nao inicia host Tailscale offline');
+ assert.match(wizard,/mode==='tailscale'\?Boolean\(r\.tailscale\?\.connected/,'UI deve exigir VPN real para ativar');
+ assert.match(wizard,/\$\('tailscale-start'\)\.addEventListener\('click'/);
+ assert.ok(!main.includes("ipcMain.handle('tailscale:install'"),'nao instalar VPN silenciosamente');
+});
