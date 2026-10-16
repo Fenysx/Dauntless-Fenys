@@ -21,6 +21,16 @@ O modo **Servidor privado • Tailscale** utiliza a infraestrutura Metagame e De
 4. Antes do convite, abra **Escolher servidor → Testar o servidor Tailscale do amigo**. Digite o IP privado `100.x.x.x:61000` do anfitrião e clique **Testar conexão Tailscale**. O teste confere que o Tailscale do convidado está conectado, que a porta TCP 61000 responde e que a rota Google está registrada — sem enviar senha, chave administrativa ou personagem.
 5. Se as verificações passarem, entre usando o código DLU3 e clique **Jogar agora**. Esse diagnóstico **não testa as portas UDP de Ramsgate/caçadas**: valide a partida real com dois PCs.
 
+## Diagnosticar problemas no Windows (sem enviar senhas)
+
+Na pasta do projeto atualizado, abra o PowerShell e execute:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\Diagnosticar-Tailscale.ps1 -SaveReport
+```
+
+O relatório fica em `%TEMP%\\Dauntless-Tailscale-Diagnostico.txt` e contém apenas status da VPN, IP privado do host, disponibilidade TCP 61000/61001 e confirmação da rota Google. Não inclui arquivo `.env`, chave administrativa, token ou banco SQLite. Se a rota Google aparecer como **PENDENTE**, a aplicação nativa do Metagame ainda precisa ser integrada/atualizada antes de distribuir convites DLU3. O relatório local não comprova UDP nem acesso pelo PC do amigo.
+
 ## Conexão e segurança
 
 - **Tailscale e Google fazem coisas diferentes:** Tailscale transporta a rede privada; Google e Supabase validam o personagem e o progresso. O modo Tailscale não requer publicar no catálogo público.
