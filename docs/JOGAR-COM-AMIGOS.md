@@ -1,4 +1,4 @@
-# Jogar com amigos — Dauntless Launcher Ultimate beta.12
+# Jogar com amigos — Dauntless Launcher Ultimate beta.13
 
 O fluxo de convite de **jogador** é independente de publicar um servidor no catálogo. Não compartilhe chaves administrativas, autorização do Supabase ou arquivo `google-host.json`.
 
@@ -8,6 +8,7 @@ O fluxo de convite de **jogador** é independente de publicar um servidor no cat
 2. Clique em **Diagnóstico e arquivos do servidor → Verificar instalação** se algum serviço não iniciar. Confirme pasta contendo `UndauntedMetagame`, `UndauntedDeployServer`, seus `.env` e `dist/server.js`.
 3. Abra **Convidar amigos ou publicar um servidor**. Escolha o modo da rede:
    - **Mesmo Wi-Fi/LAN**: selecione um IPv4 real do computador host (por exemplo, `192.168.1.20:61000`). A API Google será disponibilizada somente nessa interface de rede e o cliente da partida precisará alcançá-la; não requer internet pública para transportar a partida, embora autenticação e saves Google exijam acesso ao Supabase.
+   - **Outra casa com Tailscale (novo modo privado)**: no host, conecte o Tailscale e clique em **Hospedar servidor → Iniciar host privado**. Ative Google no modo Tailscale, compartilhe seu PC com o amigo no painel do Tailscale e gere um convite DLU3. O amigo instala Tailscale, aceita o compartilhamento, entra com Google e usa o convite DLU3. Não precisa abrir portas no roteador. Consulte [Servidor privado com Tailscale](TAILSCALE-HOST-PRIVADO.md).
    - **Outra casa/internet**: configure um domínio HTTPS público com TLS válido, porta TCP HTTPS acessível e IPv4 público alcançável para o tráfego **UDP 8770–8777**. Sem IPv4 público/encaminhamento UDP (por exemplo, sob CGNAT), será necessária hospedagem numa VPS ou relay UDP administrado separadamente. **O launcher não provisiona relay/VPS nem abre roteador automaticamente**.
 4. Selecione ou confirme a chave administrativa do **seu** Metagame. O launcher também procura uma conta administrativa antiga já protegida e valida a permissão no Metagame.
 5. Com todos fora do jogo e backup local da base `undaunted.db`, clique em **Preparar acesso Google neste servidor**. Um host já integrado com as mesmas configurações não precisa ser ativado novamente.
