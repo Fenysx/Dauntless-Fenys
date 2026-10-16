@@ -47,3 +47,12 @@ O download só usa HTTPS ou HTTP no IPv4 Tailscale (\`100.64.0.0/10\`), não seg
 - Em Windows, verificar o instalador, os botões, a gravação em disco e a criação de backup de chave.
 - Em duas máquinas, testar o acesso Tailscale, TCP/UDP, Google, convite, criação de personagem novo, recuperação com key e persistência de inventário depois da caçada.
 - Na nuvem, conferir diretamente Supabase, políticas RLS, duplicação, lease, revisões e restauração de personagem. **Nenhum teste local isolado substitui essas verificações**.
+
+
+## Convite original do Discord: URL \`dauntless-revived://join\`
+
+O Discord original envia um **convite de registro**, e não uma chave pessoal de download. O link público **v2** traz \`host\`, \`port\`, \`fp\` (fingerprint SHA-256 do certificado TLS), \`code\` de uso único e o nome do servidor. Esse link permite registrar **uma nova conta** no servidor escolhido; após o registro, o Metagame retorna uma chave \`UUK_…\`, que o launcher precisa manter protegida e usar para baixar arquivos do mesmo host. O convite **v1** é exclusivo para o Tailscale e pode trazer link de compartilhamento.
+
+A aba **Escolher servidor → Convite do Dauntless Revived original** reconhece o formato v1/v2 e mostra apenas uma prévia sanitizada. **Essa implementação ainda não faz registro real, download de arquivo em servidor público, nem verifica a identidade TLS do servidor**. Nunca transmita a key ou o código de registro por HTTP para IP público; o protocolo correto exige uma conexão TLS cuja identidade seja conferida com \`fp\` **antes de enviar qualquer credencial ou requisição**. O fluxo público completo requer um transporte TLS pinado para cadastro e download, além de armazenamento criptografado da chave. Também exige um relay de jogo pinado (o jogo 1.4.4 fala HTTP local).
+
+Não exponha códigos de registro de uso único no GitHub, logs ou chats. Se forem publicados, use um convite novo concedido pelo administrador. O modo Tailscale continua preferencial para hospedar o **servidor local próprio**; \`mode=public\` de um servidor comunitário é uma rota de entrada independente e **não requer Tailscale**.
