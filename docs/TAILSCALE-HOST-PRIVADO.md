@@ -1,4 +1,4 @@
-# Hospedar Dauntless com amigos pelo Tailscale — beta.13
+# Hospedar Dauntless com amigos pelo Tailscale — beta.14
 
 O modo **Servidor privado • Tailscale** utiliza a infraestrutura Metagame e DeployServer existente, com Tailscale como rede privada. Não precisa abrir portas no roteador nem ter IPv4 público. Os dois computadores precisam de Tailscale instalado e autenticado.
 
@@ -18,12 +18,13 @@ O modo **Servidor privado • Tailscale** utiliza a infraestrutura Metagame e De
 1. Instale o Tailscale, faça login e **aceite o compartilhamento** deste computador; estar logado apenas no próprio Tailscale não significa acesso automático ao host.
 2. Com o servidor compartilhado alcançável pela VPN, abra o Dauntless Launcher Ultimate → **Conta Google e convites** e entre com Google.
 3. Em **Escolher servidor → Entrar no servidor de um amigo**, cole o código **DLU3**, confirme a conta/personagem (não crie um personagem novo se já existe um antigo) e entre.
-4. Clique **Jogar agora**. O cliente recebe o servidor via IP Tailscale, mas uma caçada ainda precisa ser validada em jogo.
+4. Antes do convite, abra **Escolher servidor → Testar o servidor Tailscale do amigo**. Digite o IP privado `100.x.x.x:61000` do anfitrião e clique **Testar conexão Tailscale**. O teste confere que o Tailscale do convidado está conectado, que a porta TCP 61000 responde e que a rota Google está registrada — sem enviar senha, chave administrativa ou personagem.
+5. Se as verificações passarem, entre usando o código DLU3 e clique **Jogar agora**. Esse diagnóstico **não testa as portas UDP de Ramsgate/caçadas**: valide a partida real com dois PCs.
 
 ## Conexão e segurança
 
 - **Tailscale e Google fazem coisas diferentes:** Tailscale transporta a rede privada; Google e Supabase validam o personagem e o progresso. O modo Tailscale não requer publicar no catálogo público.
-- **Firewall do Windows:** pode precisar permitir tráfego de entrada pela interface Tailscale para TCP **61000**, chat TCP **61099** e UDP **8770–8777**, conforme versão/configuração do servidor. Configure somente para a interface/rede privada, nunca publique portas administrativas TCP **61001** na internet.
+- **Firewall do Windows:** pode precisar permitir tráfego de entrada pela interface Tailscale para TCP **61000**, chat TCP **61099** e UDP **8770–8777**, conforme versão/configuração do servidor. Configure somente para a interface/rede privada, nunca publique portas administrativas TCP **61001** na internet. O launcher **não cria regras automaticamente**; o teste de conexão do convidado ajuda a detectar bloqueio de TCP 61000.
 - **CGNAT:** normalmente não impede o transporte Tailscale; o desempenho depende da conectividade direta/relay do Tailscale.
 - **Acesso externo:** verificar que Metagame e DeployServer responderam localmente **não prova** que o outro PC consegue acessar a partida. Teste de verdade duas máquinas, a entrada, a Ramsgate, uma caçada e a persistência dos itens.
 - **Segredos:** não publique `.env`, `*.key`, `google-host.json`, autorização Supabase ou a chave administrativa. O link Tailscale só deve ir para o amigo autorizado, e o código DLU3 tem prazo.
