@@ -33,10 +33,10 @@
     $('community-invite-send').disabled=!canPublish||!hasOwn;
     $('community-revoke').disabled=!canPublish||!hasOwn;
     $('host-player-invite-generate').disabled=!(r.servicesReady&&r.googleActive&&r.adminKeySelected&&(r.networkMode!=='tailscale'||r.tailscale?.connected));
-    if(!r.googleActive||!r.adminKeySelected)message('host-player-invite-status',
+    if(!r.googleActive||!r.adminKeySelected||(r.networkMode==='tailscale'&&!r.tailscale?.connected))message('host-player-invite-status',
       !r.servicesReady?'Ligue Metagame e DeployServer primeiro.':
       !r.googleActive?'Ative a integração Google neste host para gerar convites de jogador.':
-      'Selecione a conta administradora original e confirme o acesso ao Metagame.');
+      !r.adminKeySelected?'Selecione a conta administradora original e confirme o acesso ao Metagame.':'Conecte o Tailscale antes de gerar o convite.');
     $('google-host-invite').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-sync').disabled=!r.googleActive||!r.adminKeySelected;
     $('google-host-upgrade').disabled=!r.googleActive||!r.adminKeySelected||!r.managedServices;
@@ -83,7 +83,22 @@
     try{
       const result=await window.launcher.hostReadiness();
       if(!result?.ok)throw Error(result?.error||'Não foi possível verificar o host.');
-      state=result;
+      const ts=await window.launcher.tailscaleStatus();
+      const vpn=ts?.ok?ts:null;
+      state={...result,tailscale:vpn};
+      $('tailscale-host-address').value=vpn?.connected?vpn.address+':61000':'';
+      message('tailscale-state',vpn?.message||'Não foi possível verificar o Tailscale. Tente novamente.');
+      $('google-tailscale-address-help').hidden=$('google-network-mode').value!=='tailscale';
+      if($('google-network-mode').value==='tailscale'){
+        const choices=$('google-lan-ip-suggestions');
+        choices.replaceChildren();
+        const value=vpn?.connected?vpn.address+':61000':null;
+        if(value){
+          const option=document.createElement('option');option.value=value;choices.append(option);
+          if($('google-network-address').value!==value)$('google-network-address').value=value;
+        }
+        $('google-network-address-fields').hidden=false;
+      }
       if($('google-network-mode').value==='lan'){
         // Populate the options before checking addressOK. Multiple adapters must not leave activation stuck.
         try{
