@@ -22,6 +22,7 @@ const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
+const {syncGameFiles}=require('./fenys-game-download');
 const {verifyServerFiles,failureMessage}=require('./fenys-service-preflight');
 const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
@@ -55,7 +56,7 @@ const GAME_HASHES={
 };
 let busy=null;
 const configFile=()=>path.join(app.getPath('userData'),'settings.json');
-function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
+function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameInstallDir:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
 function load(){try{return {...defaults(),...JSON.parse(fs.readFileSync(configFile(),'utf8'))};}catch{return defaults();}}
 function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.writeFileSync(configFile(),JSON.stringify(c,null,2));}
 function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
@@ -543,6 +544,44 @@ app.whenReady().then(()=>{
   const sv=parseServerAddress(value);
   const c=load();c.gameServer=sv.address;save(c);
   return {server:sv.address,remote:!sv.local};
+ });
+ ipcMain.handle('game:chooseFolder',async()=>{
+  assertGameClosed();
+  const r=await dialog.showOpenDialog(win,{title:'Selecionar pasta do Dauntless 1.4.4',properties:['openDirectory','createDirectory']});
+  if(r.canceled||!r.filePaths.length)return {selected:false};
+  const c=load();c.gameInstallDir=r.filePaths[0];save(c);
+  return {selected:true,folder:c.gameInstallDir};
+ });
+ ipcMain.handle('game:download',(_event,options)=>runLocked(async()=>{
+  assertGameClosed();
+  const folder=load().gameInstallDir;
+  if(!folder)throw Error('Selecione uma pasta de instalação antes de baixar.');
+  // The download key is supplied per session; never log or save it to settings.
+  const result=await syncGameFiles({
+   manifestUrl:options?.manifestUrl,key:options?.key||'',folder,
+   onProgress:progress=>{if(win&&!win.isDestroyed())win.webContents.send('download:progress',progress);}
+  });
+  // Do not automatically launch binaries or overwrite Google/account settings.
+  return result;
+ }));
+ ipcMain.handle('game:verify',()=>runLocked(async()=>{
+  const c=load(),exe=gameExePath(c);
+  if(!fs.existsSync(exe))throw Error('Selecione o executável do jogo primeiro.');
+  await verifyGame(path.dirname(exe));
+  return {message:'Os três binários críticos do Dauntless 1.4.4 correspondem aos hashes fixados.'};
+ }));
+ ipcMain.handle('settings:backupPlayerKey',async()=>{
+  const c=load(),server=backendAddress();
+  const candidates=[c.accountFiles?.[server],c.gameKeyFile,
+   parseServerAddress(server).local?path.join(friendKitDir(),'account.key'):null];
+  const source=candidates.find(file=>file&&fs.existsSync(file));
+  if(!source)throw Error('Nenhuma key local encontrada. Selecione a key original antes de criar o backup.');
+  readKeyFile(source);
+  const r=await dialog.showSaveDialog(win,{title:'Salvar backup privado da sua key',defaultPath:'Dauntless-Recuperacao.key',filters:[{name:'Arquivo de chave',extensions:['key']}]});
+  if(r.canceled||!r.filePath)return {saved:false};
+  if(path.resolve(source).toLowerCase()===path.resolve(r.filePath).toLowerCase())throw Error('Escolha outro arquivo para o backup.');
+  fs.copyFileSync(source,r.filePath,fs.constants.COPYFILE_EXCL);
+  return {saved:true};
  });
  ipcMain.handle('settings:pickPlayerKey',async()=>{
   assertGameClosed();
