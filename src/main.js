@@ -24,6 +24,7 @@ const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
 const {syncGameFiles}=require('./fenys-game-download');
 const {parseRevivedInvite,safeSummary}=require('./fenys-revived-invite');
+const revivedPublic=require('./fenys-revived-public');
 const {verifyServerFiles,failureMessage}=require('./fenys-service-preflight');
 const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
@@ -34,6 +35,26 @@ const {installGoogle}=require('./fenys-google-setup');
 const {servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
 let inspectedOriginalInvite=null; // in memory only; never saved to the cloud or disk
+function originalKeyLocation(invite){
+ const slug=crypto.createHash('sha256').update(invite.host+':'+invite.port+'#'+invite.fingerprint).digest('hex');
+ return path.join(app.getPath('userData'),'contas-revived-original',slug+'.bin');
+}
+function originalAccountExists(invite){
+ const c=load();
+ return Boolean(c.revivedOriginal&&c.revivedOriginal.host===invite.host&&c.revivedOriginal.port===invite.port
+  &&c.revivedOriginal.fingerprint===invite.fingerprint&&fs.existsSync(c.revivedOriginal.keyFile));
+}
+function saveOriginalAccount(invite,key,username){
+ if(!canProtectAccount())throw Error('Proteção segura do Windows indisponível. Não é possível armazenar a key.');
+ const file=originalKeyLocation(invite);
+ if(fs.existsSync(file))throw Error('Já existe uma key protegida para este host; use a recuperação existente.');
+ fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+ fs.writeFileSync(file,safeStorage.encryptString(key),{flag:'wx',mode:0o600});
+ const c=load();
+ c.revivedOriginal={host:invite.host,port:invite.port,fingerprint:invite.fingerprint,keyFile:file,username};
+ save(c);
+}
+
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
 if(!fs.existsSync(path.join(currentData,'settings.json'))){
@@ -528,7 +549,8 @@ app.whenReady().then(()=>{
   const linked=c.accountFiles && c.accountFiles[server];
   const local=parseServerAddress(server).local;
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
-  return {...safe,platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
+  const original=c.revivedOriginal;
+  return {...safe,revivedOriginalReady:Boolean(original?.keyFile&&fs.existsSync(original.keyFile)),platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
  ipcMain.handle('server:selectLocal',()=>vpnReply(()=>selectLocalServer({
   load,save,assertGameClosed,
@@ -554,6 +576,31 @@ app.whenReady().then(()=>{
     message:invite.mode==='public'?'Convite público reconhecido. Para registrar, a conexão deve conferir o certificado TLS do servidor pelo fingerprint.':'Convite privado reconhecido. Para conectar, o Tailscale precisa estar acessível.'};
  });
  ipcMain.handle('revived:clearInvite',()=>{inspectedOriginalInvite=null;return {cleared:true};});
+ ipcMain.handle('revived:register',(_event,username)=>runLocked(async()=>{
+  if(!inspectedOriginalInvite||inspectedOriginalInvite.mode!=='public')
+   throw Error('Primeiro confira um convite público v2 válido.');
+  if(!canProtectAccount())throw Error('Criptografia de credenciais não está disponível neste computador.');
+  if(originalAccountExists(inspectedOriginalInvite))throw Error('Esta conta já está registrada neste PC. Não crie outra.');
+  const invite=inspectedOriginalInvite;
+  const key=await revivedPublic.register(invite,String(username||'').trim());
+  // A key is returned once. Save encrypted and stop if writing failed.
+  saveOriginalAccount(invite,key,String(username).trim());
+  inspectedOriginalInvite=null;
+  return {registered:true,username:String(username).trim(),server:invite.name};
+ }));
+ ipcMain.handle('revived:importKey',()=>runLocked(async()=>{
+  if(!inspectedOriginalInvite||inspectedOriginalInvite.mode!=='public')throw Error('Confira o convite do servidor original antes de importar.');
+  if(originalAccountExists(inspectedOriginalInvite))throw Error('A key deste servidor já está protegida.');
+  if(!canProtectAccount())throw Error('Criptografia local de credenciais indisponível.');
+  const r=await dialog.showOpenDialog(win,{title:'Selecione o backup da sua key do Dauntless Revived',properties:['openFile'],filters:[{name:'Backup de conta',extensions:['key','txt','bin']}]});
+  if(r.canceled||!r.filePaths.length)return {imported:false};
+  const key=readKeyFile(r.filePaths[0]);
+  const result=await revivedPublic.validateAccount(inspectedOriginalInvite,key);
+  saveOriginalAccount(inspectedOriginalInvite,key,result.username);
+  inspectedOriginalInvite=null;
+  return {imported:true,username:result.username};
+ }));
+
  ipcMain.handle('game:chooseFolder',async()=>{
   assertGameClosed();
   const r=await dialog.showOpenDialog(win,{title:'Selecionar pasta do Dauntless 1.4.4',properties:['openDirectory','createDirectory']});
@@ -566,8 +613,14 @@ app.whenReady().then(()=>{
   const folder=load().gameInstallDir;
   if(!folder)throw Error('Selecione uma pasta de instalação antes de baixar.');
   // The download key is supplied per session; never log or save it to settings.
+  const configured=load().revivedOriginal;
+  const useOriginal=!String(options?.manifestUrl||'').trim()&&Boolean(configured);
+  if(useOriginal&&!fs.existsSync(configured.keyFile))throw Error('A key protegida deste servidor não foi encontrada.');
+  const target=useOriginal?{mode:'public',host:configured.host,port:configured.port,fingerprint:configured.fingerprint}:null;
   const result=await syncGameFiles({
-   manifestUrl:options?.manifestUrl,key:options?.key||'',folder,
+   manifestUrl:useOriginal?'https://'+target.host+(target.port===443?'':':'+target.port)+'/content/v1/manifest':options?.manifestUrl,
+   key:useOriginal?readKeyFile(configured.keyFile):options?.key||'',
+   folder,fetcher:useOriginal?revivedPublic.pinnedFetch(target):fetch,
    onProgress:progress=>{if(win&&!win.isDestroyed())win.webContents.send('download:progress',progress);}
   });
   // Auto-select only an installation whose three critical binaries match fixed pins.
