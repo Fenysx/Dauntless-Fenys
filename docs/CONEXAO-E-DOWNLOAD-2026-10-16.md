@@ -23,28 +23,22 @@ Não envie \`account.key\`, chaves administrativas, tokens Google, autorização
 
 ## Baixar ou reparar o Dauntless 1.4.4
 
-Em **Configurações → Instalação e reparo**, selecione uma pasta local e informe **uma URL de manifesto do seu host autorizado**. Se o host exigir chave de download, cole a chave obtida por meio do canal legítimo da comunidade somente nessa tela. O launcher envia o cabeçalho \`X-Download-Key\` ao **mesmo host de origem**, não grava a chave no disco nem a acrescenta ao histórico.
+O protocolo original do Dauntless Revived foi identificado dentro do código upstream incluído no projeto:
 
-**Atenção:** a key do Discord não é uma URL. Para ativar uma fonte específica é necessário confirmar com o administrador qual endpoint entrega o manifesto e como a key deve ser enviada. Não pressupomos que o protocolo atual do Dauntless Revived seja exatamente igual a este novo adaptador; a compatibilidade real com aquele host ainda precisa ser testada. O projeto não distribui o cliente proprietário.
+- **Manifesto:** \`http://<IP Tailscale>:61002/content/v1/manifest\` (sem senha).
+- **Arquivos:** \`GET /content/v1/files/<caminho>\`.
+- **Autenticação dos arquivos:** cabeçalho \`x-undaunted-user-api-key\` com a **key pessoal da conta já registrada**. O convite obtido pelo Discord permite **participar/registrar**, mas **não é a key pessoal** para baixar os arquivos.
+- **Integridade:** o launcher inclui uma cópia fixa do manifesto original de **410 arquivos** do Dauntless 1.4.4, totalizando **10.893.512.875 bytes**. O manifesto recebido do host deve corresponder exatamente em \`build\`, tamanho, caminhos e SHA-256. Não aceitamos que o host determine sozinho quais arquivos podem ser executados.
+- **Instalação:** em **Configurações → Instalação e reparo**, selecione uma pasta, digite a URL do manifesto e a key pessoal da conta desse host. O launcher verifica cada arquivo e preserva arquivos divergentes em \`.dlu-backup\` somente após baixar uma cópia íntegra. Os três binários críticos (EXE e DLLs) ainda passam pelos hashes fixados na inicialização.
+- **Key privada:** não fica no GitHub nem em \`settings.json\`. É usada em memória somente durante o download e removida do campo da tela ao terminar.
 
-Formato esperado de resposta JSON do host:
+Para usar a hospedagem própria como fonte de arquivos, o servidor anfitrião também precisa instalar/configurar/iniciar o serviço \`UndauntedContent\`, expor somente TCP **61002** para a rede Tailscale e apontar \`CONTENT_GAME_DIR\` para uma cópia legítima e verificada do cliente 1.4.4. **O botão Ligar meu servidor inicia Metagame e DeployServer; não provisiona automaticamente o servidor de conteúdo.**
 
-\`\`\`json
-{
-  "version": "1.4.4",
-  "files": [
-    {
-      "path": "Archon/Binaries/Win64/arquivo-exemplo.dat",
-      "size": 123,
-      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-    }
-  ]
-}
-\`\`\`
+Existe também um adaptador para hosts autorizados que forneçam manifesto alternativo JSON com \`version: "1.4.4"\`, \`files\` contendo \`path\`, \`size\` e \`sha256\`, e endpoints \`files/<path>\`. Nesse protocolo alternativo, o cabeçalho é \`X-Download-Key\`, se a fonte o exigir. Esse formato não está confirmado no Discord original e não deve ser confundido com a API real do Dauntless Revived.
 
-O programa busca cada arquivo relativo à pasta do manifesto em \`files/<caminho URL-encoded>\`. São permitidas fontes HTTPS ou HTTP exclusivamente em IPv4 Tailscale (\`100.64.0.0/10\`). Redirects externos, caminhos \`..\`, links simbólicos e arquivos sem hash SHA-256 válido são recusados. Arquivos saudáveis são reaproveitados; arquivos divergentes são substituídos **somente após conferir hash e tamanho** e o original é preservado com \`.dlu-backup\`. O download não executa binários por conta própria.
+O download só usa HTTPS ou HTTP no IPv4 Tailscale (\`100.64.0.0/10\`), não segue redirecionamentos e recusa caminhos inseguros. Ele não inicia o executável automaticamente nem contorna a autenticação do servidor.
 
-Além dos hashes que o host fornece para cada arquivo, os três binários críticos do cliente (executável, \`dxgi.dll\`, \`UndauntedInternalServer.dll\`) precisam coincidir com os **hashes fixados** no código do launcher. Se isso acontecer, o executável é selecionado automaticamente. A opção **Verificar jogo instalado** confere estes três binários; não a árvore completa de 406 arquivos, a menos que o download seja executado contra o manifesto integral.
+**Ainda precisa de validação prática:** conectar à fonte de conteúdo real no Tailscale, confirmar key e permissões de acesso, baixar a árvore completa de 410 arquivos, executar a verificação e abrir uma caçada.
 
 ## Validação e limites
 
