@@ -43,7 +43,7 @@ function requestStream(target,resource,{method='GET',headers={},body,signal}={})
  const host=target.port===443?target.host:target.host+':'+target.port;
  return new Promise((resolve,reject)=>{
   let settled=false;
-  const req=http.request({protocol:'http:',hostname:target.host,port:target.port,path:resource,method,agent:false,
+  const req=http.request({protocol:'http:',hostname:target.host,port:target.port,path:resource,method,
    headers:{host,accept:'application/json',...headers,...(body!==undefined?{'content-type':'application/json','content-length':Buffer.byteLength(body)}:{})},
    createConnection:(_options,cb)=>pinnedSocket(target,cb)
   });
