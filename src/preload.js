@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('launcher',{
  localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
  networkDiagnose:()=>ipcRenderer.invoke('network:diagnose'),
  tailscaleStatus:()=>ipcRenderer.invoke('tailscale:status'),
+ tailscaleProbeHost:address=>ipcRenderer.invoke('tailscale:probeHost',address),
  tailscaleStart:()=>ipcRenderer.invoke('tailscale:start'),
  tailscaleOpen:target=>ipcRenderer.invoke('tailscale:open',target),
  networkResetLegacy:()=>ipcRenderer.invoke('network:reset-legacy'),
