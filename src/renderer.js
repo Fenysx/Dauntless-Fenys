@@ -14,7 +14,7 @@ function paint(s){
  }
  const local=$('server-local-state');
  if(local&&typeof s.server==='string'){
-  const selected=/^(?:127\\.0\\.0\\.1|localhost):61000$/.test(s.server);
+  const selected=/^(?:127\.0\.0\.1|localhost):61000$/.test(s.server);
   local.textContent=selected?(s.metagame?'Servidor local selecionado • Metagame online.':'Servidor local selecionado • Metagame desligado. Ligue o servidor para jogar.'):'Outro servidor selecionado. Clique acima para usar este computador.';
  }
 }
