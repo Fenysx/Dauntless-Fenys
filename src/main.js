@@ -22,6 +22,9 @@ const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
+const {syncGameFiles}=require('./fenys-game-download');
+const {parseRevivedInvite,safeSummary}=require('./fenys-revived-invite');
+const revivedPublic=require('./fenys-revived-public');
 const {verifyServerFiles,failureMessage}=require('./fenys-service-preflight');
 const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
@@ -31,6 +34,43 @@ const {community}=require('./fenys-community');
 const {installGoogle}=require('./fenys-google-setup');
 const {servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
+let inspectedOriginalInvite=null; // in memory only; never saved to the cloud or disk
+function originalKeyLocation(invite){
+ const slug=crypto.createHash('sha256').update(invite.host+':'+invite.port+'#'+invite.fingerprint).digest('hex');
+ return path.join(app.getPath('userData'),'contas-revived-original',slug+'.bin');
+}
+function originalAccountExists(invite){
+ const c=load();
+ return Boolean(c.revivedOriginal&&c.revivedOriginal.host===invite.host&&c.revivedOriginal.port===invite.port
+  &&c.revivedOriginal.fingerprint===invite.fingerprint&&fs.existsSync(c.revivedOriginal.keyFile));
+}
+function readOriginalBackup(file,invite){
+ if(path.extname(file).toLowerCase()==='.bin')return readKeyFile(file);
+ const data=fs.readFileSync(file);
+ if(data.length>8192||data.includes(0))throw Error('Selecione o backup de key exportado em texto pelo launcher original.');
+ const raw=data.toString('utf8').trim();
+ const parts=raw.split(/\r?\n/);
+ let key;
+ if(parts.length===3&&parts[0]==='DRK2'){
+  if(parts[1]!=='-'&&parts[1]!==invite.fingerprint)throw Error('O backup foi criado para outro certificado TLS. Verifique o servidor com o administrador.');
+  key=parts[2];
+ }else{
+  key=/^\s*Key:\s*(UUK_[a-f0-9]{48})\s*$/im.exec(raw)?.[1]||raw;
+ }
+ if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw Error('Backup inválido: exporte sua key pelo botão de backup do launcher original.');
+ return key;
+}
+function saveOriginalAccount(invite,key,username){
+ if(!canProtectAccount())throw Error('Proteção segura do Windows indisponível. Não é possível armazenar a key.');
+ const file=originalKeyLocation(invite);
+ if(fs.existsSync(file))throw Error('Já existe uma key protegida para este host; use a recuperação existente.');
+ fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+ fs.writeFileSync(file,safeStorage.encryptString(key),{flag:'wx',mode:0o600});
+ const c=load();
+ c.revivedOriginal={host:invite.host,port:invite.port,fingerprint:invite.fingerprint,keyFile:file,username};
+ save(c);
+}
+
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
 if(!fs.existsSync(path.join(currentData,'settings.json'))){
@@ -55,7 +95,7 @@ const GAME_HASHES={
 };
 let busy=null;
 const configFile=()=>path.join(app.getPath('userData'),'settings.json');
-function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
+function defaults(){return {repoPath:path.join(app.getPath('home'),'dauntless-revived'),launcherExe:'',gameInstallDir:'',gameKeyFile:'',gameServer:'',adminKeyFile:'',accountFiles:{}};}
 function load(){try{return {...defaults(),...JSON.parse(fs.readFileSync(configFile(),'utf8'))};}catch{return defaults();}}
 function save(c){fs.mkdirSync(path.dirname(configFile()),{recursive:true});fs.writeFileSync(configFile(),JSON.stringify(c,null,2));}
 function tcp(port,host='127.0.0.1'){return new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=x=>{if(done)return;done=true;s.destroy();resolve(x);};s.setTimeout(1000);s.once('connect',()=>finish(true));s.once('error',()=>finish(false));s.once('timeout',()=>finish(false));});}
@@ -525,7 +565,8 @@ app.whenReady().then(()=>{
   const linked=c.accountFiles && c.accountFiles[server];
   const local=parseServerAddress(server).local;
   const localKey=local ? (c.gameKeyFile || path.join(friendKitDir(),'account.key')) : null;
-  return {...safe,platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
+  const original=c.revivedOriginal;
+  return {...safe,revivedOriginalReady:Boolean(original?.keyFile&&fs.existsSync(original.keyFile)),platform:process.platform,publicCertSelected:!!publicCertFile,publicKeySelected:!!publicKeyFile,adminKeySelected:Boolean(adminKeyFile),accountKeySelected:Boolean((linked&&fs.existsSync(linked))||(localKey&&fs.existsSync(localKey))),gameServer:server};
  });
  ipcMain.handle('server:selectLocal',()=>vpnReply(()=>selectLocalServer({
   load,save,assertGameClosed,
@@ -543,6 +584,93 @@ app.whenReady().then(()=>{
   const sv=parseServerAddress(value);
   const c=load();c.gameServer=sv.address;save(c);
   return {server:sv.address,remote:!sv.local};
+ });
+ ipcMain.handle('revived:inspectInvite',(_event,input)=>{
+  const invite=parseRevivedInvite(input);
+  inspectedOriginalInvite=invite; // No server request yet; this does not spend the code.
+  return {ok:true,summary:safeSummary(invite),validFormat:true,
+    message:invite.mode==='public'?'Convite público reconhecido. Para registrar, a conexão deve conferir o certificado TLS do servidor pelo fingerprint.':'Convite privado reconhecido. Para conectar, o Tailscale precisa estar acessível.'};
+ });
+ ipcMain.handle('revived:clearInvite',()=>{inspectedOriginalInvite=null;return {cleared:true};});
+ ipcMain.handle('revived:register',(_event,username)=>runLocked(async()=>{
+  if(!inspectedOriginalInvite||inspectedOriginalInvite.mode!=='public')
+   throw Error('Primeiro confira um convite público v2 válido.');
+  if(!canProtectAccount())throw Error('Criptografia de credenciais não está disponível neste computador.');
+  if(originalAccountExists(inspectedOriginalInvite))throw Error('Esta conta já está registrada neste PC. Não crie outra.');
+  const invite=inspectedOriginalInvite;
+  const key=await revivedPublic.register(invite,String(username||'').trim());
+  // A key is returned once. Save encrypted and stop if writing failed.
+  saveOriginalAccount(invite,key,String(username).trim());
+  inspectedOriginalInvite=null;
+  return {registered:true,username:String(username).trim(),server:invite.name};
+ }));
+ ipcMain.handle('revived:importKey',()=>runLocked(async()=>{
+  if(!inspectedOriginalInvite||inspectedOriginalInvite.mode!=='public')throw Error('Confira o convite do servidor original antes de importar.');
+  if(originalAccountExists(inspectedOriginalInvite))throw Error('A key deste servidor já está protegida.');
+  if(!canProtectAccount())throw Error('Criptografia local de credenciais indisponível.');
+  const r=await dialog.showOpenDialog(win,{title:'Selecione o backup da sua key do Dauntless Revived',properties:['openFile'],filters:[{name:'Backup de conta',extensions:['key','txt','bin']}]});
+  if(r.canceled||!r.filePaths.length)return {imported:false};
+  const key=readOriginalBackup(r.filePaths[0],inspectedOriginalInvite);
+  const result=await revivedPublic.validateAccount(inspectedOriginalInvite,key);
+  saveOriginalAccount(inspectedOriginalInvite,key,result.username);
+  inspectedOriginalInvite=null;
+  return {imported:true,username:result.username};
+ }));
+
+ ipcMain.handle('game:chooseFolder',async()=>{
+  assertGameClosed();
+  const r=await dialog.showOpenDialog(win,{title:'Selecionar pasta do Dauntless 1.4.4',properties:['openDirectory','createDirectory']});
+  if(r.canceled||!r.filePaths.length)return {selected:false};
+  const c=load();c.gameInstallDir=r.filePaths[0];save(c);
+  return {selected:true,folder:c.gameInstallDir};
+ });
+ ipcMain.handle('game:download',(_event,options)=>runLocked(async()=>{
+  assertGameClosed();
+  const folder=load().gameInstallDir;
+  if(!folder)throw Error('Selecione uma pasta de instalação antes de baixar.');
+  // The download key is supplied per session; never log or save it to settings.
+  const configured=load().revivedOriginal;
+  const useOriginal=!String(options?.manifestUrl||'').trim()&&Boolean(configured);
+  if(useOriginal&&!fs.existsSync(configured.keyFile))throw Error('A key protegida deste servidor não foi encontrada.');
+  const target=useOriginal?{mode:'public',host:configured.host,port:configured.port,fingerprint:configured.fingerprint}:null;
+  const result=await syncGameFiles({
+   manifestUrl:useOriginal?'https://'+target.host+(target.port===443?'':':'+target.port)+'/content/v1/manifest':options?.manifestUrl,
+   key:useOriginal?readKeyFile(configured.keyFile):options?.key||'',
+   folder,fetcher:useOriginal?revivedPublic.pinnedFetch(target):fetch,
+   onProgress:progress=>{if(win&&!win.isDestroyed())win.webContents.send('download:progress',progress);}
+  });
+  // Auto-select only an installation whose three critical binaries match fixed pins.
+  // Never execute content just because the remote manifest declared a matching hash.
+  const candidate=path.join(folder,'Archon','Binaries','Win64',GAME_EXE);
+  let verified=false;
+  if(fs.existsSync(candidate)){
+   try{
+    await verifyGame(path.dirname(candidate));
+    const c=load();c.launcherExe=candidate;save(c);
+    verified=true;
+   }catch(e){notify('Download concluído, mas a instalação ainda não foi aprovada: '+e.message);}
+  }
+  // Do not automatically launch binaries or overwrite Google/account settings.
+  return {...result,verified};
+ }));
+ ipcMain.handle('game:verify',()=>runLocked(async()=>{
+  const c=load(),exe=gameExePath(c);
+  if(!fs.existsSync(exe))throw Error('Selecione o executável do jogo primeiro.');
+  await verifyGame(path.dirname(exe));
+  return {message:'Os três binários críticos do Dauntless 1.4.4 correspondem aos hashes fixados.'};
+ }));
+ ipcMain.handle('settings:backupPlayerKey',async()=>{
+  const c=load(),server=backendAddress();
+  const candidates=[c.accountFiles?.[server],c.gameKeyFile,
+   parseServerAddress(server).local?path.join(friendKitDir(),'account.key'):null];
+  const source=candidates.find(file=>file&&fs.existsSync(file));
+  if(!source)throw Error('Nenhuma key local encontrada. Selecione a key original antes de criar o backup.');
+  readKeyFile(source);
+  const r=await dialog.showSaveDialog(win,{title:'Salvar backup privado da sua key',defaultPath:'Dauntless-Recuperacao.key',filters:[{name:'Arquivo de chave',extensions:['key']}]});
+  if(r.canceled||!r.filePath)return {saved:false};
+  if(path.resolve(source).toLowerCase()===path.resolve(r.filePath).toLowerCase())throw Error('Escolha outro arquivo para o backup.');
+  fs.copyFileSync(source,r.filePath,fs.constants.COPYFILE_EXCL);
+  return {saved:true};
  });
  ipcMain.handle('settings:pickPlayerKey',async()=>{
   assertGameClosed();

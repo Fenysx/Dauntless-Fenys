@@ -87,3 +87,19 @@ details.panel>summary:hover{color:#ff839d}
 #screen-host #host-invite-section h3{margin:0 0 8px;font-size:17px}
 #screen-host [hidden]{display:none!important}
 @media(max-width:850px){#screen-host .hosting-progress{grid-template-columns:1fr}#screen-host .hosting-step{padding:18px}}
+
+
+/* Painéis de conexão, recuperação e instalação (paleta original do Ultimate). */
+#screen-settings .settings-group{border:1px solid #54303e;background:linear-gradient(135deg,#21131d,#130f17);border-radius:13px;padding:21px;margin-bottom:23px}
+#screen-settings .settings-group .panel-title{margin-bottom:12px}
+#screen-settings .settings-group .panel-description{color:#c6b0bc;line-height:1.6}
+#screen-settings .settings-group .connection-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+#screen-settings .settings-group .connection-option{border:1px solid #49313c;border-radius:11px;padding:17px;background:#110f16}
+#screen-settings .settings-group .connection-option strong{font-size:15px;color:#fff}
+#screen-settings .settings-group .connection-option p{font-size:12px;color:#bdadba;line-height:1.6}
+#screen-settings .settings-group .connection-option .button-row{display:flex;flex-wrap:wrap;gap:8px}
+#screen-settings #game-installer-section>input{display:block;width:100%;max-width:660px;min-width:0;background:#110f16;border:1px solid #654356;border-radius:9px;padding:13px;color:#fff;margin:7px 0 12px;font-size:13px}
+#screen-settings #game-installer-section>label{display:block;color:#e6cbd8;font-size:12px;margin-top:13px}
+#screen-settings #game-install-status{border-left:3px solid #e92d4e;padding-left:12px;overflow-wrap:anywhere}
+#screen-settings #game-install-folder{overflow-wrap:anywhere}
+@media(max-width:820px){#screen-settings .settings-group .connection-options{grid-template-columns:1fr}}

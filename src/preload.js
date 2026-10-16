@@ -1,5 +1,9 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
+ inspectRevivedInvite:input=>ipcRenderer.invoke('revived:inspectInvite',input),
+ clearRevivedInvite:()=>ipcRenderer.invoke('revived:clearInvite'),
+ registerRevivedAccount:username=>ipcRenderer.invoke('revived:register',username),
+ importRevivedKey:()=>ipcRenderer.invoke('revived:importKey'),
  networkCert:()=>ipcRenderer.invoke('network:cert'),
  networkKey:()=>ipcRenderer.invoke('network:key'),
  localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
@@ -43,6 +47,11 @@ contextBridge.exposeInMainWorld('launcher',{
  selectLocal:()=>ipcRenderer.invoke('server:selectLocal'),
  pickAdminKey:()=>ipcRenderer.invoke('settings:pickAdminKey'),
  pickPlayerKey:()=>ipcRenderer.invoke('settings:pickPlayerKey'),
+ backupPlayerKey:()=>ipcRenderer.invoke('settings:backupPlayerKey'),
+ chooseGameFolder:()=>ipcRenderer.invoke('game:chooseFolder'),
+ downloadGame:options=>ipcRenderer.invoke('game:download',options),
+ verifyGameFiles:()=>ipcRenderer.invoke('game:verify'),
+ onDownloadProgress:callback=>ipcRenderer.on('download:progress',(_event,data)=>callback(data)),
  appVersion:()=>ipcRenderer.invoke('app:version'),
  status:()=>ipcRenderer.invoke('server:status'),
  players:()=>ipcRenderer.invoke('players:online'),

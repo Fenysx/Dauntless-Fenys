@@ -77,7 +77,9 @@ async function settings(){
      'Seu host Google está configurado para '+(c.googleNetworkMode==='lan'?'rede local (LAN)':'rede privada antiga')+'. Para aparecer na comunidade, o administrador precisa configurar HTTPS público e IPv4 acessível para as partidas.';
   }
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
-  $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
+  $('accountKeyState').textContent=c.accountKeySelected?'Key encontrada para o servidor escolhido':'Nenhuma key recuperada neste servidor';
+  $('game-install-folder').textContent=c.gameInstallDir||'Pasta de instalação não selecionada';
+  if(c.revivedOriginalReady){$('game-install-status').textContent='Conta original encontrada e key protegida. Deixe o campo do manifesto vazio para baixar do servidor público com TLS verificado.';}
    if(!$('screen-host').hidden)void window.hostWizard?.refresh();
  }catch(e){note('Falha ao obter configurações: '+e.message);}
 }
@@ -110,6 +112,47 @@ $('playerKeyPick').addEventListener('click',async()=>{
   await settings();
  }catch(e){note('Atenção: '+e.message);}
 });
+
+$('settings-open-google').addEventListener('click',()=>{setScreen('invites');void communityRefresh();});
+$('playerKeyBackup').addEventListener('click',async()=>{
+  const button=$('playerKeyBackup');button.disabled=true;
+  try{const result=await window.launcher.backupPlayerKey();if(result?.saved)note('Backup da sua key criado. Guarde o arquivo em local privado.');}
+  catch(e){note('Não foi possível salvar o backup: '+e.message);}
+  finally{button.disabled=false;}
+});
+$('game-install-choose').addEventListener('click',async()=>{
+  try{const result=await window.launcher.chooseGameFolder();if(result?.selected)await settings();}
+  catch(e){$('game-install-status').textContent='Pasta não selecionada: '+e.message;}
+});
+$('game-install-download').addEventListener('click',async()=>{
+  const button=$('game-install-download'),output=$('game-install-status');
+  if(button.disabled)return;
+  const manifestUrl=$('game-install-url').value.trim(),key=$('game-install-key').value;
+  const cfg=await window.launcher.getSettings().catch(()=>({}));
+  if(!manifestUrl&&!cfg.revivedOriginalReady){output.textContent='Entre com um convite original v2 ou informe a URL do manifesto do seu host Tailscale.';return;}
+  if(!window.confirm('Baixar e reparar arquivos do Dauntless 1.4.4 na pasta selecionada? Arquivos divergentes serão preservados com sufixo .dlu-backup. Use apenas fontes confiáveis.'))return;
+  button.disabled=true;
+  output.textContent='Conectando ao servidor de arquivos e conferindo o manifesto…';
+  try{
+    const result=await window.launcher.downloadGame({manifestUrl,key});
+    if(!result?.ok)throw Error(result?.error||'A instalação não foi confirmada.');
+    const data=result.status;
+    output.textContent='Download concluído. '+data.downloaded+' arquivos transferidos; '+data.skipped+' já estavam íntegros. Selecione o executável do jogo abaixo e use Verificar jogo instalado.';
+    note('Arquivos do jogo conferidos com os hashes do manifesto. Antes de jogar, valide os binários críticos.');
+  }catch(e){output.textContent='Download/reparo interrompido: '+e.message;note('Instalação: '+e.message);}
+  finally{$('game-install-key').value='';button.disabled=false;}
+});
+$('game-install-verify').addEventListener('click',async()=>{
+  const button=$('game-install-verify'),output=$('game-install-status');button.disabled=true;
+  output.textContent='Verificando integridade dos binários críticos instalados…';
+  try{const r=await window.launcher.verifyGameFiles();if(!r?.ok)throw Error(r?.error||'Falha de verificação.');output.textContent=r.status?.message||'Binários conferidos.';}
+  catch(e){output.textContent='Verificação falhou: '+e.message;}
+  finally{button.disabled=false;}
+});
+window.launcher.onDownloadProgress(({current,total,file,downloaded,skipped})=>{
+  $('game-install-status').textContent='Arquivo '+current+'/'+total+': '+file+' • '+downloaded+' baixados • '+skipped+' já íntegros';
+});
+
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 let lastNativeWarning=0,lastGoogleWarning=0;
 window.launcher.onActivity(message=>{
@@ -135,6 +178,55 @@ window.launcher.onActivity(message=>{
   }
  }
 });
+
+$('revived-original-inspect').addEventListener('click',async()=>{
+ const input=$('revived-original-invite'),out=$('revived-original-result'),button=$('revived-original-inspect');
+ button.disabled=true;
+ try{
+  const response=await window.launcher.inspectRevivedInvite(input.value);
+  if(!response?.ok)throw Error(response?.error||'Convite inválido.');
+  const s=response.summary;
+  out.textContent='Convite de '+s.name+' • '+(s.usesTailscale?'Tailscale privado':'Servidor público TLS')
+    +' • '+s.host+':'+s.port+(s.fingerprintShort?' • Certificado '+s.fingerprintShort:'')
+  $('revived-original-register').disabled=s.mode!=='public';
+  $('revived-original-import').disabled=s.mode!=='public';
+    +'. Formato reconhecido, mas servidor e certificado ainda não foram verificados. Registro não realizado.';
+  input.value=''; // Never leave the one-use registration code visible in the form.
+ }catch(e){out.textContent='Não foi possível conferir o convite: '+e.message;}
+ finally{button.disabled=false;}
+});
+
+$('revived-original-register').addEventListener('click',async()=>{
+ const button=$('revived-original-register'),username=$('revived-original-username').value.trim(),out=$('revived-original-result');
+ if(!/^[A-Za-z0-9_]{3,16}$/.test(username)){out.textContent='Escolha um nome com 3 a 16 letras, números ou _.';return;}
+ if(!window.confirm('ATENÇÃO: este cadastro usa definitivamente o código do convite e cria uma nova conta no servidor original. Se você já tem personagem, cancele e use Importar key. Confirma que deseja registrar '+username+'?'))return;
+ button.disabled=true;out.textContent='Verificando o certificado TLS e registrando no servidor público…';
+ try{
+  const r=await window.launcher.registerRevivedAccount(username);
+  if(!r?.ok||!r.status?.registered)throw Error(r?.error||'O registro não foi concluído.');
+  out.textContent='Conta '+r.status.username+' registrada! Key pessoal salva criptografada neste PC. Em Configurações, escolha a pasta e clique Baixar / reparar arquivos.';
+  $('revived-original-import').disabled=true;await settings();
+ }catch(e){out.textContent='Registro não confirmado: '+e.message;button.disabled=false;}
+});
+$('revived-original-import').addEventListener('click',async()=>{
+ const b=$('revived-original-import'),out=$('revived-original-result');
+ b.disabled=true;out.textContent='Selecione seu arquivo de key. O servidor será validado por certificado antes de consultar a conta…';
+ try{
+  const r=await window.launcher.importRevivedKey();
+  if(!r?.ok)throw Error(r?.error||'A key não pôde ser validada.');
+  if(r.status?.imported){out.textContent='Conta '+r.status.username+' recuperada com key criptografada neste PC. Agora é possível baixar o jogo em Configurações.';$('revived-original-register').disabled=true;await settings();}
+  else{out.textContent='Importação cancelada.';b.disabled=false;}
+ }catch(e){out.textContent='Falha ao recuperar a key: '+e.message;b.disabled=false;}
+});
+
+$('revived-original-clear').addEventListener('click',async()=>{
+ $('revived-original-invite').value='';
+ $('revived-original-result').textContent='Convite apagado da memória desta sessão.';
+ $('revived-original-register').disabled=true;
+ $('revived-original-import').disabled=true;
+ await window.launcher.clearRevivedInvite().catch(()=>{});
+});
+
 $('server-local-select').addEventListener('click',async()=>{
  const button=$('server-local-select');
  if(button.disabled)return;

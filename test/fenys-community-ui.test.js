@@ -32,7 +32,8 @@ test('IDs únicos e somente fluxos novos permanecem na interface',()=>{
   assert.ok(ids.includes(id),'falta '+id);
  }
  assert.doesNotMatch(section('connection'),/id="tailscale-tools"|id="host-invite-tools"|id="legacy-code-tools"/);
- assert.doesNotMatch(section('host'),/value="vip"|value="tailscale"/);
+ assert.doesNotMatch(section('host'),/value="vip"/);
+ assert.match(section('host'),/value="tailscale"/);
  assert.match(section('host'),/id="host-maintenance-tools"/);
  assert.ok(!section('settings').includes('A conexão exige Tailscale'));
 });

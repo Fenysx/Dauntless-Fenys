@@ -12,7 +12,7 @@ function makeHarness(readiness,addresses){
   return elements.get(id);
  };
  const document={getElementById:elt,createElement:()=>({value:''})};
- const launcher={hostReadiness:async()=>({ok:true,...readiness}),localAddresses:async()=>({addresses})};
+ const launcher={hostReadiness:async()=>({ok:true,...readiness}),localAddresses:async()=>({addresses}),tailscaleStatus:async()=>({ok:true,connected:false,message:'Tailscale não conectado'})};
  const window={launcher};
  const context=vm.createContext({document,window,operating:false,action:async()=>{},setScreen:()=>{},playersRefresh:async()=>{},setInterval:()=>1});
  vm.runInContext(source,context,{filename:'host-wizard-ui.js'});
