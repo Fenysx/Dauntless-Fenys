@@ -23,6 +23,7 @@ const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
 const {syncGameFiles}=require('./fenys-game-download');
+const {parseRevivedInvite,safeSummary}=require('./fenys-revived-invite');
 const {verifyServerFiles,failureMessage}=require('./fenys-service-preflight');
 const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
@@ -32,6 +33,7 @@ const {community}=require('./fenys-community');
 const {installGoogle}=require('./fenys-google-setup');
 const {servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
+let inspectedOriginalInvite=null; // in memory only; never saved to the cloud or disk
 // Keep existing protected accounts and settings when changing the product name.
 const currentData=app.getPath('userData');
 if(!fs.existsSync(path.join(currentData,'settings.json'))){
@@ -545,6 +547,13 @@ app.whenReady().then(()=>{
   const c=load();c.gameServer=sv.address;save(c);
   return {server:sv.address,remote:!sv.local};
  });
+ ipcMain.handle('revived:inspectInvite',(_event,input)=>{
+  const invite=parseRevivedInvite(input);
+  inspectedOriginalInvite=invite; // No server request yet; this does not spend the code.
+  return {ok:true,summary:safeSummary(invite),validFormat:true,
+    message:invite.mode==='public'?'Convite público reconhecido. Para registrar, a conexão deve conferir o certificado TLS do servidor pelo fingerprint.':'Convite privado reconhecido. Para conectar, o Tailscale precisa estar acessível.'};
+ });
+ ipcMain.handle('revived:clearInvite',()=>{inspectedOriginalInvite=null;return {cleared:true};});
  ipcMain.handle('game:chooseFolder',async()=>{
   assertGameClosed();
   const r=await dialog.showOpenDialog(win,{title:'Selecionar pasta do Dauntless 1.4.4',properties:['openDirectory','createDirectory']});
