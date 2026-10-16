@@ -77,7 +77,8 @@ async function settings(){
      'Seu host Google está configurado para '+(c.googleNetworkMode==='lan'?'rede local (LAN)':'rede privada antiga')+'. Para aparecer na comunidade, o administrador precisa configurar HTTPS público e IPv4 acessível para as partidas.';
   }
   $('adminKeyState').textContent=c.adminKeySelected?'Chave selecionada':'Não selecionada';
-  $('accountKeyState').textContent=c.accountKeySelected?'Conta vinculada':'Não vinculada';
+  $('accountKeyState').textContent=c.accountKeySelected?'Key encontrada para o servidor escolhido':'Nenhuma key recuperada neste servidor';
+  $('game-install-folder').textContent=c.gameInstallDir||'Pasta de instalação não selecionada';
    if(!$('screen-host').hidden)void window.hostWizard?.refresh();
  }catch(e){note('Falha ao obter configurações: '+e.message);}
 }
@@ -110,6 +111,46 @@ $('playerKeyPick').addEventListener('click',async()=>{
   await settings();
  }catch(e){note('Atenção: '+e.message);}
 });
+
+$('settings-open-google').addEventListener('click',()=>{setScreen('invites');void communityRefresh();});
+$('playerKeyBackup').addEventListener('click',async()=>{
+  const button=$('playerKeyBackup');button.disabled=true;
+  try{const result=await window.launcher.backupPlayerKey();if(result?.saved)note('Backup da sua key criado. Guarde o arquivo em local privado.');}
+  catch(e){note('Não foi possível salvar o backup: '+e.message);}
+  finally{button.disabled=false;}
+});
+$('game-install-choose').addEventListener('click',async()=>{
+  try{const result=await window.launcher.chooseGameFolder();if(result?.selected)await settings();}
+  catch(e){$('game-install-status').textContent='Pasta não selecionada: '+e.message;}
+});
+$('game-install-download').addEventListener('click',async()=>{
+  const button=$('game-install-download'),output=$('game-install-status');
+  if(button.disabled)return;
+  const manifestUrl=$('game-install-url').value.trim(),key=$('game-install-key').value;
+  if(!manifestUrl){output.textContent='Informe o link do manifesto de arquivos fornecido pelo host original.';return;}
+  if(!window.confirm('Baixar e reparar arquivos do Dauntless 1.4.4 na pasta selecionada? Arquivos divergentes serão preservados com sufixo .dlu-backup. Use apenas fontes confiáveis.'))return;
+  button.disabled=true;
+  output.textContent='Conectando ao servidor de arquivos e conferindo o manifesto…';
+  try{
+    const result=await window.launcher.downloadGame({manifestUrl,key});
+    if(!result?.ok)throw Error(result?.error||'A instalação não foi confirmada.');
+    const data=result.status;
+    output.textContent='Download concluído. '+data.downloaded+' arquivos transferidos; '+data.skipped+' já estavam íntegros. Selecione o executável do jogo abaixo e use Verificar jogo instalado.';
+    note('Arquivos do jogo conferidos com os hashes do manifesto. Antes de jogar, valide os binários críticos.');
+  }catch(e){output.textContent='Download/reparo interrompido: '+e.message;note('Instalação: '+e.message);}
+  finally{$('game-install-key').value='';button.disabled=false;}
+});
+$('game-install-verify').addEventListener('click',async()=>{
+  const button=$('game-install-verify'),output=$('game-install-status');button.disabled=true;
+  output.textContent='Verificando integridade dos binários críticos instalados…';
+  try{const r=await window.launcher.verifyGameFiles();if(!r?.ok)throw Error(r?.error||'Falha de verificação.');output.textContent=r.status?.message||'Binários conferidos.';}
+  catch(e){output.textContent='Verificação falhou: '+e.message;}
+  finally{button.disabled=false;}
+});
+window.launcher.onDownloadProgress(({current,total,file,downloaded,skipped})=>{
+  $('game-install-status').textContent='Arquivo '+current+'/'+total+': '+file+' • '+downloaded+' baixados • '+skipped+' já íntegros';
+});
+
 $('clear').addEventListener('click',()=>{$('activity').textContent='';});
 let lastNativeWarning=0,lastGoogleWarning=0;
 window.launcher.onActivity(message=>{
