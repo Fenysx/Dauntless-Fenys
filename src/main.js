@@ -21,6 +21,7 @@ const {GoogleAuth}=require('./fenys-google-auth');
 const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
+const {inspect:inspectTailscale}=require('./fenys-tailscale');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
@@ -344,10 +345,10 @@ app.whenReady().then(()=>{
   if(!state.metagame||!state.deploy)throw Error('Ligue Metagame e DeployServer em Hospedar servidor antes de convidar.');
   const caps=await googleHostCall('127.0.0.1:61000','status');
   if(caps?.mode!=='google'||caps.registered!==true)throw Error('Este servidor ainda não está integrado ao Google. Prepare o acesso Google no painel Hospedar servidor.');
-  if((c.googleNetworkMode||'lan')==='lan'&&c.googleHostAddress){
+  if(['lan','tailscale'].includes(c.googleNetworkMode||'lan')&&c.googleHostAddress){
    let lanCaps;
    try{lanCaps=await googleHostCall(c.googleHostAddress,'status');}
-   catch{throw Error('A API local Google responde em 127.0.0.1, mas não responde no endereço LAN '+c.googleHostAddress+'. Verifique Wi-Fi, firewall do Windows, IP configurado e o Metagame antes de convidar seu amigo.');}
+   catch{throw Error('A API Google responde em 127.0.0.1, mas não responde no endereço privado '+c.googleHostAddress+'. Verifique Wi-Fi, firewall do Windows, IP configurado e o Metagame antes de convidar seu amigo.');}
    if(lanCaps.hostKey!==caps.hostKey||lanCaps.registered!==true)throw Error('O endereço LAN não confirmou a identidade do host Google. Nenhum convite foi gerado.');
   }
   const invitation=await googleHostCall('127.0.0.1:61000','invite',{},null,await localAdminKey());
@@ -404,6 +405,32 @@ app.whenReady().then(()=>{
   }
   const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
   if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
+ }));
+ ipcMain.handle('tailscale:status',()=>vpnReply(()=>inspectTailscale()));
+ ipcMain.handle('tailscale:open',(_event,target)=>vpnReply(async()=>{
+  const links={download:'https://tailscale.com/download/windows',share:'https://login.tailscale.com/admin/machines'};
+  if(!Object.hasOwn(links,target))throw Error('Destino Tailscale inválido.');
+  await shell.openExternal(links[target]);
+  return {opened:true};
+ }));
+ ipcMain.handle('tailscale:start',()=>runLocked(async()=>{
+  assertGameClosed();
+  const vpn=await inspectTailscale();
+  if(!vpn.connected||!vpn.address)throw Error(vpn.message);
+  const live=await startAll();
+  const local='127.0.0.1:61000';
+  let active=false,warning='';
+  try{
+   const c=load();
+   if(c.googleHost&&c.googleNetworkMode==='tailscale'&&c.googleHostAddress===vpn.address+':61000'){
+    const caps=await googleHostCall(local,'status');
+    const viaVpn=await googleHostCall(c.googleHostAddress,'status');
+    active=caps?.mode==='google'&&caps.registered===true&&viaVpn?.hostKey===caps.hostKey;
+   }
+  }catch(e){warning='Metagame iniciou, mas a integração Google ou o IP Tailscale ainda não respondeu.';}
+  return {...live,tailscale:{address:vpn.address,ready:active,warning},
+   message:active?'Servidor privado respondendo no Tailscale. Gere seu convite de jogador.':
+    'Serviços iniciados. Prepare acesso Google escolhendo Tailscale para ativar convites sem abrir portas do roteador.'};
  }));
  ipcMain.handle('network:localIPv4',()=>({addresses:localNetworks().map(x=>x.address)}));
  ipcMain.handle('network:diagnose',()=>vpnReply(async()=>{
