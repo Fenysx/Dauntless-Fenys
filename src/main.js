@@ -561,8 +561,19 @@ app.whenReady().then(()=>{
    manifestUrl:options?.manifestUrl,key:options?.key||'',folder,
    onProgress:progress=>{if(win&&!win.isDestroyed())win.webContents.send('download:progress',progress);}
   });
+  // Auto-select only an installation whose three critical binaries match fixed pins.
+  // Never execute content just because the remote manifest declared a matching hash.
+  const candidate=path.join(folder,'Archon','Binaries','Win64',GAME_EXE);
+  let verified=false;
+  if(fs.existsSync(candidate)){
+   try{
+    await verifyGame(path.dirname(candidate));
+    const c=load();c.launcherExe=candidate;save(c);
+    verified=true;
+   }catch(e){notify('Download concluído, mas a instalação ainda não foi aprovada: '+e.message);}
+  }
   // Do not automatically launch binaries or overwrite Google/account settings.
-  return result;
+  return {...result,verified};
  }));
  ipcMain.handle('game:verify',()=>runLocked(async()=>{
   const c=load(),exe=gameExePath(c);
