@@ -163,6 +163,66 @@
     }catch(e){message('host-network-reset-state','Preferências mantidas: '+e.message);}
     finally{button.disabled=false;}
   });
+  $('tailscale-refresh').addEventListener('click',async()=>{
+    message('tailscale-state','Conferindo Tailscale neste PC…');
+    await refresh();
+  });
+  $('tailscale-open-download').addEventListener('click',async()=>{
+    const r=await window.launcher.tailscaleOpen('download');
+    if(!r?.ok)message('tailscale-state','Não foi possível abrir o site do Tailscale: '+(r?.error||'erro'));
+  });
+  $('tailscale-open-share').addEventListener('click',async()=>{
+    const r=await window.launcher.tailscaleOpen('share');
+    if(!r?.ok)message('tailscale-state','Não foi possível abrir o compartilhamento: '+(r?.error||'erro'));
+  });
+  $('tailscale-start').addEventListener('click',async()=>{
+    const button=$('tailscale-start');
+    if(button.disabled)return;
+    button.disabled=true;
+    message('tailscale-state','Conferindo a VPN e iniciando Metagame e DeployServer…');
+    try{
+      const r=await window.launcher.tailscaleStart();
+      if(!r?.ok)throw Error(r?.error||'Falha ao iniciar host Tailscale.');
+      const ts=r.status?.tailscale;
+      if(!ts?.address)throw Error('O Tailscale não retornou um IP válido.');
+      $('google-network-mode').value='tailscale';
+      $('google-network-address').value=ts.address+':61000';
+      $('google-network-address-fields').hidden=false;
+      $('host-online-settings').open=true;
+      wizard.userEdited=true;
+      message('tailscale-state',r.status.message);
+      message('tailscale-guide',ts.ready?
+        'Host Tailscale e Google ativos. Compartilhe este PC no Tailscale, depois use Gerar convite de jogador DLU3.':
+        'Metagame e DeployServer iniciados. Falta ativar o Google neste modo: confirme conta administradora e autorização, depois clique Preparar acesso Google neste servidor.');
+      await refresh();
+    }catch(e){message('tailscale-state','Não foi possível iniciar: '+e.message);$('admin-server-settings').open=true;}
+    finally{button.disabled=false;}
+  });
+  $('tailscale-copy-info').addEventListener('click',async()=>{
+    const info=await window.launcher.tailscaleStatus();
+    if(!info?.ok||!info.connected){message('tailscale-guide','Conecte o Tailscale neste PC antes de enviar instruções.');return;}
+    const share=$('tailscale-share-link').value.trim();
+    if(share&&!/^https:\/\/login\.tailscale\.com\/[^\s]+$/.test(share)){
+      message('tailscale-guide','Use um link de compartilhamento https://login.tailscale.com/... gerado no painel oficial.');
+      return;
+    }
+    const lines=[
+      'Dauntless Launcher Ultimate — convite para servidor privado',
+      '1. Instale o Tailscale: https://tailscale.com/download',
+      '2. Entre no Tailscale e aceite o compartilhamento deste computador.',
+      ...(share?['Compartilhamento do dispositivo: '+share]:['Peça ao anfitrião o compartilhamento do PC no painel do Tailscale.']),
+      '3. Endereço do host: '+info.address+':61000',
+      '4. No Dauntless Launcher Ultimate, entre com Google.',
+      '5. Peça também o convite temporário DLU3 (código de jogador).',
+      '6. Em Escolher servidor, cole o convite DLU3 e clique em Entrar usando convite.',
+      '7. Só depois de confirmar a conexão, clique em Jogar agora.',
+      'Não compartilhe chaves administrativas, arquivos .env ou autorização Supabase.'
+    ];
+    try{
+      await navigator.clipboard.writeText(lines.join('\n'));
+      message('tailscale-guide','Instruções copiadas. Compartilhe o PC pelo Tailscale e envie também o código DLU3 ao seu amigo.');
+    }catch(e){message('tailscale-guide','Não foi possível copiar. Verifique a permissão de área de transferência.');}
+  });
   $('host-start').addEventListener('click',async()=>{
     const result=await action('start');
     await refresh();
