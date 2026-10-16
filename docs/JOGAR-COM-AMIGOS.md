@@ -1,4 +1,4 @@
-# Jogar com amigos — Dauntless Launcher Ultimate beta.13
+# Jogar com amigos — Dauntless Launcher Ultimate beta.14
 
 O fluxo de convite de **jogador** é independente de publicar um servidor no catálogo. Não compartilhe chaves administrativas, autorização do Supabase ou arquivo `google-host.json`.
 
@@ -13,6 +13,10 @@ O fluxo de convite de **jogador** é independente de publicar um servidor no cat
 4. Selecione ou confirme a chave administrativa do **seu** Metagame. O launcher também procura uma conta administrativa antiga já protegida e valida a permissão no Metagame.
 5. Com todos fora do jogo e backup local da base `undaunted.db`, clique em **Preparar acesso Google neste servidor**. Um host já integrado com as mesmas configurações não precisa ser ativado novamente.
 6. Depois que o Metagame confirmar a rota `/launcher/google/status` e o cadastro do host, clique em **Gerar convite de jogador**. O código começa com `DLU3.` e expira em aproximadamente **15 minutos**. É código **de jogador**, diferente de `DLUH3.` para autorizar **outro anfitrião**.
+
+## Diagnóstico prévio para amigos com Tailscale
+
+Na beta.14, antes de usar o código DLU3, o convidado pode abrir **Escolher servidor → Testar o servidor Tailscale do amigo**, digitar o endereço `100.x.x.x:61000` e clicar **Testar conexão Tailscale**. O launcher confere a VPN local, a porta TCP 61000 e a rota Google do host, sem enviar credenciais. Uma resposta positiva **não confirma a conexão UDP das partidas**.
 
 ## 2. Entrada do amigo
 
