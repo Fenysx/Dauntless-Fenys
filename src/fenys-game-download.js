@@ -6,6 +6,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {Readable,Transform}=require('node:stream');
 const {pipeline}=require('node:stream/promises');
+const PINNED_MANIFEST=require('./game-manifest.json');
 
 function sourceURL(input){
   let url;
@@ -20,7 +21,7 @@ function sourceURL(input){
 function safeRelative(value){
   if(typeof value!=='string'||!value||value.length>260||value.includes('\\')||value.startsWith('/'))throw Error('Caminho de arquivo inválido no manifesto.');
   const parts=value.split('/');
-  if(parts.some(p=>!p||p==='.'||p==='..'||! /^[A-Za-z0-9_ ()+.,@-]+$/.test(p)))throw Error('Caminho inseguro no manifesto: '+value);
+  if(parts.some(p=>!p||p==='.'||p==='..'||! /^[A-Za-z0-9_ ()+.,@-]+$/.test(p)||p.startsWith(' ')||p.endsWith(' ')||p.endsWith('.')||/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i.test(p)))throw Error('Caminho inseguro no manifesto: '+value);
   return parts;
 }
 function validateManifest(obj){
@@ -37,6 +38,26 @@ function validateManifest(obj){
   });
   return {version:'1.4.4',files};
 }
+
+// The original content server offers {build,totalBytes,files}, not a user-defined
+// manifest. Reject even a legitimate host if it differs from the 410 pinned files.
+function verifyOriginalManifest(data,pinned=PINNED_MANIFEST){
+ if(!data||data.build!==pinned.build||!Number.isSafeInteger(data.totalBytes)||
+    data.totalBytes!==pinned.totalBytes||!Array.isArray(data.files)||
+    data.files.length!==pinned.files.length)throw Error('Manifesto do servidor não corresponde ao Dauntless 1.4.4 fixado no launcher.');
+ const files=new Map();
+ for(const f of data.files){
+  if(!f||typeof f.path!=='string'||files.has(f.path))throw Error('Arquivo duplicado/inválido no manifesto original.');
+  safeRelative(f.path);
+  files.set(f.path,f);
+ }
+ for(const expected of pinned.files){
+  const actual=files.get(expected.path);
+  if(!actual||actual.size!==expected.size||actual.sha256!==expected.sha256)throw Error('Conteúdo do host diferente do manifesto original: '+expected.path);
+ }
+ return {version:'1.4.4',files:pinned.files};
+}
+
 async function sha256(file){
   return new Promise((resolve,reject)=>{
     const hash=crypto.createHash('sha256'),stream=fs.createReadStream(file);
@@ -51,19 +72,21 @@ function noSymlink(base,parts){
     if(fs.existsSync(candidate)&&fs.lstatSync(candidate).isSymbolicLink())throw Error('Link simbólico bloqueado na pasta do jogo: '+part);
   }
 }
-async function readManifest(url,key,fetcher){
+async function readManifest(url,key,fetcher,original=false,pinned=PINNED_MANIFEST){
   const r=await fetcher(url,{headers:key?{'X-Download-Key':key}:{},redirect:'error',signal:AbortSignal.timeout(30000)});
   if(!r.ok)throw Error('Manifesto indisponível (HTTP '+r.status+'). Confira o host e a chave do Discord.');
   if(Number(r.headers.get('content-length')||0)>2*1024*1024)throw Error('Manifesto grande demais.');
   const body=await r.text();
   if(body.length>2*1024*1024)throw Error('Manifesto grande demais.');
-  return validateManifest(JSON.parse(body));
+  return original?verifyOriginalManifest(JSON.parse(body),pinned):validateManifest(JSON.parse(body));
 }
-async function syncGameFiles({manifestUrl,key='',folder,onProgress=()=>{},fetcher=fetch}){
+async function syncGameFiles({manifestUrl,key='',folder,onProgress=()=>{},fetcher=fetch,pinnedManifest=PINNED_MANIFEST}){
   const url=sourceURL(manifestUrl);
   if(typeof key!=='string'||key.length>2048||/[\r\n]/.test(key))throw Error('Chave de download inválida.');
   if(!path.isAbsolute(folder)||!fs.existsSync(folder)||!fs.statSync(folder).isDirectory()||fs.lstatSync(folder).isSymbolicLink())throw Error('Selecione uma pasta de instalação local válida.');
-  const manifest=await readManifest(url,key,fetcher);
+  const original=url.pathname==='/content/v1/manifest';
+  if(original&&!key)throw Error('O servidor original exige a key pessoal da conta registrada; um convite do Discord sozinho não permite baixar.');
+  const manifest=await readManifest(url,key,fetcher,original,pinnedManifest);
   let downloaded=0,skipped=0;const root=fs.realpathSync(folder);
   for(const [i,f] of manifest.files.entries()){
     const parts=safeRelative(f.path);
@@ -73,9 +96,9 @@ async function syncGameFiles({manifestUrl,key='',folder,onProgress=()=>{},fetche
     fs.mkdirSync(path.dirname(target),{recursive:true});
     noSymlink(root,parts.slice(0,-1));
     // Same origin as the manifest: never forward the private download key to other hosts.
-    const fileUrl=new URL('files/'+parts.map(encodeURIComponent).join('/'),url);
+    const fileUrl=original?new URL('/content/v1/files/'+parts.map(encodeURIComponent).join('/'),url):new URL('files/'+parts.map(encodeURIComponent).join('/'),url);
     if(fileUrl.origin!==url.origin)throw Error('Arquivo de origem diferente do manifesto.');
-    const response=await fetcher(fileUrl,{headers:key?{'X-Download-Key':key}:{},redirect:'error',signal:AbortSignal.timeout(30*60*1000)});
+    const response=await fetcher(fileUrl,{headers:key?{[original?'x-undaunted-user-api-key':'X-Download-Key']:key}:{},redirect:'error',signal:AbortSignal.timeout(30*60*1000)});
     if(!response.ok||!response.body)throw Error('Falha ao baixar '+f.path+' (HTTP '+response.status+').');
     const tmp=target+'.dlu-part', backup=target+'.dlu-backup';
     if(fs.existsSync(tmp))fs.unlinkSync(tmp);
@@ -95,4 +118,4 @@ async function syncGameFiles({manifestUrl,key='',folder,onProgress=()=>{},fetche
   }
   return {downloaded,skipped,total:manifest.files.length,folder};
 }
-module.exports={sourceURL,safeRelative,validateManifest,syncGameFiles};
+module.exports={sourceURL,safeRelative,validateManifest,verifyOriginalManifest,syncGameFiles};
