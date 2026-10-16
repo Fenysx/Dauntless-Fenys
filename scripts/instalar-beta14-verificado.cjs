@@ -77,7 +77,7 @@ function delay(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
    await delay(1200);
   }
   if(!matches.length){
-   log('NAO CONFIRMADO: setup executado mas beta.10 nao encontrada.');
+   log('NAO CONFIRMADO: setup executado mas beta.14 nao encontrada.');
    log('Versoes localizadas: '+(all.length?all.map(x=>x.version+' em '+x.directory).join(' | '):'nenhuma'));
    throw Error('O instalador nao substituiu a versao antiga ou foi cancelado.');
   }
