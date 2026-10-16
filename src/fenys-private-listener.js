@@ -7,12 +7,17 @@ function listenPrivate(app,port){
  const ip=process.env.FENYS_LAN_IP||process.env.FENYS_TAILSCALE_IP;
  if(!ip||listeners.has(ip+':'+port))return;
  const server=require('./fenys-network').parseEndpoint(ip+':'+port);
- if(server.local||(!/^100\./.test(server.host)&&!server.lan))throw Error('FENYS_TAILSCALE_IP precisa ser um IPv4 do Tailscale.');
- const http=app.listen(port,server.host,error=>{
-  if(error)console.error('Launcher: não foi possível escutar no IP Tailscale. Confira a conexão VPN.');
-  else console.log('API privada pronta em '+server.address);
+ if(server.local||(!/^100\./.test(server.host)&&!server.lan))throw Error('Endereço privado do servidor inválido: use IP Tailscale 100.64.0.0/10 ou IPv4 da rede local.');
+ const binding=ip+':'+port;
+ const http=app.listen(port,server.host);
+ listeners.add(binding);
+ http.once('listening',()=>console.log('API privada pronta em '+server.address));
+ http.on('error',error=>{
+  listeners.delete(binding);
+  console.error('Launcher: não foi possível escutar no endereço privado '+server.address+
+   ' ('+(error?.code||'erro desconhecido')+'). Verifique Tailscale/LAN e reinicie o Metagame.');
  });
- listeners.add(ip+':'+port);
+ http.once('close',()=>listeners.delete(binding));
  // Upstream XMPP binds loopback only; relay its authenticated protocol on the VPN interface.
  if(process.env.CHAT!=='0'||process.env.FENYS_CLOUD_ROLE==='host'){
   const chatPort=Number(process.env.CHAT_PORT||61099);
