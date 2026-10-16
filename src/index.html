@@ -60,6 +60,14 @@
         <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Para jogar usando o servidor que está instalado neste computador. Não precisa de internet pública para jogar sozinho.</p><p id="server-local-state" class="notice" role="status" aria-live="polite">Verificando servidor selecionado…</p></article>
         
         
+        <article class="panel fenys-panel-gap" id="tailscale-friend-test-section">
+          <div class="panel-title"><h3>Testar o servidor Tailscale do amigo</h3></div>
+          <p class="panel-description">Antes de usar o convite Google, verifique se a VPN deste PC alcança a API do anfitrião. Não é necessário informar senha ou chave administrativa.</p>
+          <label for="tailscale-friend-address">IP Tailscale do anfitrião</label>
+          <input id="tailscale-friend-address" maxlength="21" placeholder="100.86.12.34:61000" autocomplete="off" spellcheck="false">
+          <button id="tailscale-friend-test" class="btn btn-outline" type="button">Testar conexão Tailscale</button>
+          <p id="tailscale-friend-test-state" class="notice" role="status" aria-live="polite">Informe o IP privado 100.x.x.x do anfitrião para verificar a conexão.</p>
+        </article>
         <article class="panel fenys-panel-gap" id="friend-code-section">
           <div class="panel-title"><h3>Entrar no servidor de um amigo</h3></div>
           <p class="panel-description">Peça ao anfitrião um código temporário de jogador DLU3. Entre com sua conta Google antes de conectar. Na mesma rede, use o Wi-Fi; pela internet, o anfitrião precisa ter HTTPS e portas de partida acessíveis.</p>
