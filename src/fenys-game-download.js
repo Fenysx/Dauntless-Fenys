@@ -73,7 +73,7 @@ function noSymlink(base,parts){
   }
 }
 async function readManifest(url,key,fetcher,original=false,pinned=PINNED_MANIFEST){
-  const r=await fetcher(url,{headers:key?{'X-Download-Key':key}:{},redirect:'error',signal:AbortSignal.timeout(30000)});
+  const r=await fetcher(url,{headers:original?{}:key?{'X-Download-Key':key}:{},redirect:'error',signal:AbortSignal.timeout(30000)});
   if(!r.ok)throw Error('Manifesto indisponível (HTTP '+r.status+'). Confira o host e a chave do Discord.');
   if(Number(r.headers.get('content-length')||0)>2*1024*1024)throw Error('Manifesto grande demais.');
   const body=await r.text();
