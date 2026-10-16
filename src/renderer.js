@@ -49,11 +49,12 @@ async function playersRefresh(){
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
-  if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=['lan','public'].includes(c.googleNetworkMode)?c.googleNetworkMode:'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
+  if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=['lan','tailscale','public'].includes(c.googleNetworkMode)?c.googleNetworkMode:'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
   const googleMode=$('google-network-mode').value;
   $('google-network-address-fields').hidden=false;
   $('google-public-fields').hidden=googleMode!=='public';
   $('google-lan-address-help').hidden=googleMode!=='lan';
+  $('google-tailscale-address-help').hidden=googleMode!=='tailscale';
   if(googleMode==='lan'){
    const suggestions=$('google-lan-ip-suggestions');
    suggestions.replaceChildren();
