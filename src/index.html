@@ -56,6 +56,14 @@
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
         <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Entrar no jogo</h1><p>Escolha o servidor deste PC ou conecte-se a um amigo pelo Tailscale. Conta Google e key continuam disponíveis para recuperar o personagem.</p></div>
+        <article class="panel fenys-panel-gap" id="revived-original-invite-section">
+          <div class="panel-title"><div><h3>Convite do Dauntless Revived original</h3><span class="kicker">PÚBLICO V2 OU TAILSCALE V1</span></div></div>
+          <p class="panel-description">Cole o link completo recebido no Discord. O programa identifica se é uma conexão pública protegida por certificado (v2) ou uma conexão privada Tailscale (v1). Esse código é de uso único e não é uma key pessoal. Esta etapa só confere o formato: não registra uma conta nem altera seu personagem.</p>
+          <label for="revived-original-invite">Link de convite original</label>
+          <input id="revived-original-invite" type="password" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="dauntless-revived://join?...">
+          <div class="button-row"><button id="revived-original-inspect" class="btn btn-red" type="button">Conferir convite original</button><button id="revived-original-clear" class="btn btn-outline" type="button">Limpar convite</button></div>
+          <p id="revived-original-result" class="notice" role="status" aria-live="polite">Nenhum convite conferido nesta sessão.</p>
+        </article>
         <article class="panel"><div class="panel-title"><h3>Preparar este computador</h3><button id="guest-network-auto" class="btn btn-red" type="button">Detectar conexão automaticamente</button></div><p id="guest-network-state" class="notice" role="status" aria-live="polite">O launcher identifica sua rede quando solicitado; não muda seu roteador.</p></article>
         <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Jogue no servidor deste computador. Para receber amigos de outras casas, abra Servidor local / Hospedar e ative o modo privado Tailscale.</p><p id="server-local-state" class="notice" role="status" aria-live="polite">Verificando servidor selecionado…</p></article>
         
