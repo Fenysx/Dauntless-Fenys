@@ -50,7 +50,7 @@ O cliente proprietário original, mapas e arquivos `.pak` **não são distribuí
 
 ## Escolher servidor e comunidade
 
-A interface atual apresenta **Servidor local** e **Servidores da comunidade**. O painel **Hospedar servidor** configura Google na rede local (LAN) ou em um host público HTTPS. Removemos os controles antigos de Tailscale, cadastro por código e rede global central do launcher; nenhum jogador precisa instalar VPN para usar a comunidade. A compatibilidade com saves e redes previamente configurados permanece no backend, sem configurar hosts novos nesses formatos. [Configuração de rede](docs/REDES.md) · [Limpeza e motivos](docs/LIMPEZA-2026-10-14.md).
+A interface apresenta **Servidor local**, **Servidores da comunidade** e a opção de entrar usando convite de jogador **DLU3**. O painel **Hospedar servidor** oferece três modos: LAN, **Tailscale privado** e HTTPS público. O Tailscale é opcional, útil para jogar com amigos em outras casas sem abrir portas no roteador; neste modo, os dois PCs precisam ter Tailscale e o amigo precisa aceitar o compartilhamento do computador anfitrião. Google/Supabase cuidam do personagem, enquanto o Tailscale fornece a rede. Os controles antigos de cadastro/rede global não foram restaurados. [Configuração de rede](docs/REDES.md) · [Hospedar com Tailscale](docs/TAILSCALE-HOST-PRIVADO.md) · [Limpeza e motivos](docs/LIMPEZA-2026-10-14.md).
 
 ## Situação atual
 
