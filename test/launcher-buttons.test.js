@@ -12,7 +12,7 @@ const main=read('main.js');
 
 test('todos os botões fixos do launcher atualizado têm uma ação de clique declarada',()=>{
  const buttons=[...html.matchAll(/<button\b[^>]*\bid=["']([^"']+)["']/g)].map(m=>m[1]);
- assert.equal(buttons.length,51,'Mudou o número de botões; atualize o teste com a nova interface.');
+ assert.equal(buttons.length,56,'Mudou o número de botões; atualize o teste com a nova interface.');
  assert.equal(new Set(buttons).size,buttons.length,'Existe um botão com ID repetido.');
  const dynamic=new Set(['google-public-cert','google-public-key']);
  const source=renderer+'\n'+wizard;
@@ -41,4 +41,17 @@ test('preload expõe ações de Google e convites ligadas ao processo principal'
   assert.ok(invokeChannels.includes(channel),'Ponte Google/convites ausente: '+channel);
   assert.ok(handles.includes(channel),'Handler Google/convites ausente: '+channel);
  }
+});
+
+
+test('instalação e recuperação por key ligadas ao Electron, sem mostrar segredos',()=>{
+  for(const id of ['playerKeyPick','playerKeyBackup','game-install-choose','game-install-download','game-install-verify','settings-open-google'])
+    assert.ok(html.includes('id="'+id+'"'),'Controle esperado: '+id);
+  for(const channel of ['settings:pickPlayerKey','settings:backupPlayerKey','game:chooseFolder','game:download','game:verify']){
+    assert.ok(preload.includes("'"+channel+"'"),'Preload: '+channel);
+    assert.ok(main.includes("'"+channel+"'"),'IPC: '+channel);
+  }
+  assert.match(main,/syncGameFiles/);
+  assert.match(main,/await verifyGame/);
+  assert.ok(!/downloadKey\s*:\s*["'][^"']+/.test(main),'Não colocar chave privada fixa no código.');
 });
