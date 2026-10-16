@@ -12,7 +12,7 @@ const main=read('main.js');
 
 test('todos os botões fixos do launcher atualizado têm uma ação de clique declarada',()=>{
  const buttons=[...html.matchAll(/<button\b[^>]*\bid=["']([^"']+)["']/g)].map(m=>m[1]);
- assert.equal(buttons.length,45,'Mudou o número de botões; atualize o teste com a nova interface.');
+ assert.equal(buttons.length,50,'Mudou o número de botões; atualize o teste com a nova interface.');
  assert.equal(new Set(buttons).size,buttons.length,'Existe um botão com ID repetido.');
  const dynamic=new Set(['google-public-cert','google-public-key']);
  const source=renderer+'\n'+wizard;
@@ -37,7 +37,7 @@ test('preload expõe ações de Google e convites ligadas ao processo principal'
  }
  assert.match(main,/\['network:cert','publicCertFile'/);
  assert.match(main,/\['network:key','publicKeyFile'/);
- for(const channel of ['google:state','google:login','google:logout','google:link','google:refresh','google:local','google:playerInvite','google:friendJoin','community:join','community:invite','community:decide','host:readiness']){
+ for(const channel of ['google:state','google:login','google:logout','google:link','google:refresh','google:local','google:playerInvite','google:friendJoin','tailscale:status','tailscale:start','tailscale:open','community:join','community:invite','community:decide','host:readiness']){
   assert.ok(invokeChannels.includes(channel),'Ponte Google/convites ausente: '+channel);
   assert.ok(handles.includes(channel),'Handler Google/convites ausente: '+channel);
  }
