@@ -22,6 +22,7 @@ const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
+const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
@@ -407,6 +408,7 @@ app.whenReady().then(()=>{
   if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
  }));
  ipcMain.handle('tailscale:status',()=>vpnReply(()=>inspectTailscale()));
+ ipcMain.handle('tailscale:probeHost',(_event,address)=>vpnReply(()=>probeTailscaleHost(address,{checkTailscale:inspectTailscale})));
  ipcMain.handle('tailscale:open',(_event,target)=>vpnReply(async()=>{
   const links={download:'https://tailscale.com/download/windows',share:'https://login.tailscale.com/admin/machines'};
   if(!Object.hasOwn(links,target))throw Error('Destino Tailscale inválido.');
