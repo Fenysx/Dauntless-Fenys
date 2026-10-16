@@ -124,3 +124,10 @@ google-host.json
 *.mobileprovision
 *.credentials.json
 *credentials*.private.json
+credentials.json
+**/credentials.json
+service-account*.json
+**/service-account*.json
+*.secret
+*.secrets
+*.token
