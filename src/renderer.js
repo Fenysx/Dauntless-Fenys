@@ -176,6 +176,27 @@ window.launcher.onActivity(message=>{
   }
  }
 });
+
+$('revived-original-inspect').addEventListener('click',async()=>{
+ const input=$('revived-original-invite'),out=$('revived-original-result'),button=$('revived-original-inspect');
+ button.disabled=true;
+ try{
+  const response=await window.launcher.inspectRevivedInvite(input.value);
+  if(!response?.ok)throw Error(response?.error||'Convite inválido.');
+  const s=response.summary;
+  out.textContent='Convite de '+s.name+' • '+(s.usesTailscale?'Tailscale privado':'Servidor público TLS')
+    +' • '+s.host+':'+s.port+(s.fingerprintShort?' • Certificado '+s.fingerprintShort:'')
+    +'. Formato reconhecido, mas servidor e certificado ainda não foram verificados. Registro não realizado.';
+  input.value=''; // Never leave the one-use registration code visible in the form.
+ }catch(e){out.textContent='Não foi possível conferir o convite: '+e.message;}
+ finally{button.disabled=false;}
+});
+$('revived-original-clear').addEventListener('click',async()=>{
+ $('revived-original-invite').value='';
+ $('revived-original-result').textContent='Convite apagado da memória desta sessão.';
+ await window.launcher.clearRevivedInvite().catch(()=>{});
+});
+
 $('server-local-select').addEventListener('click',async()=>{
  const button=$('server-local-select');
  if(button.disabled)return;
