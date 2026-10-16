@@ -1,8 +1,9 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
  networkCert:()=>ipcRenderer.invoke('network:cert'),
- networkKey:()=>ipcRenderer.invoke('network:key'),
- localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
+  networkKey:()=>ipcRenderer.invoke('network:key'),
+  localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
+  tailscaleAddresses:()=>ipcRenderer.invoke('network:tailscaleIPv4'),
  networkDiagnose:()=>ipcRenderer.invoke('network:diagnose'),
  networkResetLegacy:()=>ipcRenderer.invoke('network:reset-legacy'),
  hostReadiness:()=>ipcRenderer.invoke('host:readiness'),

@@ -6,7 +6,7 @@
 
 - **Visão geral:** status do Metagame, DeployServer, Jogar Agora e atalhos locais.
 - **Escolher servidor:** **Servidor local** e **Servidores da comunidade**. A lista da comunidade usa conta Google e mostra apenas servidores disponíveis no catálogo ou autorizados para a conta.
-- **Hospedar servidor:** assistente em três passos: iniciar serviços locais, integrar personagens com Google e, opcionalmente, publicar pela internet.
+- **Hospedar servidor:** assistente em três passos: iniciar serviços locais, integrar personagens com Google e, opcionalmente, escolher LAN, Tailscale privado ou HTTPS público.
 - **Conta Google e convites:** login pelo navegador, consulta e vínculo do personagem antigo, sino de convites, aceitar/recusar convite e nome de usuário.
 - **Configurações:** selecionar o executável do jogo e, em **Recuperação de conta antiga**, apontar uma chave de jogador somente quando for necessário migrar um personagem existente.
 - **Atividades:** mensagens do launcher e diagnóstico da sessão.
@@ -36,7 +36,7 @@ Entre com Google, abra **Servidores da comunidade** e selecione um host autoriza
 
 ## Hospedar para amigos
 
-O modo **Neste PC / rede local** atende a LAN. O modo **Internet / HTTPS** requer domínio/certificado válido, IPv4 público alcançável ou VPS e portas UDP da partida. Antes de publicar, ambos os serviços locais e a integração Google devem estar online. Leia [Redes](REDES.md) e [Comunidade](COMUNIDADE.md).
+O modo **Neste PC / rede local** atende a LAN. O modo **Tailscale privado** atende amigos em redes diferentes sem port forwarding, desde que todos usem Tailscale e o host seja compartilhado. Para o catálogo público sem VPN, **Internet / HTTPS** requer domínio/certificado válido, IPv4 público alcançável ou VPS e portas UDP da partida. Antes de ativar, ambos os serviços locais precisam estar online. Leia [Redes](REDES.md) e [Comunidade](COMUNIDADE.md).
 
 ## O que foi retirado da interface
 

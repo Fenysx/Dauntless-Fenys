@@ -1,6 +1,6 @@
 # Desenvolvimento e verificação
 
-Veja [o inventário de remoções](LIMPEZA-2026-10-14.md). O fluxo novo não oferece Tailscale, cadastro por chave ou VIP; o armazenamento legado continua preservado para recuperação.
+Veja [o inventário de remoções](LIMPEZA-2026-10-14.md). O launcher não instala/gerencia Tailscale nem oferece cadastro por chave ou VIP; existe um modo opcional de hospedagem Tailscale privada para convites diretos. O armazenamento legado continua preservado para recuperação.
 
 ## Onde alterar
 

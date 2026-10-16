@@ -26,6 +26,12 @@ O launcher novo não cria planos VIP ou cobranças. Convites novos são de membr
 
 ## Hospedar no próprio PC ou em uma VPS
 
+### Opção privada para amigos atrás de CGNAT
+
+O modo **Tailscale privado** permite convidar amigos sem encaminhamento de portas e sem IPv4 público: cada jogador instala e conecta o Tailscale, e o dono compartilha o dispositivo host com os convidados. Selecione no launcher o IP Tailscale 100.x deste PC e gere o convite direto de jogador. Esse host não é publicado no catálogo comunitário; os convidados precisam manter o Tailscale conectado. O launcher não instala nem configura a VPN por conta própria.
+
+### Catálogo público / conexão sem VPN
+
 1. Prepare um Windows compatível para hospedar o servidor de jogo e instale Node.js, Metagame, DeployServer e dependências. Configure as pastas \`UndauntedMetagame\` e \`UndauntedDeployServer\` com \`.env\` e \`dist/server.js\`.
 2. Utilize um **IPv4 público** alcançável para as partidas UDP. DNS e TLS válidos são necessários para a API HTTPS do host, como \`https://jogo.exemplo.com:8443\`. Libere a porta TCP HTTPS escolhida e **UDP 8770–8777**, conforme a configuração atual do jogo. Não exponha diretamente TCP 61001.
 3. No computador que controla o host, integre o servidor ao Google em **Administração avançada → Internet — HTTPS**, incluindo o IPv4 público de partida e o certificado/chave. Faça backup de saves e identidades antes dessa ativação; não a execute com jogadores online.
@@ -34,7 +40,7 @@ O launcher novo não cria planos VIP ou cobranças. Convites novos são de membr
 6. Para usar o host sem manter o launcher aberto, rode os serviços com \`npm run host:run -- --repo "C:\caminho\dauntless-revived"\` na máquina Windows do servidor. Esse supervisor reinicia Metagame e DeployServer em falhas de processo. Configure o agendador de tarefas do Windows (execução ao iniciar o computador, com conta dedicada e diretório correto) ou um gerenciador de serviço Windows apropriado para iniciá-lo automaticamente ao ligar a VPS. **O script não instala uma tarefa ou serviço automaticamente.**
 7. Teste com **dois computadores em redes externas distintas**, incluindo login, seleção de servidor, partida UDP real, desconexão, sincronização e restauração do progresso. Só depois desligue o antigo host.
 
-A conta do jogador não precisa de Tailscale. **Supabase é controle de identidade, convites, permissões e persistência; não é servidor do jogo nem encaminha UDP.** Um host atrás de CGNAT sem IPv4 público precisará de VPS ou relay UDP (ainda não implementado). Não há garantias de conectividade em qualquer provedor sem teste.
+Para participar do catálogo público, o jogador não precisa de Tailscale. Um host atrás de CGNAT ainda pode convidar amigos pelo modo privado Tailscale acima; para publicar sem VPN, será necessário IPv4 público/VPS ou um relay UDP (ainda não implementado). **Supabase é controle de identidade, convites, permissões e persistência; não é servidor do jogo nem encaminha UDP.** Não há garantias de conectividade em qualquer provedor sem teste.
 
 ## Implantar a API em uma réplica independente
 
@@ -66,7 +72,7 @@ Essas proteções não substituem backup prévio, teste de recuperação e confi
 
 A aba **Escolher servidor** é a área do jogador e exibe duas opções: **Servidor local** e **Servidores da comunidade**. Não é necessário informar IP, configurar Tailscale nem acessar chaves administrativas para apenas entrar em um servidor já publicado.
 
-Administradores encontram as ferramentas em **Configurações → Hospedar um servidor — integração Google e comunidade** (ou **Escolher servidor → Configurar hospedagem**). O painel mantém três etapas: integrar o host Google de origem, publicar um host HTTPS público e convidar jogadores por e-mail Google/nome de usuário. O launcher indica se o host ainda está no modo LAN/rede privada, caso em que ele não pode ser publicado no catálogo da comunidade.
+Administradores encontram as ferramentas em **Configurações → Hospedar um servidor — integração Google e comunidade** (ou **Escolher servidor → Configurar hospedagem**). O painel permite integrar o host Google, escolher LAN/Tailscale privado ou HTTPS público, publicar um host HTTPS e convidar jogadores. Hosts LAN/Tailscale não podem ser publicados no catálogo da comunidade.
 
 Os painéis de códigos antigos e de rede central foram retirados; **somente a recuperação de conta antiga continua visível** para permitir vincular ao Google um personagem previamente criado. Os leitores de saves antigos permanecem no backend.
 

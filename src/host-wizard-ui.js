@@ -12,7 +12,7 @@
     if(!r)return;
     const mode=$('google-network-mode').value,addr=$('google-network-address').value.trim();
     const ips=Array.from($('google-lan-ip-suggestions').options,x=>x.value);
-    const addressOK=mode==='lan'?ips.includes(addr):
+    const addressOK=(mode==='lan'||mode==='tailscale')?ips.includes(addr):
       mode==='public'?/^https:\/\/[^\s/]+/i.test(addr)
         && /^\d{1,3}(?:\.\d{1,3}){3}$/.test($('google-game-address').value.trim())
         && r.publicCertSelected && r.publicKeySelected:false;
@@ -49,7 +49,7 @@
     message('host-local-state',(r.servicesReady?
       (r.managedServices?'O servidor foi iniciado por este launcher. Abra o jogo para testar Ramsgate e caçadas.':'O servidor já está rodando por outro programa. Para encerrá-lo, utilize esse programa.'):
       'O servidor local não foi iniciado.')+(r.nativeMemoryWarning?' Atenção: memória livre baixa para abrir a cidade do jogo. Feche aplicativos pesados.':''));
-    message('host-internet-help',mode==='lan'?'Este modo funciona no seu Wi-Fi. Um amigo em outra casa precisa de acesso HTTPS público e portas de jogo disponíveis.':'Para amigos pela internet, configure HTTPS e as portas de partida. O launcher não cria automaticamente um túnel ou VPS.');
+    message('host-internet-help',mode==='lan'?'Este modo funciona no seu Wi-Fi. Um amigo em outra casa precisa de acesso HTTPS público e portas de jogo disponíveis.':mode==='tailscale'?'Modo privado: você e seu amigo precisam estar conectados ao Tailscale e seu computador precisa estar compartilhado com ele. Não exige port forwarding e não publica no catálogo.':'Para amigos pela internet, configure HTTPS e as portas de partida. O launcher não cria automaticamente um túnel ou VPS.');
     message('community-host-readiness',r.googleActive?'Integração Google confirmada pelo Metagame.':
       r.googleConfigured?'Há uma configuração Google salva, mas as rotas do servidor não responderam corretamente. Não vincule personagens até corrigir.':
       'Integração Google ainda não ativada neste servidor.');
@@ -59,9 +59,10 @@
     else if(!r.googleActive||needsActivation){
       if(!r.adminKeySelected)next='2. Escolha a chave administradora original do servidor. Ela permanece no seu PC.';
       else if(!authorization)next='2. Autorização não encontrada. Clique em Selecionar autorização Supabase abaixo.';
-      else if(!addressOK)next=mode==='lan'?(ips.length?'2. Escolha um endereço da lista de endereços locais disponíveis.':'2. Nenhum IPv4 local encontrado. Conecte este PC ao Wi-Fi e clique em Atualizar.'):'2. Informe o endereço HTTPS e IPv4 público e selecione os certificados.';
+      else if(!addressOK)next=mode==='lan'?(ips.length?'2. Escolha um endereço da lista de endereços locais disponíveis.':'2. Nenhum IPv4 local encontrado. Conecte este PC ao Wi-Fi e clique em Atualizar.'):mode==='tailscale'?(ips.length?'2. Escolha o IP Tailscale deste PC na lista.':'2. Conecte o Tailscale neste PC e clique em Atualizar para detectar o IP 100.x.'):'2. Informe o endereço HTTPS e IPv4 público e selecione os certificados.';
       else next='2. Com todos fora do jogo e backup conferido, ative a integração Google.';
-    }else if(r.networkMode!=='public')next='Google funcionando na rede local. Para amigos de outras redes, configure Internet/HTTPS e IP público ou VPS.';
+    }else if(r.networkMode==='tailscale')next='Host privado Tailscale ativo. Conecte e compartilhe este PC pelo Tailscale; depois gere um convite direto de jogador. Não será listado no catálogo público.';
+    else if(r.networkMode==='lan')next='Google funcionando na rede local. Para amigos de outras redes, use Tailscale privado ou configure Internet/HTTPS com IPv4 público ou VPS.';
     else if(!r.signedIn)next='Entre com Google na aba Conta Google e convites para compartilhar seu servidor.';
     else if(!hasOwn)next='Salve o servidor na lista acima. Depois você poderá enviar convites Google.';
     else next='Seu servidor pode receber convites. Informe o e-mail Google ou usuário de um amigo.';
@@ -71,7 +72,7 @@
     message('host-publish-explanation',canPublish?
       (hasOwn?'Seu servidor está publicado. Você pode atualizar as informações e convidar amigos.':'Agora você pode publicar seu servidor para convidados ou para a comunidade.'):
       !r.googleActive?'Este passo fica disponível após confirmar a integração Google no servidor.':
-      r.networkMode!=='public'?'Seu servidor está em rede local. Para entrar pela internet, é necessário HTTPS válido, IPv4 público ou VPS, e portas UDP 8770–8777.':
+      r.networkMode==='tailscale'?'Tailscale é privado e não publica no catálogo; compartilhe a rede com jogadores confiáveis.':r.networkMode!=='public'?'Seu servidor está em rede local. Para entrar pela internet, use Tailscale privado ou HTTPS válido, IPv4 público ou VPS, e portas UDP 8770–8777.':
       'Entre com sua conta Google para publicar.');
     if(!r.googleActive&&r.servicesReady&&r.adminKeySelected&&!authorization)$('host-authorization-tools').open=true;
   }
@@ -82,10 +83,11 @@
       const result=await window.launcher.hostReadiness();
       if(!result?.ok)throw Error(result?.error||'Não foi possível verificar o host.');
       state=result;
-      if($('google-network-mode').value==='lan'){
+      const mode=$('google-network-mode').value;
+      if(mode==='lan'||mode==='tailscale'){
         // Populate the options before checking addressOK. Multiple adapters must not leave activation stuck.
         try{
-          const suggestions=await window.launcher.localAddresses();
+          const suggestions=mode==='tailscale'?await window.launcher.tailscaleAddresses():await window.launcher.localAddresses();
           const values=[...new Set((suggestions.addresses||[]).map(ip=>ip+':61000'))];
           const choices=$('google-lan-ip-suggestions');
           choices.replaceChildren();
@@ -118,6 +120,13 @@
       const report=await window.launcher.networkDiagnose();
       if(!report?.ok)throw Error(report?.error||'Não foi possível consultar a rede.');
       const mode=$('google-network-mode').value;
+      if(mode==='tailscale'){
+        const report=await window.launcher.tailscaleAddresses();
+        if(report.addresses?.length){$('google-network-address').value=report.addresses[0]+':61000';wizard.userEdited=true;message('host-network-state','IP Tailscale detectado. Confirme que seu amigo terá acesso à máquina compartilhada.');}
+        else message('host-network-state','Nenhum IP Tailscale encontrado. Instale/conecte o Tailscale neste PC e tente novamente.');
+        await refresh();
+        return;
+      }
       if(report.preferred&&mode==='lan'){
         $('google-network-address').value=report.preferred+':61000';
         wizard.userEdited=true;

@@ -26,6 +26,7 @@ const {hostCall:googleHostCall}=require('./fenys-google-cloud');
 const {signed:communitySigned}=require('./fenys-google-cloud');
 const {community}=require('./fenys-community');
 const {installGoogle}=require('./fenys-google-setup');
+const {tailscaleAddresses}=require('./fenys-host-setup');
 const {servicesOwnedByLauncher,verifyLegacyHostIdle,requirePublishingServices}=require('./fenys-service-state');
 let googleAuth,googlePlayer;
 // Keep existing protected accounts and settings when changing the product name.
@@ -342,13 +343,13 @@ app.whenReady().then(()=>{
   if(busy)throw Error('Aguarde a operação atual.');
   const c=load(),state=await status();
   if(!state.metagame||!state.deploy)throw Error('Ligue Metagame e DeployServer em Hospedar servidor antes de convidar.');
-  const caps=await googleHostCall('127.0.0.1:61000','status');
-  if(caps?.mode!=='google'||caps.registered!==true)throw Error('Este servidor ainda não está integrado ao Google. Prepare o acesso Google no painel Hospedar servidor.');
-  if((c.googleNetworkMode||'lan')==='lan'&&c.googleHostAddress){
+   const caps=await googleHostCall('127.0.0.1:61000','status');
+   if(caps?.mode!=='google'||caps.registered!==true)throw Error('Este servidor ainda não está integrado ao Google. Prepare o acesso Google no painel Hospedar servidor.');
+   if(['lan','tailscale'].includes(c.googleNetworkMode||'lan')&&c.googleHostAddress){
    let lanCaps;
    try{lanCaps=await googleHostCall(c.googleHostAddress,'status');}
-   catch{throw Error('A API local Google responde em 127.0.0.1, mas não responde no endereço LAN '+c.googleHostAddress+'. Verifique Wi-Fi, firewall do Windows, IP configurado e o Metagame antes de convidar seu amigo.');}
-   if(lanCaps.hostKey!==caps.hostKey||lanCaps.registered!==true)throw Error('O endereço LAN não confirmou a identidade do host Google. Nenhum convite foi gerado.');
+    catch{throw Error('A API Google local responde em 127.0.0.1, mas não responde no endereço configurado '+c.googleHostAddress+'. Verifique a rede selecionada, o Tailscale/Wi-Fi, o firewall do Windows e o Metagame antes de convidar seu amigo.');}
+    if(lanCaps.hostKey!==caps.hostKey||lanCaps.registered!==true)throw Error('O endereço configurado não confirmou a identidade do host Google. Nenhum convite foi gerado.');
   }
   const invitation=await googleHostCall('127.0.0.1:61000','invite',{},null,await localAdminKey());
   if(typeof invitation?.code!=='string'||!invitation.code.startsWith('DLU3.'))throw Error('O servidor não retornou um convite de jogador válido.');
@@ -365,7 +366,7 @@ app.whenReady().then(()=>{
    let result;
    try{result=await googlePlayer.connect(code,String(name||'').trim(),{allowCreateNew:allowCreateNew===true});}
    catch(e){
-    if(/fetch failed|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|timeout/i.test(String(e?.message||e)))throw Error('Não foi possível alcançar o servidor de seu amigo. Na mesma rede, confira IP e firewall. Em outra casa, é necessário HTTPS público e portas UDP de partida acessíveis. A conta e o personagem foram preservados.');
+     if(/fetch failed|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|timeout/i.test(String(e?.message||e)))throw Error('Não foi possível alcançar o servidor de seu amigo. Na mesma rede, confira IP e firewall. Em outra casa, conecte-se ao Tailscale compartilhado pelo host ou use HTTPS público e UDP acessível. A conta e o personagem foram preservados.');
     throw e;
    }
    notify('Servidor do amigo selecionado e identidade Google confirmada. Confira a conexão e inicie o jogo.');
@@ -405,7 +406,8 @@ app.whenReady().then(()=>{
   const r=await dialog.showOpenDialog(win,{title:'Selecionar autorização privada do PC central Supabase',properties:['openFile'],filters:[{name:'Autorização Supabase',extensions:['json']}]});
   if(r.canceled||!r.filePaths.length)return {selected:false};validateAuthorization(JSON.parse(fs.readFileSync(r.filePaths[0],'utf8')));const c=load();c.supabaseAuthorizationFile=r.filePaths[0];save(c);return {selected:true};
  }));
- ipcMain.handle('network:localIPv4',()=>({addresses:localNetworks().map(x=>x.address)}));
+  ipcMain.handle('network:localIPv4',()=>({addresses:localNetworks().map(x=>x.address)}));
+  ipcMain.handle('network:tailscaleIPv4',()=>({addresses:tailscaleAddresses()}));
  ipcMain.handle('network:diagnose',()=>vpnReply(async()=>{
   const report=await diagnose();
   let services=null;try{services=await status();}catch{} // A configuracao legada pode estar invalida; a deteccao da rede continua disponivel.

@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../src/host-wizard-ui.js'),'utf8');
-function makeHarness(readiness,addresses){
+function makeHarness(readiness,addresses,tailnetAddresses=[]){
  const elements=new Map();
  const elt=id=>{
   if(!elements.has(id)){
@@ -12,7 +12,7 @@ function makeHarness(readiness,addresses){
   return elements.get(id);
  };
  const document={getElementById:elt,createElement:()=>({value:''})};
- const launcher={hostReadiness:async()=>({ok:true,...readiness}),localAddresses:async()=>({addresses})};
+  const launcher={hostReadiness:async()=>({ok:true,...readiness}),localAddresses:async()=>({addresses}),tailscaleAddresses:async()=>({addresses:tailnetAddresses})};
  const window={launcher};
  const context=vm.createContext({document,window,operating:false,action:async()=>{},setScreen:()=>{},playersRefresh:async()=>{},setInterval:()=>1});
  vm.runInContext(source,context,{filename:'host-wizard-ui.js'});
@@ -45,6 +45,16 @@ test('nao ativa Google sem IPv4 local disponivel',async()=>{
  await window.hostWizard.refresh();
  assert.equal(elt('google-host-activate').disabled,true);
  assert.match(elt('host-next-step').textContent,/Nenhum IPv4 local/);
+});
+
+test('hospedagem privada Tailscale sugere IP da VPN e permite ativação sem IPv4 público',async()=>{
+  const {elt,window}=makeHarness({...ready,networkMode:'tailscale'},[],['100.102.195.47']);
+  elt('google-network-mode').value='tailscale';
+  await window.hostWizard.refresh();
+  assert.equal(elt('google-network-address').value,'100.102.195.47:61000');
+  assert.equal(elt('google-lan-ip-suggestions').options.length,1);
+  assert.equal(elt('google-host-activate').disabled,false);
+  assert.match(elt('host-internet-help').textContent,/Tailscale/);
 });
 
 test('o servidor basico pode ser iniciado sem Google, Supabase ou chave administrativa',async()=>{

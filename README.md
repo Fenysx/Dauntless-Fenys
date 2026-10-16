@@ -48,7 +48,7 @@ O cliente proprietário original, mapas e arquivos `.pak` **não são distribuí
 
 ## Escolher servidor e comunidade
 
-A interface atual apresenta **Servidor local** e **Servidores da comunidade**. O painel **Hospedar servidor** configura Google na rede local (LAN) ou em um host público HTTPS. Removemos os controles antigos de Tailscale, cadastro por código e rede global central do launcher; nenhum jogador precisa instalar VPN para usar a comunidade. A compatibilidade com saves e redes previamente configurados permanece no backend, sem configurar hosts novos nesses formatos. [Configuração de rede](docs/REDES.md) · [Limpeza e motivos](docs/LIMPEZA-2026-10-14.md).
+A interface atual apresenta **Servidor local** e **Servidores da comunidade**. O painel **Hospedar servidor** configura Google em LAN, Tailscale privado para amigos convidados ou HTTPS público para o catálogo. O launcher não instala nem gerencia o cliente Tailscale; jogadores do modo privado precisam conectar a VPN e o host precisa compartilhar o PC. [Configuração de rede](docs/REDES.md) · [Limpeza e motivos](docs/LIMPEZA-2026-10-14.md).
 
 ## Situação atual
 

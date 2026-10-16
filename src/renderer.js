@@ -49,15 +49,16 @@ async function playersRefresh(){
 async function settings(){
  try{
   const c=await window.launcher.getSettings();
-  if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=['lan','public'].includes(c.googleNetworkMode)?c.googleNetworkMode:'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
+   if(c.googleHost&&!window.hostWizard?.userEdited){$('google-network-mode').value=['lan','tailscale','public'].includes(c.googleNetworkMode)?c.googleNetworkMode:'lan';$('google-network-address').value=c.googleHostAddress||'';$('google-game-address').value=c.googleGameAddress||'';}
   const googleMode=$('google-network-mode').value;
   $('google-network-address-fields').hidden=false;
-  $('google-public-fields').hidden=googleMode!=='public';
-  $('google-lan-address-help').hidden=googleMode!=='lan';
-  if(googleMode==='lan'){
-   const suggestions=$('google-lan-ip-suggestions');
-   suggestions.replaceChildren();
-   const ips=await window.launcher.localAddresses();
+   $('google-public-fields').hidden=googleMode!=='public';
+   $('google-lan-address-help').hidden=googleMode!=='lan';
+   $('google-tailscale-address-help').hidden=googleMode!=='tailscale';
+   if(googleMode==='lan'||googleMode==='tailscale'){
+    const suggestions=$('google-lan-ip-suggestions');
+    suggestions.replaceChildren();
+    const ips=googleMode==='tailscale'?await window.launcher.tailscaleAddresses():await window.launcher.localAddresses();
    for(const ip of ips.addresses||[]){
     const o=document.createElement('option');o.value=ip+':61000';suggestions.append(o);
    }
@@ -223,12 +224,13 @@ $('google-network-mode').addEventListener('change',()=>{
  const mode=$('google-network-mode').value;
  $('google-network-address-fields').hidden=false;
  $('google-public-fields').hidden=mode!=='public';
- $('google-lan-address-help').hidden=mode!=='lan';
- $('google-network-address').placeholder=mode==='public'?'https://servidor.exemplo.com':'192.168.1.20:61000';
+  $('google-lan-address-help').hidden=mode!=='lan';
+  $('google-tailscale-address-help').hidden=mode!=='tailscale';
+  $('google-network-address').placeholder=mode==='public'?'https://servidor.exemplo.com':mode==='tailscale'?'100.x.y.z:61000':'192.168.1.20:61000';
  // Never carry a LAN endpoint into public mode, or an HTTPS endpoint into LAN mode.
  const current=$('google-network-address').value.trim();
  if((mode==='public'&&!current.startsWith('https://'))||(mode==='lan'&&current.startsWith('https://')))$('google-network-address').value='';
- if(mode==='lan')void settings();
+  if(mode==='lan'||mode==='tailscale')void settings();
  void window.hostWizard?.refresh();
 });
 for(const [id,fn] of [['google-public-cert','networkCert'],['google-public-key','networkKey']])$(id).addEventListener('click',async()=>{try{if(await window.launcher[fn]())note('Arquivo HTTPS selecionado.');void window.hostWizard?.refresh();}catch(e){note(e.message);}});

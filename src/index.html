@@ -107,6 +107,7 @@
           <label for="google-network-mode">Onde as pessoas vão jogar?</label>
           <select id="google-network-mode">
             <option value="lan">Somente neste PC / mesma rede Wi-Fi</option>
+            <option value="tailscale">Privado pela internet (Tailscale; todos precisam instalar)</option>
             <option value="public">Amigos de outras casas / servidor público</option>
           </select>
           <button id="host-network-auto" class="btn btn-red" type="button">Detectar e preencher minha rede automaticamente</button>
@@ -122,6 +123,7 @@
               <input id="google-network-address" maxlength="260" list="google-lan-ip-suggestions" placeholder="192.168.1.20:61000">
               <datalist id="google-lan-ip-suggestions"></datalist>
               <p id="google-lan-address-help" class="notice">Endereço local do próprio computador; o launcher sugere o IP.</p>
+              <p id="google-tailscale-address-help" class="notice" hidden>Conexão privada via Tailscale. Instale e conecte o Tailscale nos dois PCs, compartilhe este computador com seu amigo e selecione o IP Tailscale 100.x deste host. Não abre portas no roteador nem publica no catálogo.</p>
             </div>
             <div id="google-public-fields" hidden>
               <p class="notice"><strong>Conexão pela internet:</strong> é necessário endereço HTTPS válido, IP público ou VPS e portas UDP 8770–8777 acessíveis. Ainda não existe hospedagem pública automática com um clique. Nunca abra a porta de administração TCP 61001.</p>

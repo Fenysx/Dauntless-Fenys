@@ -9,4 +9,4 @@ Leia nesta ordem se estiver começando:
 5. [Desenvolvimento e verificação](DESENVOLVIMENTO.md): onde alterar, testes, instaladores e atualização da base.
 6. [Diagnóstico e operação](OPERACAO.md): portas, backups, falhas e recuperação.
 
-Consulte também [Redes: LAN e público HTTPS](REDES.md) e [Limpeza das funções obsoletas](LIMPEZA-2026-10-14.md). A documentação original em `server/upstream/docs` também inclui gateway público, bot, frota e outras opções que **não são pré-requisitos** desse modo. Ela registra etapas históricas: para hashes de DLL, use os valores aceitos por `src/main.js`, não um hash antigo de uma página da base.
+Consulte também [Redes: LAN, Tailscale privado e HTTPS público](REDES.md) e [Limpeza das funções obsoletas](LIMPEZA-2026-10-14.md). A documentação original em `server/upstream/docs` também inclui gateway público, bot, frota e outras opções que **não são pré-requisitos** desse modo. Ela registra etapas históricas: para hashes de DLL, use os valores aceitos por `src/main.js`, não um hash antigo de uma página da base.

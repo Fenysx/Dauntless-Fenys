@@ -4,14 +4,14 @@ const {spawn}=require('node:child_process');
 const {prepareFiles,setEnv,tailscaleAddresses}=require('./fenys-host-setup');
 const {parseEndpoint:parseServerAddress,publicIP}=require('./fenys-network');
 const os=require('node:os'),tls=require('node:tls'),crypto=require('node:crypto');
-function validateNetwork({address,networkMode='tailscale',gameAddress,certFile,keyFile},interfaces=Object.values(os.networkInterfaces()).flat().filter(Boolean).map(x=>x.address)){
+function validateNetwork({address,networkMode='tailscale',gameAddress,certFile,keyFile},interfaces=Object.values(os.networkInterfaces()).flat().filter(Boolean).map(x=>x.address),tailnet=tailscaleAddresses()){
  const sv=parseServerAddress(address);
  if(!['tailscale','lan','public'].includes(networkMode))throw Error('Modo de rede inválido.');
  if(networkMode==='public'){if(!sv.secure||[61000,61001,61099,43967].includes(sv.port)||!publicIP(gameAddress))throw Error('Informe o endpoint HTTPS e o IPv4 público das partidas; use uma porta HTTPS separada dos serviços locais.');
  if(!certFile||!keyFile)throw Error('Selecione o certificado HTTPS e sua chave privada.');
  const cert=fs.readFileSync(certFile),key=fs.readFileSync(keyFile);tls.createSecureContext({cert,key});const x=new crypto.X509Certificate(cert);if(!(require('node:net').isIP(sv.host)?x.checkIP(sv.host):x.checkHost(sv.host))||Date.parse(x.validFrom)>Date.now()||Date.parse(x.validTo)<=Date.now())throw Error('Certificado fora da validade ou incompatível com o endereço HTTPS.');return {sv,cert,key};}
  if(networkMode==='lan'&&(!sv.lan||sv.port!==61000||!interfaces.includes(sv.host)))throw Error('Na rede local, selecione o IPv4 deste computador (por exemplo 192.168.1.20:61000). Use uma sugestão do launcher ou confira ipconfig; não informe 127.0.0.1.');
- if(networkMode==='tailscale'&&(sv.port!==61000||!interfaces.includes(sv.host)||!tailscaleAddresses().includes(sv.host)))throw Error('O endereço Tailscale informado não está disponível na rede deste computador.');return {sv};
+  if(networkMode==='tailscale'&&(sv.port!==61000||!interfaces.includes(sv.host)||!tailnet.includes(sv.host)))throw Error('O endereço Tailscale informado não está disponível na rede deste computador.');return {sv};
 }
 const {identity,cloud,signed,availability}=require('./fenys-google-cloud');
 const {request:enroll,validateAuthorization}=require('./fenys-supabase');

@@ -19,7 +19,7 @@ async function main(){
  try{
   for(let i=0;i<3;i++){
    const base=path.join(temp,'host-'+i);fs.cpSync(template,base,{recursive:true,filter:p=>!p.includes(path.sep+'node_modules')&&!p.includes(path.sep+'fenys-integration.db')});
-   fs.symlinkSync(path.join(template,'node_modules'),path.join(base,'node_modules'),'dir');
+    fs.symlinkSync(path.join(template,'node_modules'),path.join(base,'node_modules'),process.platform==='win32'?'junction':'dir');
    const input={appSource:fs.readFileSync(path.join(base,'src/app.ts'),'utf8'),serverSource:fs.readFileSync(path.join(base,'src/server.ts'),'utf8'),matchmakingSource:fs.readFileSync(path.join(base,'src/controllers/matchmaking.ts'),'utf8'),metagameEnv:fs.readFileSync(path.join(base,'.env.example'),'utf8'),deployEnv:fs.readFileSync(path.join(original,'UndauntedDeployServer/.env.example'),'utf8'),address:'100.64.1.'+(i+1)+':61000',role:i===0?'authority':'host',authority:'100.64.1.1:61000'};
    const p=prepareCloudFiles(input);fs.writeFileSync(path.join(base,'src/app.ts'),p.appSource);fs.writeFileSync(path.join(base,'src/server.ts'),p.serverSource);fs.writeFileSync(path.join(base,'src/controllers/matchmaking.ts'),p.matchmakingSource);fs.writeFileSync(path.join(base,'.env'),p.metagameEnv);
    fs.mkdirSync(path.join(base,'fenys'),{recursive:true});for(const name of fs.readdirSync(path.join(__dirname,'../src')).filter(n=>/^fenys-.*\.js$/.test(n)))fs.copyFileSync(path.join(__dirname,'../src',name),path.join(base,'fenys',name));
@@ -86,8 +86,11 @@ async function main(){
   console.log('Three real Metagames: original UID/character, level 27, friends, guild and nonempty leaderboard are shared across both hosts. Legacy host accounts migrated without central admin rights.');
  }finally{
   for(const child of children)child.kill('SIGTERM');
-  await Promise.all(children.map(child=>new Promise(r=>{if(child.exitCode!==null)r();else{child.once('exit',r);setTimeout(()=>{child.kill('SIGKILL');r();},3000).unref();}})));
-  for(const db of dbs)db.close();fs.rmSync(temp,{recursive:true,force:true});
+   await Promise.all(children.map(child=>new Promise(r=>{if(child.exitCode!==null||child.signalCode!==null)r();else{child.once('exit',r);setTimeout(()=>child.kill('SIGKILL'),3000).unref();}})));
+   for(const db of dbs)db.close();
+   for(const instance of instances){const link=path.join(instance.base,'node_modules');try{if(fs.lstatSync(link).isSymbolicLink())fs.rmdirSync(link);}catch(e){if(e.code!=='ENOENT')throw e;}}
+   await new Promise(resolve=>setTimeout(resolve,250));
+   fs.rmSync(temp,{recursive:true,force:true,maxRetries:10,retryDelay:100});
  }
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

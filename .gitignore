@@ -14,12 +14,19 @@ src-backup-*/
 
 # Configuracoes e credenciais privadas
 .env.*
+!.env.example
+!**/.env.example
+!**/.env.*.example
 *.pem
 *.p12
 *.pfx
 *.sqlite3
 *.db-*
 *.sqlite-*
+/senha/
+**/senha/
+client_secret*.json
+**/client_secret*.json
 
 # Arquivos compilados e instaladores
 *.exe

@@ -39,6 +39,9 @@ jobs:
         run: |
           for file in src/*.js scripts/*.cjs; do node --check "$file"; done
 
+      - name: Verificar caminhos privados rastreados
+        run: node scripts/check-private-files.cjs
+
       - name: Rodar testes
         run: node --test test/*.test.js
 

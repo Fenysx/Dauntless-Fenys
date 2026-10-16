@@ -5,11 +5,12 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
-test('interface nova não mostra Tailscale, VIP nem painéis de cadastros legados',()=>{
+test('interface nova oferece Tailscale privado sem reinstalar ferramentas ou fluxos legados',()=>{
  const html=read('src/index.html');
  for(const id of ['tailscale-tools','host-invite-tools','legacy-code-tools','global-central-controls','legacy-network-settings','legacy-admin-invite','community-invite-tier','host-vip-days'])
   assert.ok(!html.includes('id="'+id+'"'),'painel legado ainda no HTML: '+id);
- assert.ok(!html.includes('value="tailscale"')&&!html.includes('value="vip"'));
+  assert.ok(html.includes('value="tailscale"'));
+  assert.ok(!html.includes('value="vip"'));
  for(const id of ['server-local-select','community-catalog','google-link','legacy-account-settings','host-google-section','community-bell'])
   assert.ok(html.includes('id="'+id+'"'),'funcao essencial ausente: '+id);
 });
