@@ -38,7 +38,7 @@ Existe também um adaptador para hosts autorizados que forneçam manifesto alter
 
 O download só usa HTTPS ou HTTP no IPv4 Tailscale (\`100.64.0.0/10\`), não segue redirecionamentos e recusa caminhos inseguros. Ele não inicia o executável automaticamente nem contorna a autenticação do servidor.
 
-**Ainda precisa de validação prática:** conectar à fonte de conteúdo real no Tailscale, confirmar key e permissões de acesso, baixar a árvore completa de 410 arquivos, executar a verificação e abrir uma caçada.
+**Ainda precisa de validação prática:** confirmar a fonte de conteúdo original (Tailscale e gateway público), testar a autenticação, baixar a árvore completa de 410 arquivos, executar a verificação e abrir uma caçada.
 
 ## Validação e limites
 
@@ -53,6 +53,8 @@ O download só usa HTTPS ou HTTP no IPv4 Tailscale (\`100.64.0.0/10\`), não seg
 
 O Discord original envia um **convite de registro**, e não uma chave pessoal de download. O link público **v2** traz \`host\`, \`port\`, \`fp\` (fingerprint SHA-256 do certificado TLS), \`code\` de uso único e o nome do servidor. Esse link permite registrar **uma nova conta** no servidor escolhido; após o registro, o Metagame retorna uma chave \`UUK_…\`, que o launcher precisa manter protegida e usar para baixar arquivos do mesmo host. O convite **v1** é exclusivo para o Tailscale e pode trazer link de compartilhamento.
 
-A aba **Escolher servidor → Convite do Dauntless Revived original** reconhece o formato v1/v2 e mostra apenas uma prévia sanitizada. **Essa implementação ainda não faz registro real, download de arquivo em servidor público, nem verifica a identidade TLS do servidor**. Nunca transmita a key ou o código de registro por HTTP para IP público; o protocolo correto exige uma conexão TLS cuja identidade seja conferida com \`fp\` **antes de enviar qualquer credencial ou requisição**. O fluxo público completo requer um transporte TLS pinado para cadastro e download, além de armazenamento criptografado da chave. Também exige um relay de jogo pinado (o jogo 1.4.4 fala HTTP local).
+A aba **Escolher servidor → Convite do Dauntless Revived original** reconhece os formatos v1/v2 e mostra uma prévia sanitizada. Para **v2 público**, o jogador pode confirmar manualmente um cadastro novo ou importar e validar uma key existente. O programa confere o certificado TLS apresentado pelo servidor contra o \`fp\` do convite **antes de transmitir requisições ou credenciais**. A key pessoal é salva em arquivo criptografado por Electron \`safeStorage\`, e **Configurações → Baixar / reparar arquivos** pode usá-la automaticamente para baixar arquivos do gateway público. O download confere o manifesto original fixo de 410 arquivos e o SHA-256 de cada arquivo.
+
+**Limite:** o cadastro e o download público ainda não significam que "Jogar agora" funciona em servidores públicos v2. Falta integrar o relay de partida HTTP local → TLS pinado; também falta validar o registro real e baixar a árvore de arquivos num Windows de teste. O downloader é sequencial, sem pausa/retomada, e o serviço de conteúdo do host precisa estar ativo.
 
 Não exponha códigos de registro de uso único no GitHub, logs ou chats. Se forem publicados, use um convite novo concedido pelo administrador. O modo Tailscale continua preferencial para hospedar o **servidor local próprio**; \`mode=public\` de um servidor comunitário é uma rota de entrada independente e **não requer Tailscale**.
