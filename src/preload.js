@@ -2,6 +2,8 @@ const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('launcher',{
  inspectRevivedInvite:input=>ipcRenderer.invoke('revived:inspectInvite',input),
  clearRevivedInvite:()=>ipcRenderer.invoke('revived:clearInvite'),
+ registerRevivedAccount:username=>ipcRenderer.invoke('revived:register',username),
+ importRevivedKey:()=>ipcRenderer.invoke('revived:importKey'),
  networkCert:()=>ipcRenderer.invoke('network:cert'),
  networkKey:()=>ipcRenderer.invoke('network:key'),
  localAddresses:()=>ipcRenderer.invoke('network:localIPv4'),
