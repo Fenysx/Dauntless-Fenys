@@ -22,6 +22,7 @@ const {gameRuntime,gameLaunch}=require('./fenys-game-runtime');
 const {GooglePlayer}=require('./fenys-google-player');
 const {selectLocalServer}=require('./fenys-local-selection');
 const {inspect:inspectTailscale}=require('./fenys-tailscale');
+const {verifyServerFiles,failureMessage}=require('./fenys-service-preflight');
 const {probe:probeTailscaleHost}=require('./fenys-tailscale-probe');
 const {verifyExistingCharacterSource,confirmGoogleRuntime}=require('./fenys-google-link-guard');
 const {hostCall:googleHostCall}=require('./fenys-google-cloud');
@@ -41,6 +42,7 @@ let activeGame=null;
 if(!app.requestSingleInstanceLock())app.exit(0);
 app.on('second-instance',()=>{if(win&&!win.isDestroyed())win.focus();});
 const owned=new Map();
+const startFailures=new Map();
 const PORTS={metagame:61000,deploy:61001};
 const DIRS={metagame:'UndauntedMetagame',deploy:'UndauntedDeployServer'};
 const GAME_EXE='Dauntless-Win64-Shipping.exe';
@@ -66,15 +68,16 @@ function notify(msg){if(win&&!win.isDestroyed())win.webContents.send('activity',
 function launchService(name,dir){
  const base=path.join(load().repoPath,dir);
  if(!fs.existsSync(path.join(base,'dist','server.js'))||!fs.existsSync(path.join(base,'.env')))throw new Error(`${dir}: dist/server.js ou .env não encontrado. Compile/configure o serviço primeiro.`);
+ startFailures.delete(name);
  const child=spawn(process.platform==='win32'?'node.exe':'node',['--env-file=.env','dist/server.js'],{cwd:base,windowsHide:true,stdio:['ignore','pipe','pipe']});
  owned.set(name,child);
  child.stdout.on('data',d=>notify(`${name}: ${String(d).slice(0,400)}`));
  child.stderr.on('data',d=>notify(`${name} (erro): ${String(d).slice(0,400)}`));
- child.on('error',e=>notify(`${name}: ${e.message}`));
- child.on('exit',code=>{if(owned.get(name)===child)owned.delete(name);notify(`${name} finalizou (código ${code})`);});
+ child.on('error',e=>{startFailures.set(name,failureMessage(name,{error:e.message}));notify(`${name}: ${e.message}`);});
+ child.on('exit',(code,signal)=>{if(owned.get(name)===child)owned.delete(name);if(code!==0||signal)startFailures.set(name,failureMessage(name,{code,signal}));notify(`${name} finalizou (código ${code})`);});
 }
-async function waitReady(){for(let i=0;i<35;i++){const s=await status();if(s.metagame&&s.deploy)return s;await new Promise(r=>setTimeout(r,1000));}throw new Error('Serviços indisponíveis após 35 segundos. Verifique a aba Atividades.');}
-async function startAll(){let s=await status();if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
+async function waitReady(){for(let i=0;i<35;i++){const s=await status();if(s.metagame&&s.deploy)return s;for(const [name,online] of [['metagame',s.metagame],['deploy',s.deploy]])if(!online&&startFailures.has(name))throw Error(startFailures.get(name));await new Promise(r=>setTimeout(r,1000));}throw new Error('Metagame e DeployServer não responderam em 35 segundos. Confira a pasta do servidor, Node.js 24 e as mensagens em Atividades.');}
+async function startAll(){let s=await status();const offline=[...(!s.metagame?['Metagame']:[]),...(!s.deploy?['DeployServer']:[])];verifyServerFiles(load().repoPath,offline);for(const [name] of [['metagame'],['deploy']])startFailures.delete(name);if(!s.metagame){notify('Iniciando Metagame…');launchService('metagame',DIRS.metagame);}if(!s.deploy){notify('Iniciando DeployServer…');launchService('deploy',DIRS.deploy);}return waitReady();}
 async function killOwned(name){const child=owned.get(name);if(!child)return;if(child.exitCode!==null||child.killed){owned.delete(name);return;}
  await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timeout);resolve();};
  const timeout=setTimeout(finish,3500);child.once('exit',finish);
