@@ -44,6 +44,22 @@ function originalAccountExists(invite){
  return Boolean(c.revivedOriginal&&c.revivedOriginal.host===invite.host&&c.revivedOriginal.port===invite.port
   &&c.revivedOriginal.fingerprint===invite.fingerprint&&fs.existsSync(c.revivedOriginal.keyFile));
 }
+function readOriginalBackup(file,invite){
+ if(path.extname(file).toLowerCase()==='.bin')return readKeyFile(file);
+ const data=fs.readFileSync(file);
+ if(data.length>8192||data.includes(0))throw Error('Selecione o backup de key exportado em texto pelo launcher original.');
+ const raw=data.toString('utf8').trim();
+ const parts=raw.split(/\r?\n/);
+ let key;
+ if(parts.length===3&&parts[0]==='DRK2'){
+  if(parts[1]!=='-'&&parts[1]!==invite.fingerprint)throw Error('O backup foi criado para outro certificado TLS. Verifique o servidor com o administrador.');
+  key=parts[2];
+ }else{
+  key=/^\s*Key:\s*(UUK_[a-f0-9]{48})\s*$/im.exec(raw)?.[1]||raw;
+ }
+ if(!/^UUK_[a-f0-9]{48}$/i.test(key))throw Error('Backup inválido: exporte sua key pelo botão de backup do launcher original.');
+ return key;
+}
 function saveOriginalAccount(invite,key,username){
  if(!canProtectAccount())throw Error('Proteção segura do Windows indisponível. Não é possível armazenar a key.');
  const file=originalKeyLocation(invite);
@@ -594,7 +610,7 @@ app.whenReady().then(()=>{
   if(!canProtectAccount())throw Error('Criptografia local de credenciais indisponível.');
   const r=await dialog.showOpenDialog(win,{title:'Selecione o backup da sua key do Dauntless Revived',properties:['openFile'],filters:[{name:'Backup de conta',extensions:['key','txt','bin']}]});
   if(r.canceled||!r.filePaths.length)return {imported:false};
-  const key=readKeyFile(r.filePaths[0]);
+  const key=readOriginalBackup(r.filePaths[0],inspectedOriginalInvite);
   const result=await revivedPublic.validateAccount(inspectedOriginalInvite,key);
   saveOriginalAccount(inspectedOriginalInvite,key,result.username);
   inspectedOriginalInvite=null;
