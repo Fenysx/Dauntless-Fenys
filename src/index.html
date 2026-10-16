@@ -15,7 +15,7 @@
     <nav class="side-nav" aria-label="Navegação principal">
       <button class="nav-item active" data-screen="dashboard"><span>◈</span> Visão geral</button>
       <button class="nav-item" data-screen="connection"><span>⇄</span> Escolher servidor</button>
-      <button class="nav-item" data-screen="host"><span>▣</span> Hospedar servidor</button>
+      <button class="nav-item" data-screen="host"><span>▣</span> Servidor local / Hospedar</button>
       <button class="nav-item" data-screen="invites"><span>✉</span> Conta Google e convites</button>
       <button class="nav-item" data-screen="settings"><span>⚙</span> Configurações</button>
       <button class="nav-item" data-screen="activity"><span>≡</span> Atividades</button>
@@ -55,9 +55,9 @@
         
       </section>
       <section class="screen" id="screen-connection" aria-label="Conectar servidor" hidden>
-        <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Entrar no jogo</h1><p>Nenhum IP ou porta para digitar. Entre com Google, aceite um convite e escolha o servidor na lista.</p></div>
+        <div class="page-title"><span class="kicker">SERVIDORES</span><h1>Entrar no jogo</h1><p>Escolha o servidor deste PC ou conecte-se a um amigo pelo Tailscale. Conta Google e key continuam disponíveis para recuperar o personagem.</p></div>
         <article class="panel"><div class="panel-title"><h3>Preparar este computador</h3><button id="guest-network-auto" class="btn btn-red" type="button">Detectar conexão automaticamente</button></div><p id="guest-network-state" class="notice" role="status" aria-live="polite">O launcher identifica sua rede quando solicitado; não muda seu roteador.</p></article>
-        <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Para jogar usando o servidor que está instalado neste computador. Não precisa de internet pública para jogar sozinho.</p><p id="server-local-state" class="notice" role="status" aria-live="polite">Verificando servidor selecionado…</p></article>
+        <article class="panel"><div class="panel-title"><h3>Servidor local</h3><button id="server-local-select" class="btn btn-red" type="button">Selecionar servidor local</button></div><p class="panel-description">Jogue no servidor deste computador. Para receber amigos de outras casas, abra Servidor local / Hospedar e ative o modo privado Tailscale.</p><p id="server-local-state" class="notice" role="status" aria-live="polite">Verificando servidor selecionado…</p></article>
         
         
         <article class="panel fenys-panel-gap" id="tailscale-friend-test-section">
@@ -70,7 +70,7 @@
         </article>
         <article class="panel fenys-panel-gap" id="friend-code-section">
           <div class="panel-title"><h3>Entrar no servidor de um amigo</h3></div>
-          <p class="panel-description">Peça ao anfitrião um código temporário de jogador DLU3. Entre com sua conta Google antes de conectar. Na mesma rede, use o Wi-Fi; pela internet, o anfitrião precisa ter HTTPS e portas de partida acessíveis.</p>
+          <p class="panel-description">Peça ao anfitrião um código temporário de jogador DLU3. Entre com sua conta Google antes de conectar. Para amigos de outras casas, use Tailscale nos dois PCs e aceite o compartilhamento do anfitrião antes de inserir o convite.</p>
           <label for="friend-invite-code">Código do convite de jogador</label>
           <input id="friend-invite-code" type="password" maxlength="2048" autocomplete="off" placeholder="DLU3.••••••" spellcheck="false">
           <button id="friend-invite-join" class="btn btn-red" type="button">Entrar usando convite</button>
@@ -78,7 +78,7 @@
         </article>
         <article class="panel fenys-panel-gap" id="community-catalog">
           <div class="panel-title"><h3>Servidores da comunidade</h3><button id="community-list-refresh" class="btn btn-outline" type="button">Atualizar lista</button></div>
-          <p class="panel-description">Entre com Google e escolha um servidor. Os privados aparecem depois que você aceita um convite no sino 🔔. Não é preciso instalar rede virtual.</p>
+          <p class="panel-description">Entre com Google e escolha um servidor. Os privados aparecem após aceitar um convite no sino 🔔. Servidores privados hospedados por Tailscale exigem que os dois PCs estejam conectados à rede compartilhada.</p>
           <p id="community-catalog-state" class="notice" role="status">Entre com Google para carregar a comunidade.</p>
           <div id="community-server-list" class="community-list"></div>
         </article>
@@ -88,7 +88,7 @@
         
       </section>
       <section class="screen" id="screen-host" aria-label="Hospedar servidor" hidden>
-        <div class="page-title"><span class="kicker">MEU SERVIDOR</span><h1>Hospedar servidor</h1><p>Um botão para ligar. A integração com amigos e o acesso público são opcionais.</p></div>
+        <div class="page-title"><span class="kicker">MEU SERVIDOR</span><h1>Hospedar servidor</h1><p>Ligue seu servidor local e compartilhe com amigos pelo Tailscale. Sem abrir portas no roteador.</p></div>
         <article class="panel hosting-status">
           <div class="panel-title"><h3>Estado do meu servidor</h3><button id="host-refresh" class="btn btn-outline" type="button">↻ Atualizar</button></div>
           <p id="host-overview" class="notice" role="status" aria-live="polite">Verificando os serviços…</p>
@@ -225,10 +225,27 @@
         <div class="page-title"><span class="kicker">PREFERÊNCIAS</span><h1>Configurações</h1><p>Escolha a instalação do jogo. Para configurar um servidor, abra Hospedar servidor.</p></div>
         <article class="panel settings">
           
-          <details class="panel" id="legacy-account-settings"><summary><strong>Recuperação de conta antiga (avançado)</strong></summary><p class="notice">Use esta opção apenas para migrar uma chave de personagem anterior. O acesso normal é feito com Google; não crie outro personagem por cima do existente.</p><label>Minha chave de conta para este servidor</label>
-          <div class="path"><span id="accountKeyState">Não selecionada</span><button id="playerKeyPick" class="btn btn-outline">Vincular conta existente</button></div>
-          <p class="notice">Use apenas para recuperar uma conta anterior; o launcher verificará a chave no servidor antes de vincular.</p>
-          </details><label>Executável do jogo Dauntless 1.4.4</label>
+          <div class="settings-group" id="legacy-account-settings">
+            <div class="panel-title"><div><span class="kicker">CONTA E PERSONAGEM</span><h3>Recuperar personagem</h3></div><span class="chip">GOOGLE OU KEY</span></div>
+            <p class="panel-description">Use o Google como acesso principal. A chave antiga é a segunda opção de recuperação, como no launcher original. Importar a key não apaga nem substitui o personagem da nuvem.</p>
+            <div class="connection-options">
+              <div class="connection-option"><strong>① Conta Google</strong><p>Entre pelo navegador e preserve o progresso vinculado à nuvem.</p><button id="settings-open-google" class="btn btn-red" type="button">Abrir minha conta Google</button></div>
+              <div class="connection-option"><strong>② Chave original (.key / .txt)</strong><p>Selecione sua key antiga. O launcher verificará a conta no servidor escolhido.</p><p id="accountKeyState" class="notice">Não selecionada</p><div class="button-row"><button id="playerKeyPick" class="btn btn-outline" type="button">Recuperar com key</button><button id="playerKeyBackup" class="btn btn-outline" type="button">Salvar backup da key</button></div></div>
+            </div>
+            <p class="notice">Guarde seu backup fora do GitHub e não envie a key a outras pessoas. Ela pode permitir acesso ao personagem. Para vincular a mesma conta ao Google, valide o servidor de origem primeiro.</p>
+          </div><div class="settings-group" id="game-installer-section">
+            <div class="panel-title"><div><span class="kicker">ARQUIVOS DO JOGO</span><h3>Instalação e reparo • 1.4.4</h3></div></div>
+            <p class="panel-description">Baixe arquivos por uma fonte autorizada da comunidade ou use uma instalação já existente. Os arquivos recebidos serão conferidos pelo SHA-256 informado no manifesto; os binários críticos também têm hashes fixados no launcher.</p>
+            <label for="game-install-url">URL do manifesto de arquivos do host (HTTPS ou endereço Tailscale)</label>
+            <input id="game-install-url" type="url" maxlength="1000" autocomplete="off" spellcheck="false" placeholder="https://servidor-exemplo/manifest.json">
+            <label for="game-install-key">Key de download do Discord do host (se exigida)</label>
+            <input id="game-install-key" type="password" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="Cole a key apenas durante a instalação">
+            <p class="notice">A key não é enviada ao GitHub nem salva nas configurações. O host precisa disponibilizar um manifesto compatível (versão 1.4.4, caminho, tamanho e SHA-256 de cada arquivo).</p>
+            <div class="path"><span id="game-install-folder">Pasta de instalação não selecionada</span><button id="game-install-choose" class="btn btn-outline" type="button">Escolher pasta</button></div>
+            <div class="button-row"><button id="game-install-download" class="btn btn-red" type="button">↓ Baixar / reparar arquivos</button><button id="game-install-verify" class="btn btn-outline" type="button">✓ Verificar jogo instalado</button></div>
+            <p id="game-install-status" class="notice" role="status" aria-live="polite">Pronto para configurar a fonte de download.</p>
+          </div>
+          <label>Executável do jogo Dauntless 1.4.4</label>
           <div class="path"><span id="exe">Não configurado</span><button id="exePick" class="btn btn-outline">Selecionar</button></div>
           <div id="wine-settings" hidden>
             <label>Wine para Linux</label>
